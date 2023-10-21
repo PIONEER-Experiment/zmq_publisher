@@ -1,0 +1,14 @@
+{
+    "clientName": "DQM",
+    "detectorMappingFile": "/home/installation_testing/packages/unpacking/python/detector_mapping.json",
+    "verbose": false,
+    "zmqAddress": "tcp://127.0.0.1:5555",
+    "eventId": -1,
+    "triggerMask": -1,
+    "samplingType": 1,
+    "bufferSize": 33554432,
+    "maxEventSize": 20000,
+    "bufferName": "SYSTEM",
+    "cacheSize": 100000,
+    "timeoutMillis": 0
+}
