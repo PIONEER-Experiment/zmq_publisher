@@ -1,0 +1,39 @@
+# Ignore compiled files and executables
+*.o
+*.out
+*.app
+*.exe
+
+# Ignore build and output directories
+/build/
+/bin/
+/Debug/
+/Release/
+
+# Ignore generated files
+CMakeFiles/
+CMakeScripts/
+CMakeCache.txt
+CMakeCache.txt.lock
+compile_commands.json
+
+# Ignore IDE-specific files and directories
+.idea/
+.vscode/
+*.suo
+*.user
+*.sln
+*.sdf
+
+# Ignore text editor backup files
+*~
+*.swp
+
+# Ignore system and OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore dependencies and installed packages
+/lib/
+/vendor/
+/packages/
