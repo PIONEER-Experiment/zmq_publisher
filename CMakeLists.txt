@@ -30,23 +30,27 @@ include("${ROOT_DIR}/RootMacros.cmake")
 # Find and use the zlib library
 find_package(ZLIB REQUIRED)
 
-
-if (${CMAKE_SYSTEM_NAME} MATCHES Linux)
-   set(PUBLISHER_LIBS ${PUBLISHER_LIBS} -lpthread -lutil -lrt)
-endif()
-
 # Create the publisher executable
-add_executable(publisher main.cpp data_transmitter/DataTransmitter.cpp event_processor/EventProcessor.cpp midas_connector/MidasConnector.cpp)
+add_executable(publisher)
+
+target_sources(publisher
+   PRIVATE
+   data_transmitter/DataTransmitter.cpp
+   event_processor/EventProcessor.cpp
+   midas_connector/MidasConnector.cpp
+   utilities/ProjectPrinter.cpp
+   main.cpp
+)
 
 # Define libraries for the "publisher" target
 set(PUBLISHER_LIBS
-
-   #Midas libs
+   # Midas libs
    $ENV{MIDASSYS}/lib/libmfe.a
    $ENV{MIDASSYS}/lib/libmidas.a
 
-   #ROOT libs
+   # ROOT libs
    $ENV{ROOTSYS}/lib/libCore.so
+   ${ROOT_LIBRARIES}
 
    # Include unpacking libraries
    $ENV{UNPACKING_ROOT}/lib/libdataProducts.so
@@ -60,7 +64,15 @@ set(PUBLISHER_LIBS
 
    # Include Boost Libraries
    ${Boost_LIBRARIES}
+
+   # Include ZLIB::ZLIB
+   ZLIB::ZLIB
 )
+
+if (${CMAKE_SYSTEM_NAME} MATCHES Linux)
+   # Add Linux-specific flags to PUBLISHER_LIBS
+   list(APPEND PUBLISHER_LIBS -lpthread -lutil -lrt)
+endif()
 
 target_include_directories(publisher PRIVATE
    # Include Root directories
@@ -85,13 +97,14 @@ target_include_directories(publisher PRIVATE
    ${CMAKE_SOURCE_DIR}/data_transmitter
    ${CMAKE_SOURCE_DIR}/event_processor
    ${CMAKE_SOURCE_DIR}/midas_connector
+   ${CMAKE_SOURCE_DIR}/utilities
 
    # Include Boost Directory
    ${Boost_INCLUDE_DIRS}
 )
 
 # Link the "publisher" with libraries including zlib
-target_link_libraries(publisher PRIVATE ${PUBLISHER_LIBS} ZLIB::ZLIB ${ROOT_LIBRARIES} -lrt)
+target_link_libraries(publisher PRIVATE ${PUBLISHER_LIBS})
 target_compile_definitions(publisher
    PRIVATE -DWD2_DONT_INCLUDE_REG_ACCESS_VARS
    PRIVATE -DDCB_DONT_INCLUDE_REG_ACCESS_VARS)
@@ -100,4 +113,4 @@ set_property(TARGET publisher PROPERTY CXX_STANDARD 17)
 # Set the installation directory to the parent directory
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}") # Install to the parent directory
 
-install(TARGETS publisher DESTINATION ${CMAKE_INSTALL_PREFIX}/publisher)
+install(TARGETS publisher DESTINATION ${CMAKE_INSTALL_PREFIX})

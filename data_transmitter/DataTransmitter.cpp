@@ -1,4 +1,5 @@
 #include "DataTransmitter.h"
+#include "ProjectPrinter.h"
 
 DataTransmitter::DataTransmitter(const std::string& zmqAddress)
     : context(1), publisher(context, ZMQ_PUB), zmqAddress(zmqAddress) {
@@ -26,7 +27,8 @@ bool DataTransmitter::publish(const std::string& data) {
         zmq::message_t message(data.size());
         memcpy(message.data(), data.c_str(), data.size());
         publisher.send(message, zmq::send_flags::none);
-        std::cout << "Published to address " << zmqAddress << ": " << data << std::endl;
+        ProjectPrinter printer;
+        printer.Print("Published to address " + zmqAddress + ": " + data);
         return true;
     } catch (const zmq::error_t& e) {
         // Handle any send errors

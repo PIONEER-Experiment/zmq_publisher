@@ -1,0 +1,9 @@
+{
+    "print_line_number": true,
+    "print_filename": true,
+    "prefix": "data_transmitter",
+    "suffix": "",
+    "info_color": "white",
+    "warning_color": "yellow",
+    "error_color": "red"
+}

@@ -1,8 +1,14 @@
 #include "event_processor/EventProcessor.h"
 #include "data_transmitter/DataTransmitter.h"
+#include "data_transmitter/DataBuffer.h"
 #include "midas_connector/MidasConnector.h"
+#include "utilities/ProjectPrinter.h"
 #include "json.hpp"
 #include <fstream>
+
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define CONFIG_FILE "config.json" // Define the configuration file constant
+ProjectPrinter printer; //Command line printing tools for the project
 
 // Function to initialize MIDAS and open an event buffer
 bool initializeMidas(MidasConnector& midasConnector, const nlohmann::json& config) {
@@ -35,17 +41,41 @@ bool initializeMidas(MidasConnector& midasConnector, const nlohmann::json& confi
     return true;
 }
 
-int main() {
-    // Read configuration from a JSON file
+// Function to get the configuration file path
+std::string getConfigFilePath() {
+    // Get the directory of the source file
+    std::string sourceDirectory = __FILE__;
+    sourceDirectory = sourceDirectory.substr(0, sourceDirectory.find_last_of('/'));
+
+    // Build the full path to the configuration file
+    return sourceDirectory + "/" + CONFIG_FILE;
+}
+
+// Function to read the configuration from the file
+nlohmann::json readConfigFile() {
+    std::string configFilePath = getConfigFilePath();
     nlohmann::json config;
-    std::ifstream configFile("config.json");
-    configFile >> config;
-    configFile.close();
+    std::ifstream configFile(configFilePath);
+    if (!configFile) {
+        std::string errorMessage = "Failed to open configuration file: " + configFilePath;
+        printer.PrintError(errorMessage, __LINE__, __FILENAME__);
+        throw std::runtime_error(errorMessage);
+    } else {
+        configFile >> config;
+        configFile.close();
+    }
+    return config;
+}
+
+int main() {
+
+    // Read configuration from the JSON file
+    nlohmann::json config = readConfigFile();
 
     // Initialize MidasConnector and connect to the MIDAS experiment
     MidasConnector midasConnector(config["clientName"].get<std::string>().c_str());
     if (!initializeMidas(midasConnector, config)) {
-        printf("Error: Failed to initialize MIDAS.\n");
+        printer.PrintError("Failed to initialize MIDAS.", __LINE__, __FILE__);
         return 1;
     }
 
@@ -61,15 +91,17 @@ int main() {
     // Initialize DataTransmitter with the ZeroMQ address
     DataTransmitter dataPublisher(config["zmqAddress"].get<std::string>());
 
+    // Initialize DataBuffer with a specified buffer size
+    DataBuffer<std::string> eventBuffer(config["numEventsInBuffer"].get<size_t>());
+
     // Connect to the ZeroMQ server
     if (!dataPublisher.bind()) {
         // Handle connection error
-        printf("Error: Failed to bind to port %s.\n", config["zmqAddress"].get<std::string>().c_str());
+        printer.PrintError("Failed to bind to port " + config["zmqAddress"].get<std::string>(), __LINE__, __FILE__);
         return 1;
     } else {
-        printf("Connected to the ZeroMQ server.\n");
+        printer.Print("Connected to the ZeroMQ server.");
     }
-
 
     // Event processing loop
     while (true) {
@@ -82,10 +114,13 @@ int main() {
         // Serialize the event data with EventProcessor and store it in serializedData
         std::string serializedData = eventProcessor.getSerializedData();
 
+        // Add serialized data to the buffer
+        eventBuffer.Push(serializedData);
+        std::string bufferData = eventBuffer.SerializeBuffer();
+
         // Send the serialized data to the ZeroMQ server with DataTransmitter
-        if (!dataPublisher.publish(serializedData)) {
-            // Handle send error
-            printf("Error: Failed to send serialized data.\n");
+        if (!dataPublisher.publish(bufferData)) {
+            printer.PrintError("Failed to send serialized data.", __LINE__, __FILE__);
         }
     }
 

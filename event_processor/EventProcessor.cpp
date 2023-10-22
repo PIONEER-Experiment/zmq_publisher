@@ -1,8 +1,9 @@
 #include "EventProcessor.h"
+#include "ProjectPrinter.h"
 
 EventProcessor::EventProcessor(const std::string& detectorMappingFile, bool verbose)
     : eventUnpacker(new unpackers::BasicEventUnpacker()), // Changed the name to eventUnpacker
-      serializer(new unpackers::Serializer(detectorMappingFile,0,0,0)),
+      serializer(new unpackers::Serializer(detectorMappingFile, 0, 0, 0)),
       serialized_data(""),
       verbose(verbose) {
 }
@@ -29,28 +30,31 @@ void EventProcessor::processEvent(void* event_data, INT max_event_size) {
     serializer->SetEvent(tmEvent.serial_number);
     serializer->SetWaveforms(waveformCollection);
     std::string serializedData = serializer->GetString();
-    setSerializedData(serializer->GetString());
+    setSerializedData(serializedData);
 }
 
 void EventProcessor::verbosePrint(TMEvent tmEvent) {
+    // Use ProjectPrinter for verbose output
+    ProjectPrinter printer;
+
     // Access event properties
-    printf("Event ID: %d\n", tmEvent.event_id);
-    printf("Trigger Mask: %d\n", tmEvent.trigger_mask);
-    printf("Serial Number: %d\n", tmEvent.serial_number);
-    printf("Time Stamp: %d\n", tmEvent.time_stamp);
-    printf("Data Size: %d bytes\n", tmEvent.data_size);
-    printf("Event Header Size: %zu bytes\n", tmEvent.event_header_size);
-    printf("Bank Header Flags: %u\n", tmEvent.bank_header_flags);
+    printer.Print("Event ID: " + std::to_string(tmEvent.event_id));
+    printer.Print("Trigger Mask: " + std::to_string(tmEvent.trigger_mask));
+    printer.Print("Serial Number: " + std::to_string(tmEvent.serial_number));
+    printer.Print("Time Stamp: " + std::to_string(tmEvent.time_stamp));
+    printer.Print("Data Size: " + std::to_string(tmEvent.data_size) + " bytes");
+    printer.Print("Event Header Size: " + std::to_string(tmEvent.event_header_size) + " bytes");
+    printer.Print("Bank Header Flags: " + std::to_string(tmEvent.bank_header_flags));
 
     // Access event banks
     tmEvent.FindAllBanks();
-    printf("Number of Banks: %zu\n", tmEvent.banks.size());
+    printer.Print("Number of Banks: " + std::to_string(tmEvent.banks.size()));
 
     for (const TMBank& bank : tmEvent.banks) {
-        printf("Bank Name: %s\n", bank.name.c_str());
-        printf("Bank Type: %u\n", bank.type);
-        printf("Bank Data Size: %u bytes\n", bank.data_size);
-        printf("Bank Data Offset: %zu bytes\n", bank.data_offset);
+        printer.Print("Bank Name: " + bank.name);
+        printer.Print("Bank Type: " + std::to_string(bank.type));
+        printer.Print("Bank Data Size: " + std::to_string(bank.data_size) + " bytes");
+        printer.Print("Bank Data Offset: " + std::to_string(bank.data_offset) + " bytes");
 
         // Access bank data
         char* bankData = const_cast<char*>(tmEvent.GetBankData(&bank));
@@ -59,13 +63,13 @@ void EventProcessor::verbosePrint(TMEvent tmEvent) {
         size_t numEntries = bank.data_size / sizeof(int);
 
         // Print the number of entries
-        printf("Number of Entries: %zu\n", numEntries);
+        printer.Print("Number of Entries: " + std::to_string(numEntries));
 
         // Print the first 5 entries
-        printf("Data:");
+        printer.Print("Data: ");
         for (size_t i = 0; i < numEntries; i++) {
             int entryValue = *reinterpret_cast<int*>(bankData + i * sizeof(int));
-            printf(" %d", entryValue);
+            printer.Print(std::to_string(entryValue));
         }
     }
 }

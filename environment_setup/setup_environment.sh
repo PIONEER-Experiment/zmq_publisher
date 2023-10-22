@@ -37,10 +37,10 @@ done
 # Check if run_script is true before executing the main functionality
 if [ "$run_script" = true ]; then
     # Check if enable scripts exist and source them, otherwise, warn the user
-    if [ -f "/opt/rh/devtoolset-8/enable" ]; then
-        source /opt/rh/devtoolset-8/enable
+    if [ -f "/opt/rh/devtoolset-11/enable" ]; then
+        source /opt/rh/devtoolset-11/enable
     else
-        echo "Warning: devtoolset-8 enable script not found."
+        echo "Warning: devtoolset-11 enable script not found."
     fi
 
     # Read environment variables from the file
@@ -69,7 +69,6 @@ if [ "$run_script" = true ]; then
     fi
 
     # Specify the location of ROOT and the path to thisroot.sh
-    ROOT_ROOT=/home/installation_testing/packages/ROOT
     ROOT_SETUP_SCRIPT=$ROOT_ROOT/root_install/bin/thisroot.sh
 
     # Check if the thisroot.sh script exists

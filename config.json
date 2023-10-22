@@ -10,5 +10,6 @@
     "maxEventSize": 20000,
     "bufferName": "SYSTEM",
     "cacheSize": 100000,
-    "timeoutMillis": 0
+    "timeoutMillis": 0,
+    "eventBufferSize": 6
 }
