@@ -36,6 +36,8 @@ public:
     bool SetCacheSize(int cacheSize);
     bool RequestEvent();
     bool ReceiveEvent(void* eventBuffer, int& maxEventSize);
+    bool SetWatchdogParams(bool callWatchdog, DWORD timeout);
+
 
 private:
     char client_name_[NAME_LENGTH];

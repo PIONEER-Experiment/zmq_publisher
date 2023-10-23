@@ -11,7 +11,7 @@
 
 class EventProcessor {
 public:
-    EventProcessor(const std::string& detectorMappingFile, bool verbose = false);
+    EventProcessor(const std::string& detectorMappingFile, int verbose = 0);
     ~EventProcessor();
 
     void processEvent(void* event_data, INT max_event_size);
@@ -41,7 +41,7 @@ private:
     unpackers::EventUnpacker* eventUnpacker; // Updated to use the base class
     unpackers::Serializer* serializer;
     std::string serialized_data;
-    bool verbose;
+    int verbose;
 
     void verbosePrint(TMEvent tmEvent);
 };

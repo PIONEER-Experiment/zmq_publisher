@@ -1,4 +1,5 @@
 #include "MidasConnector.h"
+#include "ProjectPrinter.h"
 
 MidasConnector::MidasConnector(const char* clientName) {
     // Initialize client name
@@ -114,4 +115,21 @@ bool MidasConnector::ReceiveEvent(void* eventBuffer, int& maxEventSize) {
     int status = bm_receive_event(hBufEvent, eventBuffer, &maxEventSize, timeout_millis);
     return status == BM_SUCCESS;
 }
+
+bool MidasConnector::SetWatchdogParams(bool callWatchdog, DWORD timeout) {
+    // Call the cm_set_watchdog_params function
+    int status = cm_set_watchdog_params(callWatchdog, timeout);
+
+    // Check the result and return success status
+    if (status == CM_SUCCESS) {
+        return true;
+    } else {
+        // Handle the error or return false
+        ProjectPrinter printer; // Initialize your ProjectPrinter
+        printer.PrintError("Failed to set watchdog parameters.", __LINE__, __FILE__);
+        return false;
+    }
+}
+
+
 

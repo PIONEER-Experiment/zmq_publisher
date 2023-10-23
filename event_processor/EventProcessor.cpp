@@ -1,7 +1,7 @@
 #include "EventProcessor.h"
 #include "ProjectPrinter.h"
 
-EventProcessor::EventProcessor(const std::string& detectorMappingFile, bool verbose)
+EventProcessor::EventProcessor(const std::string& detectorMappingFile, int verbose)
     : eventUnpacker(new unpackers::BasicEventUnpacker()), // Changed the name to eventUnpacker
       serializer(new unpackers::Serializer(detectorMappingFile, 0, 0, 0)),
       serialized_data(""),
@@ -18,7 +18,9 @@ void EventProcessor::processEvent(void* event_data, INT max_event_size) {
     // Process the event
     TMEvent tmEvent(event_data, max_event_size);
 
-    if (verbose) {
+    if (verbose > 2) {
+        ProjectPrinter printer;
+        printer.Print(std::to_string(verbose));
         verbosePrint(tmEvent);
     }
 
@@ -67,10 +69,14 @@ void EventProcessor::verbosePrint(TMEvent tmEvent) {
 
         // Print the first 5 entries
         printer.Print("Data: ");
+        std::string dataString;
+
         for (size_t i = 0; i < numEntries; i++) {
             int entryValue = *reinterpret_cast<int*>(bankData + i * sizeof(int));
-            printer.Print(std::to_string(entryValue));
+            dataString += std::to_string(entryValue) + " ";
         }
+
+        printer.Print(dataString);
     }
 }
 

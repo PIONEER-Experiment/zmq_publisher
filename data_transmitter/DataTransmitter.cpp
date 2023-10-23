@@ -1,8 +1,8 @@
 #include "DataTransmitter.h"
 #include "ProjectPrinter.h"
 
-DataTransmitter::DataTransmitter(const std::string& zmqAddress)
-    : context(1), publisher(context, ZMQ_PUB), zmqAddress(zmqAddress) {
+DataTransmitter::DataTransmitter(const std::string& zmqAddress, int verbose)
+    : context(1), publisher(context, ZMQ_PUB), zmqAddress(zmqAddress), verbose(verbose) {
     // Constructor initializes ZeroMQ socket
 }
 
@@ -22,16 +22,31 @@ bool DataTransmitter::bind() {
     }
 }
 
-bool DataTransmitter::publish(const std::string& data) {
+bool DataTransmitter::publish(const std::string& channel, const std::string& data) {
     try {
+        // Send the channel (topic)
+        zmq::message_t channelMessage(channel.size());
+        memcpy(channelMessage.data(), channel.c_str(), channel.size());
+        publisher.send(channelMessage, zmq::send_flags::sndmore);
+
+        // Send the actual message content
         zmq::message_t message(data.size());
         memcpy(message.data(), data.c_str(), data.size());
         publisher.send(message, zmq::send_flags::none);
-        ProjectPrinter printer;
-        printer.Print("Published to address " + zmqAddress + ": " + data);
+
+        if (verbose > 1) {
+            ProjectPrinter printer;
+            printer.Print("Published to channel " + channel + " at address " + zmqAddress + ": " + data);
+        }
+
         return true;
     } catch (const zmq::error_t& e) {
-        // Handle any send errors
+        ProjectPrinter printer;
+        printer.PrintError("Failed to send data to address " + zmqAddress, __LINE__, __FILE__);
         return false;
     }
+}
+
+void DataTransmitter::setVerbose(int verboseLevel) {
+    verbose = verboseLevel;
 }

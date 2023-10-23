@@ -38,7 +38,9 @@ target_sources(publisher
    data_transmitter/DataTransmitter.cpp
    event_processor/EventProcessor.cpp
    midas_connector/MidasConnector.cpp
+   data_grabber/EventGrabber.cpp
    utilities/ProjectPrinter.cpp
+   utilities/EventLoopManager.cpp
    main.cpp
 )
 
@@ -71,7 +73,7 @@ set(PUBLISHER_LIBS
 
 if (${CMAKE_SYSTEM_NAME} MATCHES Linux)
    # Add Linux-specific flags to PUBLISHER_LIBS
-   list(APPEND PUBLISHER_LIBS -lpthread -lutil -lrt)
+   list(APPEND PUBLISHER_LIBS -lpthread -lutil -lrt -ldl)
 endif()
 
 target_include_directories(publisher PRIVATE
@@ -95,6 +97,7 @@ target_include_directories(publisher PRIVATE
 
    # Include publisher classes
    ${CMAKE_SOURCE_DIR}/data_transmitter
+   ${CMAKE_SOURCE_DIR}/data_grabber
    ${CMAKE_SOURCE_DIR}/event_processor
    ${CMAKE_SOURCE_DIR}/midas_connector
    ${CMAKE_SOURCE_DIR}/utilities
