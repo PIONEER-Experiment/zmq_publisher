@@ -106,6 +106,9 @@ search_and_set_directory_or_file 5 "zeroMQ" "ZEROMQ_ROOT" "d" ""
 # Search for "cppzmq" directory backward with a timeout of 5 seconds
 search_and_set_directory_or_file 5 "cppzmq" "CPPZMQ_ROOT" "d" ""
 
+# Search for "eigen" directory backward with a timeout of 5 seconds
+search_and_set_directory_or_file 5 "eigen-3.4.0" "EIGEN_ROOT" "d" ""
+
 MIDAS_EXPT_NAME=$(timeout 5 sed -n '2{p;q}' "$MIDAS_EXPTAB" | awk '{print $1}')
 if [ -z "$MIDAS_EXPT_NAME" ]; then
     echo "Warning: The second line in $MIDAS_EXPTAB is empty or doesn't exist."
@@ -121,5 +124,6 @@ echo "ROOT_ROOT=$ROOT_ROOT" >> environment_variables.txt
 echo "BOOST_1_70_0_ROOT=$BOOST_1_70_0_ROOT" >> environment_variables.txt
 echo "ZEROMQ_ROOT=$ZEROMQ_ROOT" >> environment_variables.txt
 echo "CPPZMQ_ROOT=$CPPZMQ_ROOT" >> environment_variables.txt
+echo "EIGEN_ROOT=$EIGEN_ROOT" >> environment_variables.txt
 echo
 echo "Directory detection completed and environment variables saved to environment_variables.txt."

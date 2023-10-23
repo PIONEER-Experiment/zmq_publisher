@@ -105,4 +105,5 @@ if [ "$run_script" = true ]; then
     echo "BOOST_1_70_0_ROOT environment variable set to: $BOOST_1_70_0_ROOT"
     echo "ZEROMQ_ROOT environment variable set to: $ZEROMQ_ROOT"
     echo "CPPZMQ_ROOT environment variable set to: $CPPZMQ_ROOT"
+    echo "EIGEN_ROOT environment variable set to: $EIGEN_ROOT"
 fi
