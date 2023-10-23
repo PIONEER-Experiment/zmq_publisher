@@ -1,10 +1,14 @@
 {
     "client-name": "Data Publisher",
     "detector-mapping-file": "/home/installation_testing/packages/unpacking/python/detector_mapping.json",
-    "verbose": 2,
+    "verbose": 1,
     "zmq-address": "tcp://127.0.0.1:5555",
     "zmq-data-channel-name": "DATA",
+    "zmq-data-channel-events-per-batch": 5,
+    "zmq-data-channel-events-ignored-after-batch": 5,
     "zmq-odb-channel-name": "ODB",
+    "zmq-odb-channel-events-per-batch": 1,
+    "zmq-odb-channel-events-ignored-after-batch": 10,
     "event-id": -1,
     "trigger-mask": -1,
     "sampling-type": 2,
@@ -14,8 +18,11 @@
     "cache-size": 100000,
     "timeout-millis": 0,
     "num-events-in-buffer": 2,
-    "events-before-sleep": 0,
-    "sleep-time-millis": 5000,
+
+
+    "BROKEN_CONFIG_BELOW": "BROKEN_CONFIG_BELOW!",
     "call-watchdog": false,
-    "watchdog-timeout-millis": 1000000
+    "watchdog-timeout-millis": 1000000,
+    "events-before-sleep": 0,
+    "sleep-time-millis": 5000
 }

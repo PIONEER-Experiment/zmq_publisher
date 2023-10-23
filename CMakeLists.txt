@@ -17,6 +17,11 @@ endif()
 if (NOT DEFINED ENV{BOOST_1_70_0_ROOT})
    message(SEND_ERROR "BOOST_1_70_0_ROOT environment variable not defined.")
 endif()
+if (NOT DEFINED ENV{EIGEN_ROOT})
+   message(SEND_ERROR "EIGEN_ROOT environment variable not defined.")
+endif()
+
+
 if(DEFINED ENV{BOOST_1_70_0_ROOT})
     # Append the BOOST_1_70_0_ROOT to CMAKE_PREFIX_PATH
     list(APPEND CMAKE_PREFIX_PATH "$ENV{BOOST_1_70_0_ROOT}")
@@ -36,9 +41,9 @@ add_executable(publisher)
 target_sources(publisher
    PRIVATE
    data_transmitter/DataTransmitter.cpp
+   data_transmitter/DataChannel.cpp
    event_processor/EventProcessor.cpp
    midas_connector/MidasConnector.cpp
-   data_grabber/EventGrabber.cpp
    utilities/ProjectPrinter.cpp
    utilities/EventLoopManager.cpp
    main.cpp
@@ -97,13 +102,15 @@ target_include_directories(publisher PRIVATE
 
    # Include publisher classes
    ${CMAKE_SOURCE_DIR}/data_transmitter
-   ${CMAKE_SOURCE_DIR}/data_grabber
    ${CMAKE_SOURCE_DIR}/event_processor
    ${CMAKE_SOURCE_DIR}/midas_connector
    ${CMAKE_SOURCE_DIR}/utilities
 
    # Include Boost Directory
    ${Boost_INCLUDE_DIRS}
+
+   # Include Eigen Directory
+   $ENV{EIGEN_ROOT}
 )
 
 # Link the "publisher" with libraries including zlib

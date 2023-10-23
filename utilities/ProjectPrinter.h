@@ -3,6 +3,9 @@
 
 #include <string>
 #include <nlohmann/json.hpp>
+#include <chrono>
+#include <ctime>
+
 
 class ProjectPrinter {
 public:
@@ -23,6 +26,7 @@ public:
     std::string getPrefix() const;
     std::string getSuffix() const;
     nlohmann::json getConfig() const;
+    bool shouldPrintTime() const;
 
     // Setters for new local variables
     void setInfoColor(const std::string& color);
@@ -32,6 +36,7 @@ public:
     void setPrefix(const std::string& newPrefix);
     void setSuffix(const std::string& newSuffix);
     void setConfig(const nlohmann::json& newConfig);
+    void setPrintTime(bool printTime);
 
 private:
     void Initialize(const std::string& configPath);
@@ -39,6 +44,7 @@ private:
     std::string buildMessageString(const std::string& message, const std::string& status, int lineNumber, const std::string& filename) const;
     std::string colorizeString(const std::string& message, const std::string& color) const;
     std::string getColorCode(const std::string& color) const;
+    std::string getCurrentTime() const;
 
     nlohmann::json config;
     std::string infoColor;
@@ -47,6 +53,7 @@ private:
     bool printLineNumber;
     std::string prefix;
     std::string suffix;
+    bool printTime;
 };
 
 #endif // PROJECTPRINTER_H

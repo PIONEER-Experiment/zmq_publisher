@@ -1,6 +1,7 @@
 #include "event_processor/EventProcessor.h"
 #include "data_transmitter/DataTransmitter.h"
 #include "data_transmitter/DataBuffer.h"
+#include "data_transmitter/DataChannel.h"
 #include "midas_connector/MidasConnector.h"
 #include "utilities/ProjectPrinter.h"
 #include "utilities/EventLoopManager.h"
@@ -21,6 +22,8 @@ bool initializeMidas(MidasConnector& midasConnector, const nlohmann::json& confi
     midasConnector.setBufferSize(config["buffer-size"].get<int>());
     midasConnector.setBufferName(config["buffer-name"].get<std::string>().c_str());
     midasConnector.setBufferSize(config["buffer-size"].get<int>());
+    midasConnector.setTimeout(0);
+    //Broken currently, keep at 0
     midasConnector.setTimeout(config["timeout-millis"].get<int>());
     //Broken currently
     //midasConnector.SetWatchdogParams(config["call-watchdog"].get<bool>(),static_cast<DWORD>(config["watchdog-timeout-millis"].get<int>()));
@@ -110,8 +113,27 @@ int main() {
     DataBuffer<std::string> eventBuffer(config["num-events-in-buffer"].get<size_t>() + 1);
 
     //Initialize EventLoopManager with specified events per sleep time and sleep duration
-    EventLoopManager eventLoopManager(config["events-before-sleep"].get<int>(),config["sleep-time-millis"].get<int>(),config["timeout-millis"].get<int>(),config["verbose"].get<int>());
+    // Variable inputs are broken currently
+    //EventLoopManager eventLoopManager(config["events-before-sleep"].get<int>(),config["sleep-time-millis"].get<int>(),config["timeout-millis"].get<int>(),config["verbose"].get<int>());
+    EventLoopManager eventLoopManager(0,0,0,config["verbose"].get<int>());
 
+
+    // Make Data Channels
+    DataChannel dataBankChannel(
+        config["zmq-data-channel-name"].get<std::string>(),
+        config["zmq-data-channel-events-per-batch"].get<int>(),
+        config["zmq-data-channel-events-ignored-after-batch"].get<int>()
+    );
+    DataChannel odbChannel(
+        config["zmq-odb-channel-name"].get<std::string>(),
+        config["zmq-odb-channel-events-per-batch"].get<int>(),
+        config["zmq-odb-channel-events-ignored-after-batch"].get<int>()
+    );
+    
+    if (config["verbose"].get<int>() > 0) {
+        dataBankChannel.printAttributes();
+        odbChannel.printAttributes();
+    }
 
     // Connect to the ZeroMQ server
     if (!dataPublisher.bind()) {
@@ -137,10 +159,10 @@ int main() {
             std::string bufferData = eventBuffer.SerializeBuffer();
 
             // Send the serialized data to the ZeroMQ server with DataTransmitter
-            if (!dataPublisher.publish(config["zmq-data-channel-name"].get<std::string>(), bufferData)) {
+            if (!dataPublisher.publish(dataBankChannel, bufferData)) {
                 printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
             }
-            if (!dataPublisher.publish(config["zmq-odb-channel-name"].get<std::string>(),odb_json)) {
+            if (!dataPublisher.publish(odbChannel,odb_json)) {
                 printer.PrintError("Failed to send serialized data to channel: " + config["zmq-odb-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
             }
         }

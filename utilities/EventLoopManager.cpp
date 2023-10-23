@@ -8,7 +8,7 @@ EventLoopManager::EventLoopManager(int maxEventsPerSleep, int sleepTimeMillis, i
 void EventLoopManager::ManageLoop(int success) {
     if (verbose > 1 && success != 1) {
         ProjectPrinter printer;
-        printer.Print("Timed out (" + std::to_string(timeoutMillis) + " ms)");
+        printer.Print("Event Request timed out (" + std::to_string(timeoutMillis) + " ms)");
     }
     Update();
     if (DoSleep()) {

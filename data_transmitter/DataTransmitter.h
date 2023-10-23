@@ -5,6 +5,7 @@
 #include <zmq.hpp>
 #include <iostream>
 #include "ProjectPrinter.h"
+#include "DataChannel.h"
 
 class DataTransmitter {
 public:
@@ -12,7 +13,7 @@ public:
     ~DataTransmitter();
 
     bool bind();
-    bool publish(const std::string& channel, const std::string& data);
+    bool publish(DataChannel& dataChannel, const std::string& data);
 
     // Setter for verbosity control
     void setVerbose(int enableVerbose);

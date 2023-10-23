@@ -23,6 +23,7 @@ ProjectPrinter::ProjectPrinter(bool useConfig) {
         warningColor = "yellow";
         errorColor = "red";
         printLineNumber = true;
+        printTime = true;
         prefix = "";
         suffix = "";
     }
@@ -38,6 +39,7 @@ void ProjectPrinter::Initialize(const std::string& configPath) {
     warningColor = config["warning_color"];
     errorColor = config["error_color"];
     printLineNumber = config["print_line_number"];
+    printTime = config["print_current_time"];
     prefix = config["prefix"];
     suffix = config["suffix"];
 }
@@ -77,8 +79,14 @@ std::string ProjectPrinter::buildMessageString(const std::string& message, const
     std::string messageString;
     std::string trimmedFilename = filename;
 
+    // Include the current time within curly braces before everything else
+    if (shouldPrintTime()) {
+        std::string currentTime = getCurrentTime();
+        messageString += "{" + currentTime + "} ";
+    }
+
     if (!getPrefix().empty() || !filename.empty() || lineNumber > 0) {
-        messageString = "[";
+        messageString += "[";
 
         if (!getPrefix().empty()) {
             messageString += getPrefix();
@@ -94,7 +102,7 @@ std::string ProjectPrinter::buildMessageString(const std::string& message, const
             if (lastSeparator != std::string::npos) {
                 trimmedFilename = filename.substr(lastSeparator + 1);
             }
-            
+
             messageString += " at (" + trimmedFilename + ":" + std::to_string(lineNumber) + ")";
         }
 
@@ -104,6 +112,19 @@ std::string ProjectPrinter::buildMessageString(const std::string& message, const
     messageString += message;
     return messageString;
 }
+
+
+std::string ProjectPrinter::getCurrentTime() const{
+    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    struct tm timeInfo;
+    localtime_r(&now, &timeInfo);
+    
+    char timeBuffer[9]; // Room for "hh:mm:ss\0"
+    strftime(timeBuffer, sizeof(timeBuffer), "%H:%M:%S", &timeInfo);
+    
+    return std::string(timeBuffer);
+}
+
 
 std::string ProjectPrinter::colorizeString(const std::string& message, const std::string& color) const {
     std::string colorCode = getColorCode(color);
@@ -156,6 +177,11 @@ std::string ProjectPrinter::getSuffix() const {
     return suffix;
 }
 
+bool ProjectPrinter::shouldPrintTime() const {
+    return printTime;
+}
+
+
 nlohmann::json ProjectPrinter::getConfig() const {
     return config;
 }
@@ -187,5 +213,9 @@ void ProjectPrinter::setSuffix(const std::string& newSuffix) {
 
 void ProjectPrinter::setConfig(const nlohmann::json& newConfig) {
     config = newConfig;
+}
+
+void ProjectPrinter::setPrintTime(bool printTime) {
+    this->printTime = printTime;
 }
 
