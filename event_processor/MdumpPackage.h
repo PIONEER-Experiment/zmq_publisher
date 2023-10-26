@@ -8,6 +8,7 @@ class MdumpPackage {
 public:
     MdumpPackage(const std::string& mdumpOutput);
     void displayEventsDetails() const;
+    const std::vector<MidasEvent>& getEvents() const;
 
     // Add any other methods or members you need
 private:

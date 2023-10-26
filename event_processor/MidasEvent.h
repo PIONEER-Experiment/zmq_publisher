@@ -9,6 +9,8 @@ class MidasEvent {
 public:
     MidasEvent(const std::string& eventInfo);
     void displayEventDetails() const;
+    int getSerialNumber() const;
+    const std::vector<MidasBank>& getBanks() const;
 
 private:
     int eventId;

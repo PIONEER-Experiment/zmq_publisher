@@ -1,27 +1,29 @@
 {
     "START GENERAL SETTINGS": "settings used whether use-mdump is set to true or false",
     "use-mdump": true,
-    "verbose": 1,
+    "verbose": 3,
     "detector-mapping-file": "/home/installation_testing/packages/unpacking/python/detector_mapping.json",
-    "num-events-in-circular-buffer": 2,
+    "num-events-in-circular-buffer": 4,
     "zmq-address": "tcp://127.0.0.1:5555",
     "zmq-data-channel-name": "DATA",
     "zmq-data-channel-publishes-per-batch": 1,
     "zmq-data-channel-publishes-ignored-after-batch": 0,
+    "publish-odb": true,
+    "grab-ODB-interval-millis": 10000,
+    "ODB-grabber-client-name": "ODB Grabber", 
     "zmq-odb-channel-name": "ODB",
     "zmq-odb-channel-publishes-per-batch": 1,
-    "zmq-odb-channel-publishes-ignored-after-batch": 10,
+    "zmq-odb-channel-publishes-ignored-after-batch": 0,
     "STOP GENERAL SETTINGS": "settings used whether use-mdump is set to true or false",
 
     "START MDUMP ON SETTINGS": "settings for when use-mdump is set to true",
     "mdump-commands": {
         "mdump-command-1": {
             "num-events": 1,
-            "bank-name": "CR00",
             "event-id": -1,
             "buffer-name": "SYSTEM",
             "trigger-mask": -1,
-            "minimum-time-between-commands-millis": 1
+            "minimum-time-between-commands-millis": 100
         }
     },
     "END MDUMP ON SETTINGS": "settings for when use-mdump is set to true",
@@ -39,7 +41,7 @@
     "END MDUMP OFF SETTINGS": "settings for when use-mdump is set to false",
 
 
-    "BROKEN_CONFIG_BELOW": "BROKEN_CONFIG_BELOW!",
+    "BROKEN CONFIG BELOW": "BROKEN_CONFIG_BELOW!",
     "call-watchdog": false,
     "watchdog-timeout-millis": 1000000,
     "events-before-sleep": 0,

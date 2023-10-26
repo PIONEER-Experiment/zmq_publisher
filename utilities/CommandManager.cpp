@@ -48,7 +48,21 @@ std::string CommandManager::execute() {
     return output;
 }
 
-bool CommandManager::isReadyForExecution(std::chrono::milliseconds timeBetweenExecutions) const {
+bool CommandManager::isReadyForExecution() const {
     auto currentTime = std::chrono::high_resolution_clock::now();
-    return (currentTime - lastExecutionTime) >= timeBetweenExecutions;
+    return (currentTime - lastExecutionTime) >= std::chrono::milliseconds(waitTime_);
+}
+
+std::string CommandManager::getCommand() const {
+    // Build the command string from the vector of strings
+    std::string command;
+    for (const std::string& arg : commandWithArgs_) {
+        command += arg;
+        command += ' ';
+    }
+    return command;
+}
+
+int CommandManager::getWaitTime() const {
+    return waitTime_;
 }

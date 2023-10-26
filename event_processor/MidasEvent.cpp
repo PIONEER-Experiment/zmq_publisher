@@ -119,3 +119,11 @@ void MidasEvent::displayEventDetails() const {
         banks[i].displayBankData();
     }
 }
+
+int MidasEvent::getSerialNumber() const {
+    return serialNumber;
+}
+
+const std::vector<MidasBank>& MidasEvent::getBanks() const {
+    return banks;
+}

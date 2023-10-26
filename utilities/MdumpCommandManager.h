@@ -9,7 +9,6 @@ public:
 
     void setEventCount(int count);
     void setOutputFormat(const std::string& format);
-    void setWaitTime(double seconds);
     void setDisplayMode(const std::string& mode);
     void setBankName(const std::string& bankName);
     void setEventId(int eventId);

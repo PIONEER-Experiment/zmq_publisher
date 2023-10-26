@@ -31,3 +31,7 @@ void MdumpPackage::displayEventsDetails() const {
         event.displayEventDetails();
     }
 }
+
+const std::vector<MidasEvent>& MdumpPackage::getEvents() const {
+    return events;
+}

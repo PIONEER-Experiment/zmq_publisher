@@ -47,6 +47,7 @@ target_sources(publisher
    event_processor/MidasEvent.cpp
    event_processor/MdumpPackage.cpp
    midas_connector/MidasConnector.cpp
+   midas_connector/ODBGrabber.cpp
    utilities/ProjectPrinter.cpp
    utilities/EventLoopManager.cpp
    utilities/CommandManager.cpp

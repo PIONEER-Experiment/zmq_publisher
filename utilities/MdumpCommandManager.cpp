@@ -18,7 +18,7 @@ void MdumpCommandManager::setOutputFormat(const std::string& format) {
     }
 }
 
-void MdumpCommandManager::setWaitTime(double seconds) {
+void MdumpCommandManager::setMdumpWaitTime(double seconds) {
     if (seconds > 0) {
         commandWithArgs_.push_back("-w");
         commandWithArgs_.push_back(std::to_string(seconds));

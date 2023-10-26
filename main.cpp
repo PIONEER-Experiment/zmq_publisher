@@ -6,10 +6,19 @@
 #include "data_transmitter/DataBuffer.h"
 #include "data_transmitter/DataChannel.h"
 #include "midas_connector/MidasConnector.h"
+#include "midas_connector/ODBGrabber.h"
 #include "utilities/ProjectPrinter.h"
 #include "utilities/EventLoopManager.h"
 #include "utilities/CommandManager.h"
 #include "utilities/MdumpCommandManager.h"
+
+#include "midas.h"
+#include "midasio.h"
+#include "unpackers/BasicEventUnpacker.hh"
+#include "unpackers/EventUnpacker.hh" // Include the base EventUnpacker class
+#include "serializer/Serializer.hh"
+#include "dataProducts/Waveform.hh"
+
 
 #include <nlohmann/json.hpp>
 #include "odbxx.h"
@@ -19,6 +28,9 @@
 #include <sstream>
 #include <chrono>
 #include <thread>
+#include <termios.h>
+#include <unistd.h>
+#include <stdio.h>
 
 using json = nlohmann::json;
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -141,22 +153,28 @@ std::vector<MdumpCommandManager> processMdumpCommands(const json& config, const 
     return mdumpCommands;
 }
 
+int findSmallestWaitTime(const std::vector<MdumpCommandManager>& mdumpCommands) {
+    int smallestWaitTime = std::numeric_limits<int>::max(); // Initialize with a large value
 
-int main1() {
-    // Read configuration from the JSON file
-    nlohmann::json config = readConfigFile();
-
-
-    // Initialize MidasConnector and connect to the MIDAS experiment
-    MidasConnector midasConnector(config["client-name"].get<std::string>().c_str());
-    if (!initializeMidas(midasConnector, config)) {
-        printer.PrintError("Failed to initialize MIDAS.", __LINE__, __FILE__);
-        return 1;
+    for (const MdumpCommandManager& command : mdumpCommands) {
+        int waitTime = command.getWaitTime();
+        if (waitTime < smallestWaitTime) {
+            smallestWaitTime = waitTime;
+        }
     }
 
-    //Get the ODB
-    midas::odb exp("/");
-    std::string odb_json = exp.dump();
+    return smallestWaitTime;
+}
+
+int mdumpOff(nlohmann::json config) {
+    // Save the terminal settings to restore them later
+    struct termios original_termios;
+    tcgetattr(STDIN_FILENO, &original_termios);
+
+    // Set terminal to non-canonical mode with no echo
+    struct termios new_termios = original_termios;
+    new_termios.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
 
     // Read the maximum event size from the JSON configuration
     INT max_event_size = config["max-event-size"].get<int>();
@@ -178,6 +196,7 @@ int main1() {
     //EventLoopManager eventLoopManager(config["events-before-sleep"].get<int>(),config["sleep-time-millis"].get<int>(),config["timeout-millis"].get<int>(),config["verbose"].get<int>());
     EventLoopManager eventLoopManager(0,0,0,config["verbose"].get<int>());
 
+    ODBGrabber odbGrabber(config["ODB-grabber-client-name"].get<std::string>().c_str(), config["grab-ODB-interval-millis"].get<int>());
 
     // Make Data Channels
     DataChannel dataBankChannel(
@@ -206,7 +225,24 @@ int main1() {
     }
 
     // Event processing loop
-    while (true) {
+    bool quitRequested = false;
+    char userInput;
+    while (!quitRequested) {
+        userInput = 0;
+        if (read(STDIN_FILENO, &userInput, 1) == 1) {
+            // Check if the user pressed 'q' (case-insensitive)
+            if (tolower(userInput) == 'q') {
+                quitRequested = true;
+            }
+        }
+
+        // Initialize MidasConnector and connect to the MIDAS experiment
+        MidasConnector midasConnector(config["client-name"].get<std::string>().c_str());
+        if (!initializeMidas(midasConnector, config)) {
+            printer.PrintError("Failed to initialize MIDAS.", __LINE__, __FILE__);
+            return 1;
+        }
+
         int success = midasConnector.ReceiveEvent(event_data,max_event_size);
         if (success == BM_SUCCESS) {
             // Process data once we have it
@@ -223,23 +259,27 @@ int main1() {
             if (!dataPublisher.publish(dataBankChannel, bufferData)) {
                 printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
             }
-            if (!dataPublisher.publish(odbChannel,odb_json)) {
+        }
+        if (odbGrabber.isReadyToGrab() && config["publish-odb"].get<bool>()) {
+            odbGrabber.grabODB();
+            std::string odbJson = odbGrabber.getODBJson();
+            if (!dataPublisher.publish(odbChannel, odbJson)) {
                 printer.PrintError("Failed to send serialized data to channel: " + config["zmq-odb-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
             }
         }
+
         eventLoopManager.ManageLoop(success);
+        midasConnector.DisconnectFromExperiment(); // Disconnect from the MIDAS experiment
     }
 
-    // Cleanup and finalize your application
-    midasConnector.DisconnectFromExperiment(); // Disconnect from the MIDAS experiment
+    // Restore the original terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+    
 
     return 0;
 }
 
-int main() {
-
-    // Read configuration from the JSON file
-    nlohmann::json config = readConfigFile();
+int mdumpOn(nlohmann::json config) {
     // Get the value of the MIDASSYS environment variable
     char* midasSysPath = std::getenv("MIDASSYS");
 
@@ -248,42 +288,89 @@ int main() {
         return 1;
     }
 
-    // Create the command to periodically run
-    std::string command = std::string(midasSysPath) + "/bin/mdump";
+    std::vector<MdumpCommandManager> mdumpCommands = processMdumpCommands(config, std::string(midasSysPath) + "/bin/mdump");
+    int tickTime = findSmallestWaitTime(mdumpCommands);
 
-    // Print the environment variable and command
-    std::cout << "MIDASSYS Path: " << midasSysPath << std::endl;
-    std::cout << "Command to run: " << command << std::endl;
+    ODBGrabber odbGrabber(config["ODB-grabber-client-name"].get<std::string>().c_str(), config["grab-ODB-interval-millis"].get<int>());
 
+    EventProcessor eventProcessor(config["detector-mapping-file"].get<std::string>(), config["verbose"].get<int>());
+
+    // Initialize DataBuffer with a specified buffer size
+    DataBuffer<std::string> eventBuffer(config["num-events-in-circular-buffer"].get<size_t>() + 1);
+
+    // Initialize DataTransmitter with the ZeroMQ address
+    DataTransmitter dataPublisher(config["zmq-address"].get<std::string>(), config["verbose"].get<int>());
+
+    // Make Data Channels
+    DataChannel dataBankChannel(
+        config["zmq-data-channel-name"].get<std::string>(),
+        config["zmq-data-channel-publishes-per-batch"].get<int>(),
+        config["zmq-data-channel-publishes-ignored-after-batch"].get<int>()
+    );
+    DataChannel odbChannel(
+        config["zmq-odb-channel-name"].get<std::string>(),
+        config["zmq-odb-channel-publishes-per-batch"].get<int>(),
+        config["zmq-odb-channel-publishes-ignored-after-batch"].get<int>()
+    );
+    
     // Set the interval for running the command (in seconds)
     int intervalSeconds = 3;
-
-    std::vector<MdumpCommandManager> mdumpCommands = processMdumpCommands(config, command);
-    
     while (true) {
-        // Use the CommandOutputCapture class to execute the command and capture the output
-        MdumpCommandManager runner(command);
-        runner.setEventCount(2);
-        std::string output;
+        for (MdumpCommandManager& command : mdumpCommands) {
+            if (!command.isReadyForExecution()) {
+                continue;
+            }
+            if (config["verbose"].get<int>() > 0) {
+                printer.Print(command.getCommand());
+            }
+            std::string output;
+            try {
+                output = command.execute();
+            } catch (const std::exception& e) {
+                printer.PrintError("Error: " + std::string(e.what()), __LINE__, __FILENAME__);
+                return 1;
+            }
 
-        try {
-            output = runner.execute();
-        } catch (const std::exception& e) {
-            std::cerr << "Error: " << e.what() << std::endl;
-            return 1;
+            // Now, pass the remaining string to the MdasEvent constructor
+            MdumpPackage mdumpPackage(output);
+            for (const MidasEvent& event : mdumpPackage.getEvents()) {
+                if (eventProcessor.processEvent(event) == 0) {
+                    // Serialize the event data with EventProcessor and store it in serializedData
+                    std::string serializedData = eventProcessor.getSerializedData();
+                    eventBuffer.Push(serializedData);
+                }
+            }
+
+            std::string bufferData = eventBuffer.SerializeBuffer();
+            // Send the serialized data to the ZeroMQ server with DataTransmitter
+            if (!dataPublisher.publish(dataBankChannel, bufferData)) {
+                printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
+            }
+
+            if (odbGrabber.isReadyToGrab() && config["publish-odb"].get<bool>()) {
+                odbGrabber.grabODB();
+                std::string odbJson = odbGrabber.getODBJson();
+                if (!dataPublisher.publish(odbChannel, odbJson)) {
+                    printer.PrintError("Failed to send serialized data to channel: " + config["zmq-odb-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
+                }
+            }
+
+            // Sleep for the specified interval before running the next command
+            std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));
         }
-
-        // Print the output of the command
-        std::cout << "Command Output:" << std::endl;
-        std::cout << output;
-
-        // Now, pass the remaining string to the MdasEvent constructor
-        MdumpPackage mdumpPackage(output);
-        mdumpPackage.displayEventsDetails();
-
-        // Sleep for the specified interval before running the command again
-        std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
     }
 
     return 0;
+}
+
+
+int main(int argc, char* argv[]) {
+    // Read configuration from the JSON file
+    nlohmann::json config = readConfigFile();
+
+    if (config["use-mdump"].get<bool>()) {
+        return mdumpOn(config);
+    } else {
+        return mdumpOff(config);
+    }
 }

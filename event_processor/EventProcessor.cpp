@@ -5,7 +5,8 @@ EventProcessor::EventProcessor(const std::string& detectorMappingFile, int verbo
     : eventUnpacker(new unpackers::BasicEventUnpacker()), // Changed the name to eventUnpacker
       serializer(new unpackers::Serializer(detectorMappingFile, 0, 0, 0)),
       serialized_data(""),
-      verbose(verbose) {
+      verbose(verbose),
+      lastSerialNumberProcessed(0) {
 }
 
 EventProcessor::~EventProcessor() {
@@ -14,7 +15,7 @@ EventProcessor::~EventProcessor() {
     delete serializer;
 }
 
-void EventProcessor::processEvent(void* event_data, INT max_event_size) {
+int EventProcessor::processEvent(void* event_data, INT max_event_size) {
     // Process the event
     TMEvent tmEvent(event_data, max_event_size);
 
@@ -33,7 +34,32 @@ void EventProcessor::processEvent(void* event_data, INT max_event_size) {
     serializer->SetWaveforms(waveformCollection);
     std::string serializedData = serializer->GetString();
     setSerializedData(serializedData);
+    return 0;
 }
+
+int EventProcessor::processEvent(const MidasEvent& event) {
+    if (!isNewEvent(event)) {
+        return 1;
+    }
+    updateLastSerialNumberProcessed(event.getSerialNumber());
+    for (const MidasBank& bank : event.getBanks()) {
+        if (bank.getBankName() == "CR00") {
+            // Get data in a form the unpacker likes
+            uint64_t* bankData = bank.getBankDataAsUint64();
+            int totalWords = bank.getNumUint64Words();
+
+            // Unpack and Serialize
+            eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, "CR00");
+            auto waveformCollection = eventUnpacker->GetCollection<dataProducts::Waveform>("WaveformCollection");
+            serializer->SetEvent(event.getSerialNumber());
+            serializer->SetWaveforms(waveformCollection);
+            std::string serializedData = serializer->GetString();
+            setSerializedData(serializedData);
+        }
+    }
+    return 0;
+}
+
 
 void EventProcessor::verbosePrint(TMEvent tmEvent) {
     // Use ProjectPrinter for verbose output
@@ -78,6 +104,19 @@ void EventProcessor::verbosePrint(TMEvent tmEvent) {
 
         printer.Print(dataString);
     }
+}
+
+void EventProcessor::updateLastSerialNumberProcessed(int serialNumber) {
+    if (serialNumber > lastSerialNumberProcessed) {
+        lastSerialNumberProcessed = serialNumber;
+    }
+}
+
+bool EventProcessor::isNewEvent(MidasEvent event) {
+    if (event.getSerialNumber() > lastSerialNumberProcessed) {
+        return true;
+    }
+    return false;
 }
 
 // Getter for the serializer

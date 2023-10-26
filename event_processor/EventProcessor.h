@@ -8,13 +8,15 @@
 #include "serializer/Serializer.hh"
 #include "dataProducts/Waveform.hh"
 #include <string>
+#include "MidasEvent.h"
 
 class EventProcessor {
 public:
     EventProcessor(const std::string& detectorMappingFile, int verbose = 0);
     ~EventProcessor();
 
-    void processEvent(void* event_data, INT max_event_size);
+    int processEvent(void* event_data, INT max_event_size);
+    int processEvent(const MidasEvent& event);
 
     // Getter for the serializer
     unpackers::Serializer* getSerializer();
@@ -42,8 +44,11 @@ private:
     unpackers::Serializer* serializer;
     std::string serialized_data;
     int verbose;
+    int lastSerialNumberProcessed;
 
     void verbosePrint(TMEvent tmEvent);
+    void updateLastSerialNumberProcessed(int serialNumber);
+    bool isNewEvent(MidasEvent event);
 };
 
 #endif // EVENTPROCESSOR_H

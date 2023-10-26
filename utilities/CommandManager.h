@@ -7,14 +7,15 @@
 
 class CommandManager {
 public:
-    //CommandManager() : waitTime_(0) {}
     CommandManager(const std::string& command);
     CommandManager(const std::vector<std::string>& commandWithArgs);
 
     void addArgument(const std::string& arg);
     void setWaitTime(int milliseconds);
     std::string execute();
-    bool isReadyForExecution(std::chrono::milliseconds time) const;
+    bool isReadyForExecution() const;
+    std::string getCommand() const;
+    int getWaitTime() const;
     
 protected:
     std::vector<std::string> commandWithArgs_;
