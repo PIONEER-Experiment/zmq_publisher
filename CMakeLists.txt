@@ -43,9 +43,14 @@ target_sources(publisher
    data_transmitter/DataTransmitter.cpp
    data_transmitter/DataChannel.cpp
    event_processor/EventProcessor.cpp
+   event_processor/MidasBank.cpp
+   event_processor/MidasEvent.cpp
+   event_processor/MdumpPackage.cpp
    midas_connector/MidasConnector.cpp
    utilities/ProjectPrinter.cpp
    utilities/EventLoopManager.cpp
+   utilities/CommandManager.cpp
+   utilities/MdumpCommandManager.cpp
    main.cpp
 )
 

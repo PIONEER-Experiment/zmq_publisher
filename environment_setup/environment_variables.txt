@@ -6,3 +6,4 @@ ROOT_ROOT=/home/installation_testing/packages/ROOT
 BOOST_1_70_0_ROOT=/home/installation_testing/packages/boost-1.70.0
 ZEROMQ_ROOT=/home/installation_testing/packages/zeroMQ
 CPPZMQ_ROOT=/home/installation_testing/packages/cppzmq
+EIGEN_ROOT=/home/installation_testing/packages/eigen-3.4.0

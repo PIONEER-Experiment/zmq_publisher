@@ -1,28 +1,48 @@
 {
-    "client-name": "Data Publisher",
-    "detector-mapping-file": "/home/installation_testing/packages/unpacking/python/detector_mapping.json",
+    "START GENERAL SETTINGS": "settings used whether use-mdump is set to true or false",
+    "use-mdump": true,
     "verbose": 1,
+    "detector-mapping-file": "/home/installation_testing/packages/unpacking/python/detector_mapping.json",
+    "num-events-in-circular-buffer": 2,
     "zmq-address": "tcp://127.0.0.1:5555",
     "zmq-data-channel-name": "DATA",
-    "zmq-data-channel-events-per-batch": 5,
-    "zmq-data-channel-events-ignored-after-batch": 5,
+    "zmq-data-channel-publishes-per-batch": 1,
+    "zmq-data-channel-publishes-ignored-after-batch": 0,
     "zmq-odb-channel-name": "ODB",
-    "zmq-odb-channel-events-per-batch": 1,
-    "zmq-odb-channel-events-ignored-after-batch": 10,
+    "zmq-odb-channel-publishes-per-batch": 1,
+    "zmq-odb-channel-publishes-ignored-after-batch": 10,
+    "STOP GENERAL SETTINGS": "settings used whether use-mdump is set to true or false",
+
+    "START MDUMP ON SETTINGS": "settings for when use-mdump is set to true",
+    "mdump-commands": {
+        "mdump-command-1": {
+            "num-events": 1,
+            "bank-name": "CR00",
+            "event-id": -1,
+            "buffer-name": "SYSTEM",
+            "trigger-mask": -1,
+            "minimum-time-between-commands-millis": 1
+        }
+    },
+    "END MDUMP ON SETTINGS": "settings for when use-mdump is set to true",
+
+
+    "START MDUMP OFF SETTINGS": "settings for when use-mdump is set to false",
+    "client-name": "Data Publisher",
     "event-id": -1,
     "trigger-mask": -1,
     "sampling-type": 2,
     "buffer-size": 33554432,
     "max-event-size": 20000,
-    "buffer-name": "SYSTEM",
     "cache-size": 100000,
-    "timeout-millis": 0,
-    "num-events-in-buffer": 2,
+    "buffer-name": "SYSTEM",
+    "END MDUMP OFF SETTINGS": "settings for when use-mdump is set to false",
 
 
     "BROKEN_CONFIG_BELOW": "BROKEN_CONFIG_BELOW!",
     "call-watchdog": false,
     "watchdog-timeout-millis": 1000000,
     "events-before-sleep": 0,
-    "sleep-time-millis": 5000
+    "sleep-time-millis": 5000,
+    "timeout-millis": 0
 }
