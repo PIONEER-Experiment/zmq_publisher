@@ -313,8 +313,15 @@ int mdumpOn(nlohmann::json config) {
         config["zmq-odb-channel-publishes-ignored-after-batch"].get<int>()
     );
     
-    // Set the interval for running the command (in seconds)
-    int intervalSeconds = 3;
+    // Connect to the ZeroMQ server
+    if (!dataPublisher.bind()) {
+        // Handle connection error
+        printer.PrintError("Failed to bind to port " + config["zmq-address"].get<std::string>(), __LINE__, __FILENAME__);
+        return 1;
+    } else {
+        printer.Print("Connected to the ZeroMQ server.");
+    }
+
     while (true) {
         for (MdumpCommandManager& command : mdumpCommands) {
             if (!command.isReadyForExecution()) {
