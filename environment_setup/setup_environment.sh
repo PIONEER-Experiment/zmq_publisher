@@ -36,6 +36,15 @@ done
 
 # Check if run_script is true before executing the main functionality
 if [ "$run_script" = true ]; then
+
+    SOURCE=${BASH_SOURCE[0]}
+    while [ -L "$SOURCE" ]; do
+        DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+        SOURCE=$(readlink "$SOURCE")
+        [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE
+    done
+    script_directory=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+
     # Check if enable scripts exist and source them, otherwise, warn the user
     if [ -f "/opt/rh/devtoolset-11/enable" ]; then
         source /opt/rh/devtoolset-11/enable
@@ -55,7 +64,7 @@ if [ "$run_script" = true ]; then
         else
             echo "Warning: $name is empty."
         fi
-    done < environment_variables.txt
+    done < "$script_directory/environment_variables.txt"
 
 
     # Check if the flag for adding MIDASSYS to PATH is present
