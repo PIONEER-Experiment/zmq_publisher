@@ -24,7 +24,7 @@ bool ODBGrabber::isReadyToGrab() {
 }
 
 bool ODBGrabber::grabODB() {
-    CommandManager odbCommand({odbEditCommandPath, "-c", "json"});
+    CommandManager odbCommand({odbEditCommandPath, "-c", "json", "-q"});
 
     // Execute the odbedit command
     std::string odbOutput = odbCommand.execute();
