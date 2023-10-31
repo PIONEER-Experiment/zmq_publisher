@@ -19,4 +19,4 @@ Install instructions:
 "detector-mapping-file": "/home/installation_testing/packages/unpacking/python/detector_mapping.json"
 needs to be set to a valid detector mapping. The unpacking library has one in unpacking/python/detector_mapping.json]
 
-13. ./publisher
+12. ./publisher
