@@ -13,4 +13,10 @@ Install instructions:
 8. cmake3 ..
 9. make install -j$(nproc)
 10. cd ..
-121. ./publisher
+11. vi  config.json
+
+[Edit the config to match your specifications usings your favorite text editor. In particular, 
+"detector-mapping-file": "/home/installation_testing/packages/unpacking/python/detector_mapping.json"
+needs to be set to a valid detector mapping. The unpacking library has one in unpacking/python/detector_mapping.json]
+
+13. ./publisher
