@@ -52,6 +52,7 @@ target_sources(publisher
    utilities/EventLoopManager.cpp
    utilities/CommandManager.cpp
    utilities/MdumpCommandManager.cpp
+   utilities/SignalHandler.cpp
    main.cpp
 )
 

@@ -37,3 +37,7 @@ Thumbs.db
 /lib/
 /vendor/
 /packages/
+
+#Ignore custom files
+midas_publisher.log
+

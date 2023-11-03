@@ -1,3 +1,6 @@
+
+
+//Project Specific headers
 #include "event_processor/EventProcessor.h"
 #include "event_processor/MidasEvent.h"
 #include "event_processor/MidasBank.h"
@@ -11,17 +14,19 @@
 #include "utilities/EventLoopManager.h"
 #include "utilities/CommandManager.h"
 #include "utilities/MdumpCommandManager.h"
+#include "SignalHandler.h"
 
+//Special "External" Headers
 #include "midas.h"
 #include "midasio.h"
 #include "unpackers/BasicEventUnpacker.hh"
-#include "unpackers/EventUnpacker.hh" // Include the base EventUnpacker class
+#include "unpackers/EventUnpacker.hh"
 #include "serializer/Serializer.hh"
 #include "dataProducts/Waveform.hh"
-
-
-#include <nlohmann/json.hpp>
 #include "odbxx.h"
+
+//Standard Libraries
+#include <nlohmann/json.hpp>
 #include <fstream>
 #include <cstdlib>
 #include <iostream>
@@ -312,7 +317,7 @@ int mdumpOn(nlohmann::json config) {
         config["zmq-odb-channel-publishes-per-batch"].get<int>(),
         config["zmq-odb-channel-publishes-ignored-after-batch"].get<int>()
     );
-    
+
     // Connect to the ZeroMQ server
     if (!dataPublisher.bind()) {
         // Handle connection error
@@ -322,7 +327,7 @@ int mdumpOn(nlohmann::json config) {
         printer.Print("Connected to the ZeroMQ server.");
     }
 
-    while (true) {
+    while (!SignalHandler::getInstance().isQuitSignalReceived()) {
         for (MdumpCommandManager& command : mdumpCommands) {
             if (!command.isReadyForExecution()) {
                 continue;
@@ -354,7 +359,7 @@ int mdumpOn(nlohmann::json config) {
                 printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
             }
 
-            if (odbGrabber.isReadyToGrab() && config["publish-odb"].get<bool>()) {
+            if (odbGrabber.isReadyToGrab() and config["publish-odb"].get<bool>()) {
                 odbGrabber.grabODB();
                 std::string odbJson = odbGrabber.getODBJson();
                 if (!dataPublisher.publish(odbChannel, odbJson)) {
@@ -366,6 +371,8 @@ int mdumpOn(nlohmann::json config) {
             std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));
         }
     }
+
+    printer.Print("Received quit signal. Exiting the loop.");
 
     return 0;
 }
