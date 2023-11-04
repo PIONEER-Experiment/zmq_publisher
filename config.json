@@ -2,7 +2,7 @@
     "START GENERAL SETTINGS": "settings used whether use-mdump is set to true or false",
     "use-mdump": true,
     "verbose": 3,
-    "detector-mapping-file": "/home/installation_testing/packages/unpacking/python/detector_mapping.json",
+    "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
     "num-events-in-circular-buffer": 4,
     "zmq-address": "tcp://127.0.0.1:5555",
     "zmq-data-channel-name": "DATA",

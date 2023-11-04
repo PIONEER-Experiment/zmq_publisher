@@ -53,6 +53,7 @@ target_sources(publisher
    utilities/CommandManager.cpp
    utilities/MdumpCommandManager.cpp
    utilities/SignalHandler.cpp
+   utilities/JsonManager.cpp
    main.cpp
 )
 

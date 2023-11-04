@@ -62,9 +62,9 @@ screen -S "$screen_session_name" -X stuff $"source $setup_script\n"
 
 # Run your desired command with or without logging
 if [ "$log_enabled" = true ]; then
-    screen -S "$screen_session_name" -X stuff $"./publisher | tee -a $log_file\n"
+    screen -S "$screen_session_name" -X stuff $"echo 'Output is logged to $log_file.'\n"
+    screen -S "$screen_session_name" -X stuff $"./publisher > $log_file 2>&1\n"
     echo "Started './publisher' inside a new screen session with environment variables set. Output is logged to $log_file."
 else
     screen -S "$screen_session_name" -X stuff $"./publisher\n"
-    echo "Started './publisher' inside a new screen session with environment variables set. Output is not logged."
 fi

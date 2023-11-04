@@ -14,7 +14,8 @@
 #include "utilities/EventLoopManager.h"
 #include "utilities/CommandManager.h"
 #include "utilities/MdumpCommandManager.h"
-#include "SignalHandler.h"
+#include "utilities/SignalHandler.h"
+#include "utilities/JsonManager.h"
 
 //Special "External" Headers
 #include "midas.h"
@@ -38,8 +39,6 @@
 #include <stdio.h>
 
 using json = nlohmann::json;
-#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define CONFIG_FILE "config.json" // Define the configuration file constant
 ProjectPrinter printer; // Command line printing tools for the project
 
 // Function to initialize MIDAS and open an event buffer
@@ -76,38 +75,6 @@ bool initializeMidas(MidasConnector& midasConnector, const nlohmann::json& confi
     }
 
     return true;
-}
-
-// Function to get the configuration file path
-std::string getConfigFilePath() {
-    // Get the directory of the source file
-    std::string sourceDirectory = __FILE__;
-    sourceDirectory = sourceDirectory.substr(0, sourceDirectory.find_last_of('/'));
-
-    // Build the full path to the configuration file
-    return sourceDirectory + "/" + CONFIG_FILE;
-}
-
-// Function to read the configuration from the file
-nlohmann::json readConfigFile() {
-    std::string configFilePath = getConfigFilePath();
-    nlohmann::json config;
-    std::ifstream configFile(configFilePath);
-    if (!configFile) {
-        std::string errorMessage = "Failed to open configuration file: " + configFilePath;
-        printer.PrintError(errorMessage, __LINE__, __FILENAME__);
-        throw std::runtime_error(errorMessage);
-    } else {
-        try {
-            configFile >> config;
-            configFile.close();
-        } catch (const nlohmann::json::exception& e) {
-            std::string errorMessage = "Error while parsing JSON: " + std::string(e.what());
-            printer.PrintError(errorMessage, __LINE__, __FILENAME__);
-            throw std::runtime_error(errorMessage);
-        }
-    }
-    return config;
 }
 
 std::vector<MdumpCommandManager> processMdumpCommands(const json& config, const std::string& mdumpPath) {
@@ -223,7 +190,7 @@ int mdumpOff(nlohmann::json config) {
     // Connect to the ZeroMQ server
     if (!dataPublisher.bind()) {
         // Handle connection error
-        printer.PrintError("Failed to bind to port " + config["zmq-address"].get<std::string>(), __LINE__, __FILENAME__);
+        printer.PrintError("Failed to bind to port " + config["zmq-address"].get<std::string>(), __LINE__, __FILE__);
         return 1;
     } else {
         printer.Print("Connected to the ZeroMQ server.");
@@ -262,14 +229,14 @@ int mdumpOff(nlohmann::json config) {
 
             // Send the serialized data to the ZeroMQ server with DataTransmitter
             if (!dataPublisher.publish(dataBankChannel, bufferData)) {
-                printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
+                printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILE__);
             }
         }
         if (odbGrabber.isReadyToGrab() && config["publish-odb"].get<bool>()) {
             odbGrabber.grabODB();
             std::string odbJson = odbGrabber.getODBJson();
             if (!dataPublisher.publish(odbChannel, odbJson)) {
-                printer.PrintError("Failed to send serialized data to channel: " + config["zmq-odb-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
+                printer.PrintError("Failed to send serialized data to channel: " + config["zmq-odb-channel-name"].get<std::string>(), __LINE__, __FILE__);
             }
         }
 
@@ -321,7 +288,7 @@ int mdumpOn(nlohmann::json config) {
     // Connect to the ZeroMQ server
     if (!dataPublisher.bind()) {
         // Handle connection error
-        printer.PrintError("Failed to bind to port " + config["zmq-address"].get<std::string>(), __LINE__, __FILENAME__);
+        printer.PrintError("Failed to bind to port " + config["zmq-address"].get<std::string>(), __LINE__, __FILE__);
         return 1;
     } else {
         printer.Print("Connected to the ZeroMQ server.");
@@ -339,7 +306,7 @@ int mdumpOn(nlohmann::json config) {
             try {
                 output = command.execute();
             } catch (const std::exception& e) {
-                printer.PrintError("Error: " + std::string(e.what()), __LINE__, __FILENAME__);
+                printer.PrintError("Error: " + std::string(e.what()), __LINE__, __FILE__);
                 return 1;
             }
 
@@ -356,14 +323,14 @@ int mdumpOn(nlohmann::json config) {
             std::string bufferData = eventBuffer.SerializeBuffer();
             // Send the serialized data to the ZeroMQ server with DataTransmitter
             if (!dataPublisher.publish(dataBankChannel, bufferData)) {
-                printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
+                printer.PrintError("Failed to send serialized data to channel: " + config["zmq-data-channel-name"].get<std::string>(), __LINE__, __FILE__);
             }
 
             if (odbGrabber.isReadyToGrab() and config["publish-odb"].get<bool>()) {
                 odbGrabber.grabODB();
                 std::string odbJson = odbGrabber.getODBJson();
                 if (!dataPublisher.publish(odbChannel, odbJson)) {
-                    printer.PrintError("Failed to send serialized data to channel: " + config["zmq-odb-channel-name"].get<std::string>(), __LINE__, __FILENAME__);
+                    printer.PrintError("Failed to send serialized data to channel: " + config["zmq-odb-channel-name"].get<std::string>(), __LINE__, __FILE__);
                 }
             }
 
@@ -379,8 +346,8 @@ int mdumpOn(nlohmann::json config) {
 
 
 int main(int argc, char* argv[]) {
-    // Read configuration from the JSON file
-    nlohmann::json config = readConfigFile();
+    // Access the JsonManager instance and config
+    nlohmann::json config = JsonManager::getInstance().getConfig();
 
     if (config["use-mdump"].get<bool>()) {
         return mdumpOn(config);
