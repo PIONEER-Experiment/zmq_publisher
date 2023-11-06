@@ -1,17 +1,32 @@
 #include "DataChannel.h"
 #include "ProjectPrinter.h"
 
-// Constructor
+// Constructors
+DataChannel::DataChannel()
+    : name(""), eventsBeforeBreak(0), eventsToIgnoreInBreak(0),
+      eventsPublished(0), eventsSeen(0), onBreak(false), eventsSeenOnBreak(0) {
+}
+
 DataChannel::DataChannel(const std::string& name, int eventsBeforeBreak, int eventsToIgnoreInBreak)
     : name(name), eventsBeforeBreak(eventsBeforeBreak), eventsToIgnoreInBreak(eventsToIgnoreInBreak),
       eventsPublished(0), eventsSeen(0), onBreak(false), eventsSeenOnBreak(0) {}
 
-// Getter for name
+void DataChannel::setName(const std::string& name) {
+    this->name = name;
+}
+
+void DataChannel::setEventsBeforeBreak(int eventsBeforeBreak) {
+    this->eventsBeforeBreak = eventsBeforeBreak;
+}
+
+void DataChannel::setEventsToIgnoreInBreak(int eventsToIgnoreInBreak) {
+    this->eventsToIgnoreInBreak = eventsToIgnoreInBreak;
+}
+
 const std::string& DataChannel::getName() const {
     return name;
 }
 
-// Getters for various attributes
 int DataChannel::getEventsBeforeBreak() const {
     return eventsBeforeBreak;
 }

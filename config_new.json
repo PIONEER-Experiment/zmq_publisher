@@ -1,0 +1,37 @@
+{
+    "general-settings": {
+        "use-mdump": true,
+        "verbose": 3
+    },
+    "data-channels": {
+        "mdump-channel": {
+            "zmq-address": "tcp://127.0.0.1:5555",
+            "name": "DATA",
+            "publishes-per-batch": 1,
+            "publishes-ignored-after-batch": 0,
+            "num-events-in-circular-buffer": 5,
+            "commands": [
+                {
+                    "processor": "CR00Processor",
+                    "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
+                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z SYSTEM",
+                    "frequency-ms": 500
+                }
+            ]
+        },
+        "odb-channel": {
+            "zmq-address": "tcp://127.0.0.1:5555",
+            "name": "ODB",
+            "publishes-per-batch": 1,
+            "publishes-ignored-after-batch": 0,
+            "num-events-in-circular-buffer": 2,
+            "commands": [
+                {
+                    "processor": "ODBProcessor",
+                    "command": "$(MIDASSYS)/bin/odbedit -c json -q",
+                    "frequency-ms": 60000
+                }
+            ]
+        }
+    }    
+}

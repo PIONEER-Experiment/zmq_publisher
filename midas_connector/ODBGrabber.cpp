@@ -1,6 +1,6 @@
 #include "ODBGrabber.h"
 #include "ProjectPrinter.h"
-#include "CommandManager.h"
+#include "CommandRunner.h"
 #include <iostream>
 #include <sstream>
 #include <cstdlib> // For getenv
@@ -24,7 +24,7 @@ bool ODBGrabber::isReadyToGrab() {
 }
 
 bool ODBGrabber::grabODB() {
-    CommandManager odbCommand({odbEditCommandPath, "-c", "json", "-q"});
+    CommandRunner odbCommand({odbEditCommandPath, "-c", "json", "-q"});
 
     // Execute the odbedit command
     std::string odbOutput = odbCommand.execute();

@@ -42,16 +42,23 @@ target_sources(publisher
    PRIVATE
    data_transmitter/DataTransmitter.cpp
    data_transmitter/DataChannel.cpp
+   data_transmitter/DataChannelManager.cpp
    event_processor/EventProcessor.cpp
    event_processor/MidasBank.cpp
    event_processor/MidasEvent.cpp
    event_processor/MdumpPackage.cpp
    midas_connector/MidasConnector.cpp
    midas_connector/ODBGrabber.cpp
+   command_management/CommandRunner.cpp
+   command_management/MdumpCommandRunner.cpp
+   command_management/ChannelCommandsManager.cpp
+   processors/GeneralProcessor.cpp
+   processors/GeneralProcessorFactory.cpp
+   processors/CommandProcessor.cpp
+   processors/CRProcessor.cpp
+   processors/ODBProcessor.cpp
    utilities/ProjectPrinter.cpp
    utilities/EventLoopManager.cpp
-   utilities/CommandManager.cpp
-   utilities/MdumpCommandManager.cpp
    utilities/SignalHandler.cpp
    utilities/JsonManager.cpp
    main.cpp
@@ -113,6 +120,8 @@ target_include_directories(publisher PRIVATE
    ${CMAKE_SOURCE_DIR}/event_processor
    ${CMAKE_SOURCE_DIR}/midas_connector
    ${CMAKE_SOURCE_DIR}/utilities
+   ${CMAKE_SOURCE_DIR}/command_management
+   ${CMAKE_SOURCE_DIR}/processors
 
    # Include Boost Directory
    ${Boost_INCLUDE_DIRS}
