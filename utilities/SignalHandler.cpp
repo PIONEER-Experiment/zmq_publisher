@@ -1,4 +1,5 @@
 #include "SignalHandler.h"
+#include <iostream>
 
 SignalHandler::SignalHandler() {
     // Initialize the flag indicating whether a quit signal is received

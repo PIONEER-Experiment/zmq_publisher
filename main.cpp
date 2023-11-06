@@ -1,21 +1,26 @@
 
 
 //Project Specific headers
-#include "event_processor/EventProcessor.h"
-#include "event_processor/MidasEvent.h"
-#include "event_processor/MidasBank.h"
-#include "event_processor/MdumpPackage.h"
-#include "data_transmitter/DataTransmitter.h"
-#include "data_transmitter/DataBuffer.h"
-#include "data_transmitter/DataChannel.h"
-#include "midas_connector/MidasConnector.h"
-#include "midas_connector/ODBGrabber.h"
-#include "utilities/ProjectPrinter.h"
-#include "utilities/EventLoopManager.h"
-#include "utilities/CommandManager.h"
-#include "utilities/MdumpCommandManager.h"
-#include "utilities/SignalHandler.h"
-#include "utilities/JsonManager.h"
+#include "EventProcessor.h"
+#include "MidasEvent.h"
+#include "MidasBank.h"
+#include "MdumpPackage.h"
+#include "DataTransmitter.h"
+#include "DataBuffer.h"
+#include "DataChannel.h"
+#include "MidasConnector.h"
+#include "ODBGrabber.h"
+#include "ProjectPrinter.h"
+#include "EventLoopManager.h"
+#include "CommandRunner.h"
+#include "MdumpCommandRunner.h"
+#include "SignalHandler.h"
+#include "JsonManager.h"
+#include "GeneralProcessorFactory.h"
+#include "GeneralProcessor.h"
+#include "CommandProcessor.h"
+#include "CR00Processor.h"
+#include "ODBProcessor.h"
 
 //Special "External" Headers
 #include "midas.h"
@@ -41,7 +46,17 @@
 using json = nlohmann::json;
 ProjectPrinter printer; // Command line printing tools for the project
 
-// Function to initialize MIDAS and open an event buffer
+// Function to register processor classes
+// New processors MUST be registered here!
+void registerProcessors(nlohmann::json config) {
+    int verbose = config["general-settings"]["verbose"].get<int>();
+    CommandProcessorFactory& factory = GeneralProcessorFactory::Instance();
+    factory.RegisterProcessor("GeneralProcessor", std::make_shared<GeneralProcessor>(verbose));
+    factory.RegisterProcessor("CommandProcessor", std::make_shared<CommandProcessor>(verbose));
+    factory.RegisterProcessor("CRProcessor", std::make_shared<CRProcessor>(config["data-channels"]["mdump-channel"]["commands"][0]["detector-mapping-file"].get<std::string>(),verbose));
+    factory.RegisterProcessor("ODBProcessor", std::make_shared<ODBProcessor>(verbose));
+}
+
 bool initializeMidas(MidasConnector& midasConnector, const nlohmann::json& config) {
     // Set the MidasConnector properties based on the config
     midasConnector.setEventId(config["event-id"].get<short>());
@@ -77,8 +92,8 @@ bool initializeMidas(MidasConnector& midasConnector, const nlohmann::json& confi
     return true;
 }
 
-std::vector<MdumpCommandManager> processMdumpCommands(const json& config, const std::string& mdumpPath) {
-    std::vector<MdumpCommandManager> mdumpCommands;
+std::vector<MdumpCommandRunner> processMdumpCommands(const json& config, const std::string& mdumpPath) {
+    std::vector<MdumpCommandRunner> mdumpCommands;
 
     // Extract the "mdump-commands" section
     const json& mdumpCommandsConfig = config["mdump-commands"];
@@ -89,7 +104,7 @@ std::vector<MdumpCommandManager> processMdumpCommands(const json& config, const 
         for (auto cmdIt = mdumpCommandsConfig.begin(); cmdIt != mdumpCommandsConfig.end(); ++cmdIt) {
             const json& cmd = cmdIt.value();
             if (cmd.is_object()) {
-                MdumpCommandManager mdumpCommand(mdumpPath);
+                MdumpCommandRunner mdumpCommand(mdumpPath);
 
                 if (cmd.contains("num-events")) {
                     int numEvents = cmd["num-events"].get<int>();
@@ -125,10 +140,10 @@ std::vector<MdumpCommandManager> processMdumpCommands(const json& config, const 
     return mdumpCommands;
 }
 
-int findSmallestWaitTime(const std::vector<MdumpCommandManager>& mdumpCommands) {
+int findSmallestWaitTime(const std::vector<MdumpCommandRunner>& mdumpCommands) {
     int smallestWaitTime = std::numeric_limits<int>::max(); // Initialize with a large value
 
-    for (const MdumpCommandManager& command : mdumpCommands) {
+    for (const MdumpCommandRunner& command : mdumpCommands) {
         int waitTime = command.getWaitTime();
         if (waitTime < smallestWaitTime) {
             smallestWaitTime = waitTime;
@@ -252,6 +267,7 @@ int mdumpOff(nlohmann::json config) {
 }
 
 int mdumpOn(nlohmann::json config) {
+    registerProcessors(config);
     // Get the value of the MIDASSYS environment variable
     char* midasSysPath = std::getenv("MIDASSYS");
 
@@ -260,7 +276,7 @@ int mdumpOn(nlohmann::json config) {
         return 1;
     }
 
-    std::vector<MdumpCommandManager> mdumpCommands = processMdumpCommands(config, std::string(midasSysPath) + "/bin/mdump");
+    std::vector<MdumpCommandRunner> mdumpCommands = processMdumpCommands(config, std::string(midasSysPath) + "/bin/mdump");
     int tickTime = findSmallestWaitTime(mdumpCommands);
 
     ODBGrabber odbGrabber(config["ODB-grabber-client-name"].get<std::string>().c_str(), config["grab-ODB-interval-millis"].get<int>());
@@ -295,7 +311,7 @@ int mdumpOn(nlohmann::json config) {
     }
 
     while (!SignalHandler::getInstance().isQuitSignalReceived()) {
-        for (MdumpCommandManager& command : mdumpCommands) {
+        for (MdumpCommandRunner& command : mdumpCommands) {
             if (!command.isReadyForExecution()) {
                 continue;
             }
@@ -310,10 +326,10 @@ int mdumpOn(nlohmann::json config) {
                 return 1;
             }
 
-            // Now, pass the remaining string to the MdasEvent constructor
+            // Now, pass the remaining string to the MidasEvent constructor
             MdumpPackage mdumpPackage(output);
             for (const MidasEvent& event : mdumpPackage.getEvents()) {
-                if (eventProcessor.processEvent(event) == 0) {
+                if (eventProcessor.processEvent(event, "CR00") == 0) {
                     // Serialize the event data with EventProcessor and store it in serializedData
                     std::string serializedData = eventProcessor.getSerializedData();
                     eventBuffer.Push(serializedData);

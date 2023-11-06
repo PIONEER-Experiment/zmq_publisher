@@ -5,7 +5,11 @@
 
 class DataChannel {
 public:
+    DataChannel();
     DataChannel(const std::string& name, int eventsBeforeBreak, int eventsToIgnoreInBreak);
+    void setName(const std::string& name);
+    void setEventsBeforeBreak(int eventsBeforeBreak);
+    void setEventsToIgnoreInBreak(int eventsToIgnoreInBreak);
     const std::string& getName() const;
     int getEventsBeforeBreak() const;
     int getEventsToIgnoreInBreak() const;

@@ -37,13 +37,13 @@ int EventProcessor::processEvent(void* event_data, INT max_event_size) {
     return 0;
 }
 
-int EventProcessor::processEvent(const MidasEvent& event) {
+int EventProcessor::processEvent(const MidasEvent& event, const std::string& bankName) {
     if (!isNewEvent(event)) {
         return 1;
     }
     updateLastSerialNumberProcessed(event.getSerialNumber());
     for (const MidasBank& bank : event.getBanks()) {
-        if (bank.getBankName() == "CR00") {
+        if (bank.getBankName() == bankName) {
             // Get data in a form the unpacker likes
             uint64_t* bankData = bank.getBankDataAsUint64();
             int totalWords = bank.getNumUint64Words();
