@@ -5,9 +5,12 @@
 
 class ODBProcessor : public CommandProcessor {
 public:
-    ODBProcessor(int verbose);
+    ODBProcessor(int verbose = 0, std::shared_ptr<CommandRunner> runner = nullptr);
 
-    std::vector<std::string> ProcessCommandOutput(const std::string& commandOutput) override;
+    std::vector<std::string> getProcessedOutput() override;
+
+private:
+    std::string extractJsonFromOutput(const std::string& commandOutput);
 };
 
-#endif
+#endif // ODBPROCESSOR_H

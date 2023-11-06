@@ -40,7 +40,7 @@ public:
     TMEvent getTMEvent(void* event_data, INT max_event_size);
 
 private:
-    unpackers::EventUnpacker* eventUnpacker; // Updated to use the base class
+    unpackers::EventUnpacker* eventUnpacker;
     unpackers::Serializer* serializer;
     std::string serialized_data;
     int verbose;

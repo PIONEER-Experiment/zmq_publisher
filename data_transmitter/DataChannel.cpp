@@ -1,15 +1,44 @@
 #include "DataChannel.h"
 #include "ProjectPrinter.h"
+#include "DataTransmitterManager.h"
+#include "DataTransmitter.h"
 
 // Constructors
 DataChannel::DataChannel()
-    : name(""), eventsBeforeBreak(0), eventsToIgnoreInBreak(0),
+    : name(""), eventsBeforeBreak(1), eventsToIgnoreInBreak(0), address(""),
       eventsPublished(0), eventsSeen(0), onBreak(false), eventsSeenOnBreak(0) {
 }
 
 DataChannel::DataChannel(const std::string& name, int eventsBeforeBreak, int eventsToIgnoreInBreak)
-    : name(name), eventsBeforeBreak(eventsBeforeBreak), eventsToIgnoreInBreak(eventsToIgnoreInBreak),
-      eventsPublished(0), eventsSeen(0), onBreak(false), eventsSeenOnBreak(0) {}
+    : name(name), eventsBeforeBreak(eventsBeforeBreak), eventsToIgnoreInBreak(eventsToIgnoreInBreak), address(""),
+      eventsPublished(0), eventsSeen(0), onBreak(false), eventsSeenOnBreak(0) {
+}
+
+DataChannel::DataChannel(const std::string& name, int eventsBeforeBreak, int eventsToIgnoreInBreak, const std::string& address)
+    : name(name), eventsBeforeBreak(eventsBeforeBreak), eventsToIgnoreInBreak(eventsToIgnoreInBreak), address(address),
+      eventsPublished(0), eventsSeen(0), onBreak(false), eventsSeenOnBreak(0) {
+    initializeTransmitter();
+}
+
+bool DataChannel::publish() {
+    if (!transmitter->isBound()) {
+        if (!transmitter->bind()) {
+            return false;
+        }
+    }
+
+    // Check if the manager exists
+    if (processesManager) {
+        // Run the processes and add the output to the data buffer
+        if (processesManager->runProcesses()) { // Will return false if the eventBuffer was not changed
+            // Get the serialized data from the data buffer
+            std::string serializedData = processesManager->getDataBuffer().SerializeBuffer();
+            return transmitter->publish(*this, serializedData);
+        }
+    }
+
+    return false;
+}
 
 void DataChannel::setName(const std::string& name) {
     this->name = name;
@@ -21,6 +50,24 @@ void DataChannel::setEventsBeforeBreak(int eventsBeforeBreak) {
 
 void DataChannel::setEventsToIgnoreInBreak(int eventsToIgnoreInBreak) {
     this->eventsToIgnoreInBreak = eventsToIgnoreInBreak;
+}
+
+void DataChannel::setAddress(const std::string& address) {
+    this->address = address;
+    initializeTransmitter();
+}
+
+void DataChannel::setDataChannelProcessesManager(DataChannelProcessesManager* manager) {
+    processesManager = manager;
+}
+
+void DataChannel::addProcessToManager(std::shared_ptr<GeneralProcessor> processor) {
+    if (processesManager) {
+        processesManager->addProcessor(processor);
+    } else {
+        ProjectPrinter printer;
+        printer.PrintWarning("DataChannelProcessesManager is not set. Unable to add processor.", __LINE__, __FILE__);
+    }
 }
 
 const std::string& DataChannel::getName() const {
@@ -41,6 +88,10 @@ int DataChannel::getEventsPublished() const {
 
 int DataChannel::getEventsSeen() const {
     return eventsSeen;
+}
+
+const std::string& DataChannel::getAddress() const {
+    return address;
 }
 
 // Check if the data channel is on a break
@@ -120,5 +171,11 @@ void DataChannel::printAttributes() const {
     attributes += "Events Seen On Break: " + std::to_string(eventsSeenOnBreak);
 
     printer.Print(attributes);
+}
+
+void DataChannel::initializeTransmitter() {
+    // Get the DataTransmitterManager singleton
+    DataTransmitterManager& transmitterManager = DataTransmitterManager::Instance();
+    transmitter = transmitterManager.getTransmitter(address);
 }
 

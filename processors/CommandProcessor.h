@@ -5,17 +5,20 @@
 #include "CommandRunner.h"
 #include <string>
 #include <vector>
-#include <memory>  // Include for shared_ptr
+#include <memory>
 
 class CommandProcessor : public GeneralProcessor {
 public:
     CommandProcessor(int verbose = 0, std::shared_ptr<CommandRunner> runner = nullptr);
-    virtual std::vector<std::string> processOutput();
+    std::vector<std::string> getProcessedOutput() override;
     void setCommandRunner(std::shared_ptr<CommandRunner> runner);
     std::shared_ptr<CommandRunner> getCommandRunner() const;
+    bool isReadyToProcess() const override;
+    int getPeriod() const;
+    void setPeriod(int newPeriod); 
     ~CommandProcessor() override;
 
-private:
+protected:
     std::shared_ptr<CommandRunner> commandRunner;
 };
 

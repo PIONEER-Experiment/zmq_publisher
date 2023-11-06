@@ -8,7 +8,7 @@
 
 class DataChannelManager {
 public:
-    DataChannelManager(const nlohmann::json& channelConfig);
+    DataChannelManager(const nlohmann::json& channelConfig, int verbose = 0);
 
     DataChannel* getChannel(const std::string& channelId);
     const std::map<std::string, DataChannel>& getChannelMap() const;
@@ -19,6 +19,8 @@ public:
 
 private:
     std::map<std::string, DataChannel> channels;
+    int tickTime;
+    int verbose;
 };
 
 #endif

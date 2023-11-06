@@ -41,8 +41,10 @@ add_executable(publisher)
 target_sources(publisher
    PRIVATE
    data_transmitter/DataTransmitter.cpp
+   data_transmitter/DataTransmitterManager.cpp
    data_transmitter/DataChannel.cpp
    data_transmitter/DataChannelManager.cpp
+   data_transmitter/DataChannelProcessesManager.cpp
    event_processor/EventProcessor.cpp
    event_processor/MidasBank.cpp
    event_processor/MidasEvent.cpp
@@ -51,7 +53,6 @@ target_sources(publisher
    midas_connector/ODBGrabber.cpp
    command_management/CommandRunner.cpp
    command_management/MdumpCommandRunner.cpp
-   command_management/ChannelCommandsManager.cpp
    processors/GeneralProcessor.cpp
    processors/GeneralProcessorFactory.cpp
    processors/CommandProcessor.cpp
