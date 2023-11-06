@@ -3,7 +3,7 @@
 #include "CommandRunner.h"
 #include <iostream>
 #include <sstream>
-#include <cstdlib> // For getenv
+#include <cstdlib>
 
 ODBGrabber::ODBGrabber(const char* clientName)
     : client_name_{}, grabInterval(std::chrono::milliseconds(10)) {

@@ -10,12 +10,12 @@
             "publishes-per-batch": 1,
             "publishes-ignored-after-batch": 0,
             "num-events-in-circular-buffer": 5,
-            "commands": [
+            "processors": [
                 {
-                    "processor": "CR00Processor",
+                    "processor": "CRProcessor",
                     "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
                     "command": "$(MIDASSYS)/bin/mdump -l 1 -z SYSTEM",
-                    "frequency-ms": 500
+                    "period-ms": 500
                 }
             ]
         },
@@ -25,11 +25,11 @@
             "publishes-per-batch": 1,
             "publishes-ignored-after-batch": 0,
             "num-events-in-circular-buffer": 2,
-            "commands": [
+            "processors": [
                 {
                     "processor": "ODBProcessor",
                     "command": "$(MIDASSYS)/bin/odbedit -c json -q",
-                    "frequency-ms": 60000
+                    "period-ms": 60000
                 }
             ]
         }

@@ -19,8 +19,9 @@
 #include "GeneralProcessorFactory.h"
 #include "GeneralProcessor.h"
 #include "CommandProcessor.h"
-#include "CR00Processor.h"
+#include "CRProcessor.h"
 #include "ODBProcessor.h"
+#include "DataTransmitterManager.h"
 
 //Special "External" Headers
 #include "midas.h"
@@ -50,7 +51,7 @@ ProjectPrinter printer; // Command line printing tools for the project
 // New processors MUST be registered here!
 void registerProcessors(nlohmann::json config) {
     int verbose = config["general-settings"]["verbose"].get<int>();
-    CommandProcessorFactory& factory = GeneralProcessorFactory::Instance();
+    GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
     factory.RegisterProcessor("GeneralProcessor", std::make_shared<GeneralProcessor>(verbose));
     factory.RegisterProcessor("CommandProcessor", std::make_shared<CommandProcessor>(verbose));
     factory.RegisterProcessor("CRProcessor", std::make_shared<CRProcessor>(config["data-channels"]["mdump-channel"]["commands"][0]["detector-mapping-file"].get<std::string>(),verbose));
@@ -267,7 +268,6 @@ int mdumpOff(nlohmann::json config) {
 }
 
 int mdumpOn(nlohmann::json config) {
-    registerProcessors(config);
     // Get the value of the MIDASSYS environment variable
     char* midasSysPath = std::getenv("MIDASSYS");
 
@@ -360,8 +360,17 @@ int mdumpOn(nlohmann::json config) {
     return 0;
 }
 
+int newMode() {
+    nlohmann::json config = JsonManager::getInstance().getConfig(); //Get cleaned up config
+    DataTransmitterManager::Instance(config["general-settings"]["verbose"].get<int>()); //Initialize the DataTransmitterManager
+    registerProcessors(config); //Register processors so we can map strings to processor objects
+
+    return 0;
+}
 
 int main(int argc, char* argv[]) {
+    return newMode();
+    /*
     // Access the JsonManager instance and config
     nlohmann::json config = JsonManager::getInstance().getConfig();
 
@@ -370,4 +379,5 @@ int main(int argc, char* argv[]) {
     } else {
         return mdumpOff(config);
     }
+    */
 }

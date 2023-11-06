@@ -2,7 +2,7 @@
 #include "ProjectPrinter.h"
 
 DataTransmitter::DataTransmitter(const std::string& zmqAddress, int verbose)
-    : context(1), publisher(context, ZMQ_PUB), zmqAddress(zmqAddress), verbose(verbose) {
+    : context(1), publisher(context, ZMQ_PUB), zmqAddress(zmqAddress), verbose(verbose), isBoundToSocket(false) {
     // Constructor initializes ZeroMQ socket
 }
 
@@ -15,12 +15,18 @@ DataTransmitter::~DataTransmitter() {
 bool DataTransmitter::bind() {
     try {
         publisher.bind(zmqAddress);
+        isBoundToSocket = true;
         return true;
     } catch (const zmq::error_t& e) {
         // Handle any connection errors
         return false;
     }
 }
+
+bool DataTransmitter::isBound() {
+    return isBoundToSocket;
+}
+
 
 bool DataTransmitter::publish(DataChannel& dataChannel, const std::string& data) {
     ProjectPrinter printer;

@@ -13,6 +13,7 @@ public:
     ~DataTransmitter();
 
     bool bind();
+    bool isBound(); 
     bool publish(DataChannel& dataChannel, const std::string& data);
 
     // Setter for verbosity control
@@ -22,7 +23,9 @@ private:
     zmq::context_t context;
     zmq::socket_t publisher;
     std::string zmqAddress;
-    int verbose; // Added verbosity control
+    int verbose;
+    bool isBoundToSocket; 
+
 };
 
 #endif // DATATRANSMITTER_H
