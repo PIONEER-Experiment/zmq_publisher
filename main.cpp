@@ -52,12 +52,17 @@ ProjectPrinter printer; // Command line printing tools for the project
 // New processors MUST be registered here!
 void registerProcessors(nlohmann::json config) {
     int verbose = config["general-settings"]["verbose"].get<int>();
+    std::string detectorMappingFile = config["data-channels"]["mdump-channel"]["processors"][0]["detector-mapping-file"].get<std::string>();
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
-    factory.RegisterProcessor("GeneralProcessor", std::make_shared<GeneralProcessor>(verbose));
-    factory.RegisterProcessor("CommandProcessor", std::make_shared<CommandProcessor>(verbose));
-    factory.RegisterProcessor("CRProcessor", std::make_shared<CRProcessor>(config["data-channels"]["mdump-channel"]["processors"][0]["detector-mapping-file"].get<std::string>(),verbose));
-    factory.RegisterProcessor("ODBProcessor", std::make_shared<ODBProcessor>(verbose));
+
+    factory.RegisterProcessor("GeneralProcessor", [verbose]() -> GeneralProcessor* { return new GeneralProcessor(verbose); });
+    factory.RegisterProcessor("CommandProcessor", [verbose]() -> CommandProcessor* { return new CommandProcessor(verbose); });
+    factory.RegisterProcessor("CRProcessor", [verbose, detectorMappingFile]() -> CRProcessor* {
+        return new CRProcessor(detectorMappingFile, verbose);
+    });
+    factory.RegisterProcessor("ODBProcessor", [verbose]() -> ODBProcessor* { return new ODBProcessor(verbose); });
 }
+
 
 bool initializeMidas(MidasConnector& midasConnector, const nlohmann::json& config) {
     // Set the MidasConnector properties based on the config
@@ -363,22 +368,20 @@ int mdumpOn(nlohmann::json config) {
 
 int newMode() {
     nlohmann::json config = JsonManager::getInstance().getConfig(); //Get cleaned up config
-    printer.Print("Got here 1");
+    int verbose = config["general-settings"]["verbose"].get<int>();
     DataTransmitterManager::Instance(config["general-settings"]["verbose"].get<int>()); //Initialize the DataTransmitterManager
-    printer.Print("Got here 2");
     registerProcessors(config); //Register processors so we can map strings to processor objects
-    printer.Print("Got here 3");
     DataChannelManager dataChannelManager(config["data-channels"],config["general-settings"]["verbose"].get<int>());
-    printer.Print("Got here 4");
     dataChannelManager.setGlobalTickTime();
     int tickTime = dataChannelManager.getGlobalTickTime();
     while (!SignalHandler::getInstance().isQuitSignalReceived()) {
-        printer.Print("Got in Loop 1");
         dataChannelManager.publish();
-        printer.Print("Finished loop, sleeping for " + std::to_string(tickTime) + "ms ...");
+        if (verbose > 0) {
+            printer.Print("Finished loop, sleeping for " + std::to_string(tickTime) + "ms ...");
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));     
     }
-    printer.Print("Got to end");
+    printer.Print("Received quit signal. Exiting the loop and ending program.");
     return 0;
 }
 

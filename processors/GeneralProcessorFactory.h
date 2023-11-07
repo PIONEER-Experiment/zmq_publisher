@@ -3,21 +3,21 @@
 
 #include <string>
 #include <unordered_map>
-#include <memory>
+#include <functional>
 #include "GeneralProcessor.h"
 
 class GeneralProcessorFactory {
 public:
     static GeneralProcessorFactory& Instance();
 
-    void RegisterProcessor(const std::string& processorType, std::shared_ptr<GeneralProcessor> processor);
-    std::shared_ptr<GeneralProcessor> CreateProcessor(const std::string& processorType) const;
+    void RegisterProcessor(const std::string& processorType, std::function<GeneralProcessor*()> creator);
+    GeneralProcessor* CreateProcessor(const std::string& processorType) const;
 
 private:
     GeneralProcessorFactory();
 
 private:
-    std::unordered_map<std::string, std::shared_ptr<GeneralProcessor>> processors;
+    std::unordered_map<std::string, std::function<GeneralProcessor*()>> creators;
 };
 
 #endif

@@ -37,8 +37,8 @@ public:
     void reset();
     void printAttributes() const;
 
-    void setDataChannelProcessesManager(DataChannelProcessesManager* manager);
-    void addProcessToManager(std::shared_ptr<GeneralProcessor> processor);
+    void setDataChannelProcessesManager(DataChannelProcessesManager manager);
+    void addProcessToManager(GeneralProcessor* processor);
     void updateTickTime();
 
 private:
@@ -51,7 +51,7 @@ private:
     bool onBreak;
     int eventsSeenOnBreak;
     std::shared_ptr<DataTransmitter> transmitter;
-    DataChannelProcessesManager* processesManager;
+    DataChannelProcessesManager processesManager;
     int tickTime;
 
     bool shouldTakeBreak();

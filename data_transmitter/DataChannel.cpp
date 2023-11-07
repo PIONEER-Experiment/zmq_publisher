@@ -28,30 +28,20 @@ bool DataChannel::publish() {
             return false;
         }
     }
-    ProjectPrinter printer;
-    printer.Print("Bound to port...");
-    // Check if the manager exists
-    if (processesManager) {
-        printer.Print("Have process manager...");
-        // Run the processes and add the output to the data buffer
-        if (processesManager->runProcesses()) { // Will return false if the eventBuffer was not changed
-            printer.Print("Ran processes...");
-            // Get the serialized data from the data buffer
-            std::string serializedData = processesManager->getDataBuffer().SerializeBuffer();
-            return transmitter->publish(*this, serializedData);
-        }
+    // Run the processes and add the output to the data buffer
+    // Really ProcessesManager can't have a simple boolean, it needs error codes, but whatever
+    if (processesManager.runProcesses()) { // Will return false if the eventBuffer was not changed
+        // Get the serialized data from the data buffer
+        std::string serializedData = processesManager.getDataBuffer().SerializeBuffer();
+        return transmitter->publish(*this, serializedData);
     }
 
-    return false;
+    return true; //Return true if the processes just didn't run for whatever reason, that's not a publishing error
 }
 
 void DataChannel::updateTickTime() {
-    if (processesManager) {
-        processesManager->updateProcessorPeriodsGCD();
-        tickTime = processesManager->getProcessorPeriodsGCD();
-    } else {
-        tickTime = DEFAULT_CHANNEL_TICK_TIME;
-    }
+    processesManager.updateProcessorPeriodsGCD();
+    tickTime = processesManager.getProcessorPeriodsGCD();
 }
 
 void DataChannel::setName(const std::string& name) {
@@ -71,17 +61,12 @@ void DataChannel::setAddress(const std::string& address) {
     initializeTransmitter();
 }
 
-void DataChannel::setDataChannelProcessesManager(DataChannelProcessesManager* manager) {
+void DataChannel::setDataChannelProcessesManager(DataChannelProcessesManager manager) {
     processesManager = manager;
 }
 
-void DataChannel::addProcessToManager(std::shared_ptr<GeneralProcessor> processor) {
-    if (processesManager) {
-        processesManager->addProcessor(processor);
-    } else {
-        ProjectPrinter printer;
-        printer.PrintWarning("DataChannelProcessesManager is not set. Unable to add processor.", __LINE__, __FILE__);
-    }
+void DataChannel::addProcessToManager(GeneralProcessor* processor) {
+    processesManager.addProcessor(processor);
 }
 
 int DataChannel::getTickTime() const {

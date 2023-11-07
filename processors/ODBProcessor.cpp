@@ -4,17 +4,16 @@
 #include <sstream>
 #include <cstdlib>
 
-ODBProcessor::ODBProcessor(int verbose, std::shared_ptr<CommandRunner> runner)
+ODBProcessor::ODBProcessor(int verbose, const CommandRunner& runner)
     : CommandProcessor(verbose, runner) {
     // Additional initialization specific to ODBProcessor, if needed
 }
 
 std::vector<std::string> ODBProcessor::getProcessedOutput() {
-    // Implement command output processing for ODBProcessor here
     std::vector<std::string> result;
 
     // Execute the odbedit command
-    std::string odbOutput = commandRunner->execute();
+    std::string odbOutput = commandRunner.execute();
 
     std::string extractedJson = extractJsonFromOutput(odbOutput);
 
@@ -22,7 +21,7 @@ std::vector<std::string> ODBProcessor::getProcessedOutput() {
         result.push_back(extractedJson);
     } else {
         ProjectPrinter printer;
-        printer.PrintError("Failed to grab ODB data.", __LINE__, __FILE__);
+        printer.PrintWarning("Failed to grab ODB data.", __LINE__, __FILE__);
     }
 
     return result;

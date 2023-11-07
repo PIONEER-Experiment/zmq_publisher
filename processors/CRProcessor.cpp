@@ -5,9 +5,8 @@
 #include "MidasBank.h"
 #include <iostream>
 
-CRProcessor::CRProcessor(const std::string& detectorMappingFile, int verbose, std::shared_ptr<CommandRunner> runner)
-    : CommandProcessor(verbose, runner), detectorMappingFile(detectorMappingFile) {
-    eventProcessor = std::make_shared<EventProcessor>(detectorMappingFile, verbose);
+CRProcessor::CRProcessor(const std::string& detectorMappingFile, int verbose, const CommandRunner& runner)
+    : CommandProcessor(verbose, runner), detectorMappingFile(detectorMappingFile), eventProcessor(detectorMappingFile, verbose) {
 }
 
 std::vector<std::string> CRProcessor::getProcessedOutput() {
@@ -16,15 +15,14 @@ std::vector<std::string> CRProcessor::getProcessedOutput() {
     // Placeholder result
     std::vector<std::string> result;
 
-    MdumpPackage mdumpPackage(commandRunner->execute());
+    MdumpPackage mdumpPackage(commandRunner.execute());
     for (const MidasEvent& event : mdumpPackage.getEvents()) {
-        if (eventProcessor->processEvent(event, "CR00") == 0) {
+        if (eventProcessor.processEvent(event, "CR00") == 0) {
             // Serialize the event data with EventProcessor and store it in serializedData
-            std::string serializedData = eventProcessor->getSerializedData();
+            std::string serializedData = eventProcessor.getSerializedData();
             result.push_back(serializedData);
         }
     }
-    
 
     return result;
 }
