@@ -20,6 +20,7 @@ private:
     std::string configFilePath;
     nlohmann::json readConfigFile(const std::string& configFile);
     std::string getConfigFilePath();
+    static void recursivelyReplacePlaceholders(nlohmann::json& json);
 };
 
 #endif // JSONMANAGER_H

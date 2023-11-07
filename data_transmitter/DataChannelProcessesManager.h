@@ -3,8 +3,8 @@
 
 #include <vector>
 #include <memory>
-#include "GeneralProcessor.h" // Include your GeneralProcessor header here
-#include "DataBuffer.h" // Include your DataBuffer header here
+#include "GeneralProcessor.h"
+#include "DataBuffer.h"
 
 class DataChannelProcessesManager {
 public:
@@ -19,10 +19,19 @@ public:
     // Get the data buffer
     const DataBuffer<std::string>& getDataBuffer() const;
 
+    // Update the processorPeriodsGcd member variable
+    void updateProcessorPeriodsGCD();
+
+    // Get the processorPeriodsGcd value
+    int getProcessorPeriodsGCD() const;
+
 private:
     std::vector<std::shared_ptr<GeneralProcessor>> processors;
     DataBuffer<std::string> dataBuffer;
     int verbose;
+    int processorPeriodsGcd; // Added member variable for storing GCD
+
+    int findGCDOfProcessorPeriods();
 };
 
 #endif // DATACHANNELPROCESSESMANAGER_H

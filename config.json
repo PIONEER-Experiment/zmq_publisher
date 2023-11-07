@@ -1,50 +1,37 @@
 {
-    "START GENERAL SETTINGS": "settings used whether use-mdump is set to true or false",
-    "use-mdump": true,
-    "verbose": 3,
-    "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
-    "num-events-in-circular-buffer": 4,
-    "zmq-address": "tcp://127.0.0.1:5555",
-    "zmq-data-channel-name": "DATA",
-    "zmq-data-channel-publishes-per-batch": 1,
-    "zmq-data-channel-publishes-ignored-after-batch": 0,
-    "publish-odb": true,
-    "grab-ODB-interval-millis": 10000,
-    "ODB-grabber-client-name": "ODB Grabber", 
-    "zmq-odb-channel-name": "ODB",
-    "zmq-odb-channel-publishes-per-batch": 1,
-    "zmq-odb-channel-publishes-ignored-after-batch": 0,
-    "STOP GENERAL SETTINGS": "settings used whether use-mdump is set to true or false",
-
-    "START MDUMP ON SETTINGS": "settings for when use-mdump is set to true",
-    "mdump-commands": {
-        "mdump-command-1": {
-            "num-events": 1,
-            "event-id": -1,
-            "buffer-name": "SYSTEM",
-            "trigger-mask": -1,
-            "minimum-time-between-commands-millis": 100
-        }
+    "general-settings": {
+        "use-mdump": true,
+        "verbose": 3
     },
-    "END MDUMP ON SETTINGS": "settings for when use-mdump is set to true",
-
-
-    "START MDUMP OFF SETTINGS": "settings for when use-mdump is set to false",
-    "client-name": "Data Publisher",
-    "event-id": -1,
-    "trigger-mask": -1,
-    "sampling-type": 2,
-    "buffer-size": 33554432,
-    "max-event-size": 20000,
-    "cache-size": 100000,
-    "buffer-name": "SYSTEM",
-    "END MDUMP OFF SETTINGS": "settings for when use-mdump is set to false",
-
-
-    "BROKEN CONFIG BELOW": "BROKEN_CONFIG_BELOW!",
-    "call-watchdog": false,
-    "watchdog-timeout-millis": 1000000,
-    "events-before-sleep": 0,
-    "sleep-time-millis": 5000,
-    "timeout-millis": 0
+    "data-channels": {
+        "mdump-channel": {
+            "zmq-address": "tcp://127.0.0.1:5555",
+            "name": "DATA",
+            "publishes-per-batch": 1,
+            "publishes-ignored-after-batch": 0,
+            "num-events-in-circular-buffer": 5,
+            "processors": [
+                {
+                    "processor": "CRProcessor",
+                    "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
+                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z SYSTEM",
+                    "period-ms": 500
+                }
+            ]
+        },
+        "odb-channel": {
+            "zmq-address": "tcp://127.0.0.1:5555",
+            "name": "ODB",
+            "publishes-per-batch": 1,
+            "publishes-ignored-after-batch": 0,
+            "num-events-in-circular-buffer": 2,
+            "processors": [
+                {
+                    "processor": "ODBProcessor",
+                    "command": "$(MIDASSYS)/bin/odbedit -c json -q",
+                    "period-ms": 60000
+                }
+            ]
+        }
+    }    
 }
