@@ -30,6 +30,7 @@ public:
     int getEventsSeen() const;
     bool isOnBreak() const;
     int getEventsSeenOnBreak() const;
+    int getTickTime() const;
 
     void published();
     void seen();
@@ -38,6 +39,7 @@ public:
 
     void setDataChannelProcessesManager(DataChannelProcessesManager* manager);
     void addProcessToManager(std::shared_ptr<GeneralProcessor> processor);
+    void updateTickTime();
 
 private:
     std::string name;
@@ -50,6 +52,7 @@ private:
     int eventsSeenOnBreak;
     std::shared_ptr<DataTransmitter> transmitter;
     DataChannelProcessesManager* processesManager;
+    int tickTime;
 
     bool shouldTakeBreak();
     void startBreak();

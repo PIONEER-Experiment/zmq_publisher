@@ -1,6 +1,7 @@
 #include "JsonManager.h"
 #include <fstream>
 #include <stdexcept>
+#include <ProjectPrinter.h>
 
 nlohmann::json JsonManager::config;
 
@@ -32,17 +33,31 @@ const nlohmann::json& JsonManager::getConfig() const {
     return config;
 }
 
-nlohmann::json JsonManager::replaceEnvironmentVariables(const nlohmann::json& jsonConfig) {
-    nlohmann::json replacedConfig = jsonConfig;
-
-    for (auto it = replacedConfig.begin(); it != replacedConfig.end(); ++it) {
+void JsonManager::recursivelyReplacePlaceholders(nlohmann::json& json) {
+    for (auto it = json.begin(); it != json.end(); ++it) {
         if (it->is_string()) {
             *it = replacePlaceholder(it->get<std::string>());
+        } else if (it->is_object()) {
+            recursivelyReplacePlaceholders(*it);
+        } else if (it->is_array()) {
+            for (auto& element : *it) {
+                recursivelyReplacePlaceholders(element);
+            }
         }
     }
+}
+
+nlohmann::json JsonManager::replaceEnvironmentVariables(const nlohmann::json& jsonConfig) {
+    ProjectPrinter printer;
+    nlohmann::json replacedConfig = jsonConfig;
+
+    recursivelyReplacePlaceholders(replacedConfig);
 
     return replacedConfig;
 }
+
+
+
 
 std::string JsonManager::replacePlaceholder(const std::string& input) {
     std::string result = input;

@@ -22,6 +22,7 @@
 #include "CRProcessor.h"
 #include "ODBProcessor.h"
 #include "DataTransmitterManager.h"
+#include "DataChannelManager.h"
 
 //Special "External" Headers
 #include "midas.h"
@@ -54,7 +55,7 @@ void registerProcessors(nlohmann::json config) {
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
     factory.RegisterProcessor("GeneralProcessor", std::make_shared<GeneralProcessor>(verbose));
     factory.RegisterProcessor("CommandProcessor", std::make_shared<CommandProcessor>(verbose));
-    factory.RegisterProcessor("CRProcessor", std::make_shared<CRProcessor>(config["data-channels"]["mdump-channel"]["commands"][0]["detector-mapping-file"].get<std::string>(),verbose));
+    factory.RegisterProcessor("CRProcessor", std::make_shared<CRProcessor>(config["data-channels"]["mdump-channel"]["processors"][0]["detector-mapping-file"].get<std::string>(),verbose));
     factory.RegisterProcessor("ODBProcessor", std::make_shared<ODBProcessor>(verbose));
 }
 
@@ -362,9 +363,22 @@ int mdumpOn(nlohmann::json config) {
 
 int newMode() {
     nlohmann::json config = JsonManager::getInstance().getConfig(); //Get cleaned up config
+    printer.Print("Got here 1");
     DataTransmitterManager::Instance(config["general-settings"]["verbose"].get<int>()); //Initialize the DataTransmitterManager
+    printer.Print("Got here 2");
     registerProcessors(config); //Register processors so we can map strings to processor objects
-
+    printer.Print("Got here 3");
+    DataChannelManager dataChannelManager(config["data-channels"],config["general-settings"]["verbose"].get<int>());
+    printer.Print("Got here 4");
+    dataChannelManager.setGlobalTickTime();
+    int tickTime = dataChannelManager.getGlobalTickTime();
+    while (!SignalHandler::getInstance().isQuitSignalReceived()) {
+        printer.Print("Got in Loop 1");
+        dataChannelManager.publish();
+        printer.Print("Finished loop, sleeping for " + std::to_string(tickTime) + "ms ...");
+        std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));     
+    }
+    printer.Print("Got to end");
     return 0;
 }
 

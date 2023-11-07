@@ -3,6 +3,8 @@
 #include "DataTransmitterManager.h"
 #include "DataTransmitter.h"
 
+const int DEFAULT_CHANNEL_TICK_TIME = 1000;
+
 // Constructors
 DataChannel::DataChannel()
     : name(""), eventsBeforeBreak(1), eventsToIgnoreInBreak(0), address(""),
@@ -26,11 +28,14 @@ bool DataChannel::publish() {
             return false;
         }
     }
-
+    ProjectPrinter printer;
+    printer.Print("Bound to port...");
     // Check if the manager exists
     if (processesManager) {
+        printer.Print("Have process manager...");
         // Run the processes and add the output to the data buffer
         if (processesManager->runProcesses()) { // Will return false if the eventBuffer was not changed
+            printer.Print("Ran processes...");
             // Get the serialized data from the data buffer
             std::string serializedData = processesManager->getDataBuffer().SerializeBuffer();
             return transmitter->publish(*this, serializedData);
@@ -38,6 +43,15 @@ bool DataChannel::publish() {
     }
 
     return false;
+}
+
+void DataChannel::updateTickTime() {
+    if (processesManager) {
+        processesManager->updateProcessorPeriodsGCD();
+        tickTime = processesManager->getProcessorPeriodsGCD();
+    } else {
+        tickTime = DEFAULT_CHANNEL_TICK_TIME;
+    }
 }
 
 void DataChannel::setName(const std::string& name) {
@@ -68,6 +82,10 @@ void DataChannel::addProcessToManager(std::shared_ptr<GeneralProcessor> processo
         ProjectPrinter printer;
         printer.PrintWarning("DataChannelProcessesManager is not set. Unable to add processor.", __LINE__, __FILE__);
     }
+}
+
+int DataChannel::getTickTime() const {
+    return tickTime;
 }
 
 const std::string& DataChannel::getName() const {
@@ -164,11 +182,15 @@ void DataChannel::printAttributes() const {
 
     if (onBreak) {
         attributes += "On Break: true\n";
+        attributes += "Events Seen On Break: " + std::to_string(eventsSeenOnBreak) + "\n";
     } else {
         attributes += "On Break: false\n";
     }
 
-    attributes += "Events Seen On Break: " + std::to_string(eventsSeenOnBreak);
+    attributes += "Address: " + address + "\n";
+    attributes += "Tick Time: " + std::to_string(tickTime) + "\n";
+
+    // Add more attributes as needed
 
     printer.Print(attributes);
 }

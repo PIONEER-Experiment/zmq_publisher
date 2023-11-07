@@ -7,6 +7,7 @@
 #include "ProjectPrinter.h"
 #include "TypeChecker.h"
 #include <algorithm> // Include for std::gcd
+#include <iostream>
 
 //Default config
 const std::string DEFAULT_NAME                   = "";
@@ -25,6 +26,21 @@ DataChannelManager::DataChannelManager(const nlohmann::json& channelConfig, int 
 
         addChannel(channelId,channelData);
     }
+}
+
+bool DataChannelManager::publish() {
+    bool success = true;
+
+    for (auto& channelPair : channels) {
+        if (!channelPair.second.publish()) {
+            success = false;
+            ProjectPrinter printer;
+            printer.PrintWarning("Channel " + channelPair.first + " has failed to publish.", __LINE__, __FILE__);
+            channelPair.second.printAttributes();
+        }
+    }
+
+    return success;
 }
 
 DataChannel* DataChannelManager::getChannel(const std::string& channelId) {
@@ -47,9 +63,7 @@ std::vector<DataChannel> DataChannelManager::getAllChannels() const {
     return channelObjects;
 }
 
-void DataChannelManager::addChannel(const std::string& channelId, const std::string& name, int publishesPerBatch, int publishesIgnoredAfterBatch) {
-    // Create a new DataChannel and add it to the manager
-    DataChannel dataChannel(name, publishesPerBatch, publishesIgnoredAfterBatch);
+void DataChannelManager::addChannel(const std::string& channelId, DataChannel dataChannel) {
     channels[channelId] = dataChannel;
 }
 
@@ -129,12 +143,13 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
                     std::shared_ptr<CommandProcessor> commandProcessorInstance = std::make_shared<CommandProcessor>(verbose, commandRunner);
 
                     if (processorConfig.contains("period-ms")) {
-                        commandProcessor->setPeriod(processorConfig["period-ms"].get<int>());
+                        commandProcessorInstance->setPeriod(processorConfig["period-ms"].get<int>());
                     } else {
                         printer.PrintWarning("Period not found in channel " + channelId + " configuration, using default period: " + std::to_string(DEFAULT_PERIOD_MS), __LINE__, __FILE__);
-                        commandProcessor->setPeriod(DEFAULT_PERIOD_MS);
+                        commandProcessorInstance->setPeriod(DEFAULT_PERIOD_MS);
                     }
                     dataChannel.addProcessToManager(commandProcessorInstance);
+                    printer.Print("Processor test: " + std::to_string(commandProcessorInstance->isReadyToProcess()));
                 } else {
                     if (processorConfig.contains("period-ms")) {
                         processor->setPeriod(processorConfig["period-ms"].get<int>());
@@ -147,10 +162,9 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
             }
         }
     }
-
+    dataChannel.updateTickTime();
     channels[channelId] = dataChannel;
 }
-
 
 bool DataChannelManager::removeChannel(const std::string& channelId) {
     auto it = channels.find(channelId);
@@ -161,5 +175,25 @@ bool DataChannelManager::removeChannel(const std::string& channelId) {
     return false; // Channel not found
 }
 
+int DataChannelManager::getGlobalTickTime() const {
+    return globalTickTime;
+}
 
+void DataChannelManager::setGlobalTickTime(int tickTime) {
+    globalTickTime = tickTime;
+}
+
+void DataChannelManager::setGlobalTickTime() {
+    // Initialize globalTickTime with the tick time of the first DataChannel
+    if (!channels.empty()) {
+        globalTickTime = channels.begin()->second.getTickTime();
+    } else {
+        globalTickTime = 0;
+    }
+
+    // Iterate through the channels and find the GCD of their tick times
+    for (const auto& channelPair : channels) {
+        globalTickTime = std::gcd(globalTickTime, channelPair.second.getTickTime());
+    }
+}
 
