@@ -5,7 +5,7 @@
 
 class ODBProcessor : public CommandProcessor {
 public:
-    ODBProcessor(int verbose = 0, std::shared_ptr<CommandRunner> runner = nullptr);
+    ODBProcessor(int verbose = 0, const CommandRunner& runner = CommandRunner(""));
 
     std::vector<std::string> getProcessedOutput() override;
 

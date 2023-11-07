@@ -10,8 +10,8 @@ class DataChannelProcessesManager {
 public:
     DataChannelProcessesManager(size_t bufferSize = 10, int verbose = 0);
 
-    // Add a method to add GeneralProcessor instances to the manager
-    void addProcessor(std::shared_ptr<GeneralProcessor> processor);
+    // Add a method to add GeneralProcessor instances to the manager using raw pointers
+    void addProcessor(GeneralProcessor* processor);
 
     // Run all registered processors and add their output to the data buffer
     bool runProcesses();
@@ -26,7 +26,7 @@ public:
     int getProcessorPeriodsGCD() const;
 
 private:
-    std::vector<std::shared_ptr<GeneralProcessor>> processors;
+    std::vector<GeneralProcessor*> processors;
     DataBuffer<std::string> dataBuffer;
     int verbose;
     int processorPeriodsGcd; // Added member variable for storing GCD

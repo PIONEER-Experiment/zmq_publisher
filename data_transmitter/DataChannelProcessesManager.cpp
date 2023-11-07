@@ -8,31 +8,20 @@ DataChannelProcessesManager::DataChannelProcessesManager(size_t bufferSize, int 
     : dataBuffer(bufferSize), verbose(verbose), processorPeriodsGcd(DEFAULT_PROCESSOR_PERIOD) {
 }
 
-void DataChannelProcessesManager::addProcessor(std::shared_ptr<GeneralProcessor> processor) {
+void DataChannelProcessesManager::addProcessor(GeneralProcessor* processor) {
     processors.push_back(processor);
 }
 
 bool DataChannelProcessesManager::runProcesses() {
     bool addedNewData = false;
-    ProjectPrinter printer;
-    printer.Print("Called...");
-    for (const auto& processor : processors) {
-        if (processor) {
-            printer.Print("Running processor...");
-            if (processor->isReadyToProcess()) {
-                printer.Print("Ready to process...");
-                std::vector<std::string> processedOutput = processor->getProcessedOutput();
-                printer.Print("Got processed output...");
-                for (const auto& output : processedOutput) {
-                    addedNewData = true;
-                    dataBuffer.Push(output);
-                }
-                printer.Print("Added processed output to buffer...");
+    for (const auto processor : processors) {
+        if (processor->isReadyToProcess()) {
+            std::vector<std::string> processedOutput = processor->getProcessedOutput();
+            for (const auto& output : processedOutput) {
+                addedNewData = true;
+                dataBuffer.Push(output);
             }
-        } else {
-            printer.PrintWarning("Null Processor",__LINE__,__FILE__);
         }
-        
     }
     return addedNewData;
 }

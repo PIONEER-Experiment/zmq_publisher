@@ -1,4 +1,5 @@
 #include "GeneralProcessorFactory.h"
+#include <stdexcept>
 
 GeneralProcessorFactory::GeneralProcessorFactory() {
     // Constructor (if needed)
@@ -9,14 +10,14 @@ GeneralProcessorFactory& GeneralProcessorFactory::Instance() {
     return factory;
 }
 
-void GeneralProcessorFactory::RegisterProcessor(const std::string& processorType, std::shared_ptr<GeneralProcessor> processor) {
-    processors[processorType] = processor;
+void GeneralProcessorFactory::RegisterProcessor(const std::string& processorType, std::function<GeneralProcessor*()> creator) {
+    creators[processorType] = creator;
 }
 
-std::shared_ptr<GeneralProcessor> GeneralProcessorFactory::CreateProcessor(const std::string& processorType) const {
-    auto it = processors.find(processorType);
-    if (it != processors.end()) {
-        return it->second;
+GeneralProcessor* GeneralProcessorFactory::CreateProcessor(const std::string& processorType) const {
+    auto it = creators.find(processorType);
+    if (it != creators.end()) {
+        return it->second();
     }
-    return nullptr;
+    throw std::runtime_error("Processor not found");
 }

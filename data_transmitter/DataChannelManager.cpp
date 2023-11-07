@@ -110,7 +110,7 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
     DataChannel dataChannel(name, publishesPerBatch, publishesIgnoredAfterBatch, zmq_address);
 
     DataChannelProcessesManager processesManager(channelConfig["num-events-in-circular-buffer"].get<size_t>() + 1, verbose);
-    dataChannel.setDataChannelProcessesManager(&processesManager);
+    dataChannel.setDataChannelProcessesManager(processesManager);
 
     // Check if "processors" exist in the channelConfig
     if (channelConfig.contains("processors")) {
@@ -118,7 +118,7 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
 
         // Iterate through processors
         for (const auto& processorConfig : processorsConfig) {
-            std::shared_ptr<GeneralProcessor> processor;
+            GeneralProcessor* processor;
             if (processorConfig.contains("processor")) {
                 std::string processorType = processorConfig["processor"].get<std::string>();
                 processor = factory.CreateProcessor(processorType);
@@ -126,39 +126,37 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
                 printer.PrintWarning("Processor type not found in channel " + channelId + " configuration, using default processor: GeneralProcessor", __LINE__, __FILE__);
                 processor = factory.CreateProcessor("GeneralProcessor");
             }
-            if (processor) {
-                if (TypeChecker::IsInstanceOf<CommandProcessor>(processor)) {
-                    // Cast to CommandProcessor
-                    auto commandProcessor = dynamic_cast<CommandProcessor*>(processor.get());
-                    std::string commandString = DEFAULT_COMMAND_STRING;
-                    if (processorConfig.contains("command")) {
-                        commandString = processorConfig["command"].get<std::string>();
-                    } else {
-                        printer.PrintWarning("Command not found in channel " + channelId + " configuration, using default command: None", __LINE__, __FILE__);
-                    }
-                    // Create a CommandRunner and set the command
-                    std::shared_ptr<CommandRunner> commandRunner = std::make_shared<CommandRunner>(commandString);
-
-                    // Create a CommandProcessor with the CommandRunner
-                    std::shared_ptr<CommandProcessor> commandProcessorInstance = std::make_shared<CommandProcessor>(verbose, commandRunner);
-
-                    if (processorConfig.contains("period-ms")) {
-                        commandProcessorInstance->setPeriod(processorConfig["period-ms"].get<int>());
-                    } else {
-                        printer.PrintWarning("Period not found in channel " + channelId + " configuration, using default period: " + std::to_string(DEFAULT_PERIOD_MS), __LINE__, __FILE__);
-                        commandProcessorInstance->setPeriod(DEFAULT_PERIOD_MS);
-                    }
-                    dataChannel.addProcessToManager(commandProcessorInstance);
-                    printer.Print("Processor test: " + std::to_string(commandProcessorInstance->isReadyToProcess()));
+            if (TypeChecker::IsInstanceOf<CommandProcessor>(processor)) {
+                // Cast to CommandProcessor
+                auto commandProcessor = dynamic_cast<CommandProcessor*>(processor);
+                std::string commandString = DEFAULT_COMMAND_STRING;
+                if (processorConfig.contains("command")) {
+                    commandString = processorConfig["command"].get<std::string>();
                 } else {
-                    if (processorConfig.contains("period-ms")) {
-                        processor->setPeriod(processorConfig["period-ms"].get<int>());
-                    } else {
-                        printer.PrintWarning("Period not found in channel " + channelId + " configuration, using default period: " + std::to_string(DEFAULT_PERIOD_MS), __LINE__, __FILE__);
-                        processor->setPeriod(DEFAULT_PERIOD_MS);
-                    }
-                    dataChannel.addProcessToManager(processor);
+                    printer.PrintWarning("Command not found in channel " + channelId + " configuration, using default command: None", __LINE__, __FILE__);
                 }
+                // Create a CommandRunner and set the command
+                CommandRunner commandRunner(commandString);
+
+                // Create a CommandProcessor with the CommandRunner
+                commandProcessor->setCommandRunner(commandRunner);
+
+                if (processorConfig.contains("period-ms")) {
+                    commandProcessor->setPeriod(processorConfig["period-ms"].get<int>());
+                } else {
+                    printer.PrintWarning("Period not found in channel " + channelId + " configuration, using default period: " + std::to_string(DEFAULT_PERIOD_MS), __LINE__, __FILE__);
+                    commandProcessor->setPeriod(DEFAULT_PERIOD_MS);
+                }
+                dataChannel.addProcessToManager(commandProcessor);
+
+            } else {
+                if (processorConfig.contains("period-ms")) {
+                    processor->setPeriod(processorConfig["period-ms"].get<int>());
+                } else {
+                    printer.PrintWarning("Period not found in channel " + channelId + " configuration, using default period: " + std::to_string(DEFAULT_PERIOD_MS), __LINE__, __FILE__);
+                    processor->setPeriod(DEFAULT_PERIOD_MS);
+                }
+                dataChannel.addProcessToManager(processor);
             }
         }
     }
