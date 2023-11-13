@@ -13,8 +13,8 @@ public:
     void setCommandRunner(const CommandRunner& runner);
     const CommandRunner& getCommandRunner() const;
     bool isReadyToProcess() const override;
-    int getPeriod() const;
-    void setPeriod(int newPeriod); 
+    int getPeriod() const override;
+    void setPeriod(int newPeriod) override; 
     ~CommandProcessor() override;
 
 protected:

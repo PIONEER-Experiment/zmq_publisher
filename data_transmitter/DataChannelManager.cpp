@@ -17,12 +17,15 @@ const int DEFAULT_EVENTS_IN_CIRCULAR_BUFFER      = 1;
 const std::string DEFAULT_ZMQ_ADDRESS            = "tcp://127.0.0.1:5555";
 const int DEFAULT_PERIOD_MS                      = 1000;
 const std::string DEFAULT_COMMAND_STRING         = "";
+const bool DEFAULT_ENABLED_VALUE                 = true;
 
 DataChannelManager::DataChannelManager(const nlohmann::json& channelConfig, int verbose) 
     : verbose(verbose) {
     for (auto it = channelConfig.begin(); it != channelConfig.end(); ++it) {
         const std::string& channelId = it.key();
         const nlohmann::json& channelData = it.value();
+        ProjectPrinter printer;
+        printer.Print("Processing " + channelId + "...");
 
         addChannel(channelId,channelData);
     }
@@ -74,7 +77,18 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
     int publishesIgnoredAfterBatch = DEFAULT_PUBLISHES_IGNORED_AFTER_BATCH;
     std::string zmq_address = DEFAULT_ZMQ_ADDRESS;
     int eventsInCircularBuffer = DEFAULT_EVENTS_IN_CIRCULAR_BUFFER;
+    bool enabled = DEFAULT_ENABLED_VALUE;
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
+
+    //Ignore the channel if not enabled
+    if (channelConfig.contains("enabled")) {
+        enabled = channelConfig["enabled"].get<bool>();
+    } else {
+        printer.PrintWarning("Enabled not found in channel " + channelId + " configuration. Using the default name: " + DEFAULT_NAME, __LINE__, __FILE__);
+    }
+    if (!enabled) {
+        return;
+    }
 
     if (channelConfig.contains("name")) {
         name = channelConfig["name"].get<std::string>();
