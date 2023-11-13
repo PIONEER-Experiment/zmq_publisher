@@ -56,8 +56,9 @@ target_sources(publisher
    processors/GeneralProcessor.cpp
    processors/GeneralProcessorFactory.cpp
    processors/CommandProcessor.cpp
-   processors/CRProcessor.cpp
+   processors/MdumpProcessor.cpp
    processors/ODBProcessor.cpp
+   processors/HistogramProcessor.cpp
    utilities/ProjectPrinter.cpp
    utilities/EventLoopManager.cpp
    utilities/SignalHandler.cpp

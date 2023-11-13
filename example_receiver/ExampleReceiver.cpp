@@ -47,7 +47,7 @@ int main() {
     zmq::context_t context(1);
     zmq::socket_t subscriberSocket(context, ZMQ_SUB);
 
-    std::string zmqAddress = config["zmq-address"].get<std::string>();
+    std::string zmqAddress = config["data-channels"]["mdump-channel"]["zmq-address"].get<std::string>();
     subscriberSocket.connect(zmqAddress);
     subscriberSocket.set(zmq::sockopt::subscribe, "");
 

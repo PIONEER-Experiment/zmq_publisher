@@ -38,9 +38,10 @@ int EventProcessor::processEvent(void* event_data, INT max_event_size) {
 }
 
 int EventProcessor::processEvent(const MidasEvent& event, const std::string& bankName) {
-    if (!isNewEvent(event)) {
-        return 1;
-    }
+    //if (!isNewEvent(event)) {
+    //    return 1;
+    //}
+    //isNewEvent is unneccessary when using mdump, as it only gets events after it was called.
     updateLastSerialNumberProcessed(event.getSerialNumber());
     for (const MidasBank& bank : event.getBanks()) {
         if (bank.getBankName() == bankName) {

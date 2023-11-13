@@ -50,11 +50,14 @@ bool DataTransmitter::publish(DataChannel& dataChannel, const std::string& data)
         if (dataChannel.isOnBreak()) {
             return true;
         }
-
-        // Send the channel (topic)
-        zmq::message_t channelMessage(channel.size());
-        memcpy(channelMessage.data(), channel.c_str(), channel.size());
-        publisher.send(channelMessage, zmq::send_flags::sndmore);
+        
+        
+        if (!channel.empty()) { // No topic is sent if the channel name is empty
+            // Send the channel (topic)
+            zmq::message_t channelMessage(channel.size());
+            memcpy(channelMessage.data(), channel.c_str(), channel.size());
+            publisher.send(channelMessage, zmq::send_flags::sndmore);
+        }
 
         // Send the actual message content
         zmq::message_t message(data.size());
