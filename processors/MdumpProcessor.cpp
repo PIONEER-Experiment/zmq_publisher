@@ -10,6 +10,7 @@
 #include "serializer/Serializer.hh"
 #include "HistogramStorage.h"
 #include <iostream>
+#include <chrono>
 
 MdumpProcessor::MdumpProcessor(const std::string& detectorMappingFile, int verbose, const CommandRunner& runner)
     : CommandProcessor(verbose, runner), detectorMappingFile(detectorMappingFile), eventProcessor(detectorMappingFile, verbose), serializer(new unpackers::Serializer(detectorMappingFile, 0, 0, 0)) {
@@ -21,18 +22,42 @@ std::vector<std::string> MdumpProcessor::getProcessedOutput() {
     // Placeholder result
     std::vector<std::string> result;
 
+    // Start timing
+    auto start = std::chrono::high_resolution_clock::now();
+
     MdumpPackage mdumpPackage(commandRunner.execute());
+
+    // Measure the time taken by the commandRunner.execute()
+    auto endCommandRunner = std::chrono::high_resolution_clock::now();
+    auto durationCommandRunner = std::chrono::duration_cast<std::chrono::milliseconds>(endCommandRunner - start);
+    printer.Print("CommandRunner.execute() took " + std::to_string(durationCommandRunner.count()) + " milliseconds");
+
     for (const MidasEvent& event : mdumpPackage.getEvents()) {
+        auto startProcessEvent = std::chrono::high_resolution_clock::now();
         if (eventProcessor.processEvent(event, "CR00") == 0) {
             // Serialize the event data with EventProcessor and store it in serializedData
             std::vector<std::string> serializedData = eventProcessor.getSerializedData();
+            auto startUpdateHistograms = std::chrono::high_resolution_clock::now();
             updateHistograms(eventProcessor.getWaveforms());
-            result.insert(result.end(),serializedData.begin(),serializedData.end());
+            auto endUpdateHistograms = std::chrono::high_resolution_clock::now();
+            auto durationUpdateHistograms = std::chrono::duration_cast<std::chrono::milliseconds>(endUpdateHistograms - startUpdateHistograms);
+            printer.Print("updateHistograms() took " + std::to_string(durationUpdateHistograms.count()) + " milliseconds");
+
+            result.insert(result.end(), serializedData.begin(), serializedData.end());
         }
+        auto endProcessEvent = std::chrono::high_resolution_clock::now();
+        auto durationProcessEvent = std::chrono::duration_cast<std::chrono::milliseconds>(endProcessEvent - startProcessEvent);
+        printer.Print("eventProcessor.processEvent() took " + std::to_string(durationProcessEvent.count()) + " milliseconds");
     }
+
+    // Measure the overall time taken by the entire process
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    printer.Print("Total processing time: " + std::to_string(duration.count()) + " milliseconds");
 
     return result;
 }
+
 
 
 void MdumpProcessor::updateHistograms(std::vector<dataProducts::Waveform> waveforms) {

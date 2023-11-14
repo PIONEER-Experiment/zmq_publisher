@@ -56,6 +56,7 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
             std::vector<std::string> serializedDataVector;
             std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection",&dataProducts::Waveform::waveformIndex);
             for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
+                waveforms.clear();
                 waveforms.insert(waveforms.end(),wfs.begin(),wfs.end());
                 serializer->SetEvent(event.getSerialNumber());
                 serializer->SetWaveforms(wfs);
