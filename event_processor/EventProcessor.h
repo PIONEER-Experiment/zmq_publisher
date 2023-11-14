@@ -8,6 +8,7 @@
 #include "serializer/Serializer.hh"
 #include "dataProducts/Waveform.hh"
 #include <string>
+#include <vector>
 #include "MidasEvent.h"
 
 class EventProcessor {
@@ -39,12 +40,16 @@ public:
     // Getter for the TMEvent
     TMEvent getTMEvent(void* event_data, INT max_event_size);
 
+    // Getter for waveformCollection
+    std::vector<dataProducts::Waveform> getWaveforms();
+
 private:
     unpackers::EventUnpacker* eventUnpacker;
     unpackers::Serializer* serializer;
     std::string serialized_data;
     int verbose;
     int lastSerialNumberProcessed;
+    std::vector<dataProducts::Waveform> waveforms;
 
     void verbosePrint(TMEvent tmEvent);
     void updateLastSerialNumberProcessed(int serialNumber);

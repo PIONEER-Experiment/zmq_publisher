@@ -19,6 +19,7 @@ std::string getConfigFilePath() {
     // Build the full path to the configuration file
     return sourceDirectory + "/" + CONFIG_FILE;
 }
+
 // Function to read the configuration from the file
 nlohmann::json readConfigFile() {
     std::string configFilePath = getConfigFilePath();
@@ -49,13 +50,13 @@ int main() {
 
     std::string zmqAddress = config["data-channels"]["mdump-channel"]["zmq-address"].get<std::string>();
     subscriberSocket.connect(zmqAddress);
-    subscriberSocket.set(zmq::sockopt::subscribe, "");
+    subscriberSocket.set(zmq::sockopt::subscribe, "HIST");
 
-    printer.Print("Connected to address " + zmqAddress + " and subscribed to all messages.");
+    printer.Print("Connected to address " + zmqAddress + " and subscribed to HIST messages.");
 
     while (true) {
         zmq::message_t message;
-        
+
         zmq::recv_result_t result = subscriberSocket.recv(message, zmq::recv_flags::none);
 
         if (!result) {
@@ -64,7 +65,38 @@ int main() {
         } else {
             printer.Print("Received a message of size " + std::to_string(message.size()) + " bytes");
             std::string data(static_cast<char*>(message.data()), message.size());
-            printer.Print("Received: " + data);
+
+            // Parse the received JSON array
+            try {
+                json jsonArray = json::parse(data);
+
+                // Print the first 500 characters of each entry
+                const int maxCharsToPrint = 500;
+                for (const auto& entry : jsonArray) {
+                    if (entry.is_string()) {
+                        std::string entryString = entry.get<std::string>();  // Convert json entry to string
+
+                        // Parse the entry string into a JSON object
+                        std::string jsonContent = entryString.substr(entryString.find("{"));
+                                        
+                        // Parse the extracted JSON content
+                        try {
+                            json entryJson = json::parse(jsonContent);
+
+                            if (entryJson.is_object() && entryJson.contains("0_1_0")) {
+                                // Extract the "Experiment" field
+                                json experimentJson = entryJson["0_1_0"];
+                                printer.Print("0_1_0 JSON: " + experimentJson.dump().substr(0, maxCharsToPrint));
+                            }
+                        } catch (const nlohmann::json::exception& e) {
+                            printer.PrintError("Failed to parse JSON: " + std::string(e.what()));
+                        }
+                    }
+                }
+
+            } catch (const nlohmann::json::exception& e) {
+                printer.PrintError("Failed to parse JSON: " + std::string(e.what()));
+            }
         }
     }
 

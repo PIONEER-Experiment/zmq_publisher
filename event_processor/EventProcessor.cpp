@@ -51,7 +51,8 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
 
             // Unpack and Serialize
             eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, "CR00");
-            auto waveformCollection = eventUnpacker->GetCollection<dataProducts::Waveform>("WaveformCollection");
+            std::vector<dataProducts::Waveform> waveformCollection = eventUnpacker->GetCollection<dataProducts::Waveform>("WaveformCollection");
+            waveforms = waveformCollection;
             serializer->SetEvent(event.getSerialNumber());
             serializer->SetWaveforms(waveformCollection);
             std::string serializedData = serializer->GetString();
@@ -154,4 +155,8 @@ std::string EventProcessor::getSerializedData() {
 // Setter for serialized_data
 void EventProcessor::setSerializedData(const std::string& data) {
     serialized_data = data;
+}
+
+std::vector<dataProducts::Waveform> EventProcessor::getWaveforms() {
+    return waveforms;
 }

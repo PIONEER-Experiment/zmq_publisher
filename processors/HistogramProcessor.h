@@ -4,6 +4,7 @@
 #include "GeneralProcessor.h"
 #include <string>
 #include <vector>
+#include <chrono>
 
 class HistogramProcessor : public GeneralProcessor {
 public:
@@ -15,7 +16,7 @@ public:
     ~HistogramProcessor() override;
 
 private:
-    // Add any additional members specific to HistogramProcessor if needed
+    std::chrono::time_point<std::chrono::high_resolution_clock> lastPublishTime;
 };
 
 #endif // HISTOGRAM_PROCESSOR_H
