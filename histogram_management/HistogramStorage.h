@@ -18,7 +18,7 @@ public:
 
     // Function to add data to the histogram for a given ChannelID
     void addToHistogram(std::string key, double data);
-    void addToHistogram(std::string key, int dataX, int dataY);
+    void addToHistogram(std::string key, double dataX, double dataY);
 
     std::string serialize();
 
