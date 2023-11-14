@@ -35,6 +35,7 @@ TH1* HistogramStorage::getHistogram(std::string key) {
 }
 
 void HistogramStorage::addToHistogram(std::string key, double data) {
+    ProjectPrinter printer;
     // Check if the key exists in the map
     auto it = histogramMap.find(key);
 

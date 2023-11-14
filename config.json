@@ -44,7 +44,7 @@
             "processors": [
                 {
                     "processor": "HistogramProcessor",
-                    "period-ms": 1000
+                    "period-ms": 10000
                 }
             ]
         }
