@@ -3,7 +3,7 @@
 #include "TBufferJSON.h"
 #include "TString.h"
 #include "TH1D.h"
-#include "TH2I.h"
+#include "TH2D.h"
 #include "nlohmann/json.hpp"
 
 
@@ -57,7 +57,7 @@ void HistogramStorage::addToHistogram(std::string key, double data) {
     //printer.Print(histoString);
 }
 
-void HistogramStorage::addToHistogram(std::string key, int dataX, int dataY) {
+void HistogramStorage::addToHistogram(std::string key, double dataX, double dataY) {
     // Check if the key exists in the map
     auto it = histogramMap.find(key);
 
@@ -67,7 +67,7 @@ void HistogramStorage::addToHistogram(std::string key, int dataX, int dataY) {
     } else {
         // key doesn't exist, create a new histogram and add data
         //TH2D(name, title, Xbins, Xmin, Xmax, Ybins, Ymin, Ymax)
-        TH2I* newHistogram = new TH2I(("Histogram_" + key).c_str(), "", 12, 0, 11, 12, 0 , 11);
+        TH2D* newHistogram = new TH2D(("Histogram_" + key).c_str(), "", 12, 0, 11, 12, 0 , 11);
         newHistogram->Fill(dataX,dataY);
 
         // Add the new histogram to the map
