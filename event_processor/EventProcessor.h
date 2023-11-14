@@ -16,7 +16,7 @@ public:
     EventProcessor(const std::string& detectorMappingFile, int verbose = 0);
     ~EventProcessor();
 
-    int processEvent(void* event_data, INT max_event_size);
+    //int processEvent(void* event_data, INT max_event_size);
     int processEvent(const MidasEvent& event, const std::string& bankName);
 
     // Getter for the serializer
@@ -32,10 +32,10 @@ public:
     void setEventUnpacker(unpackers::EventUnpacker* newUnpacker);
 
     // Getter for serialized_data
-    std::string getSerializedData();
+    std::vector<std::string> getSerializedData();
 
     // Setter for serialized_data
-    void setSerializedData(const std::string& data);
+    void setSerializedData(const std::vector<std::string>& data);
 
     // Getter for the TMEvent
     TMEvent getTMEvent(void* event_data, INT max_event_size);
@@ -46,7 +46,7 @@ public:
 private:
     unpackers::EventUnpacker* eventUnpacker;
     unpackers::Serializer* serializer;
-    std::string serialized_data;
+    std::vector<std::string> serialized_data;
     int verbose;
     int lastSerialNumberProcessed;
     std::vector<dataProducts::Waveform> waveforms;

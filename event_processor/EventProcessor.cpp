@@ -4,7 +4,7 @@
 EventProcessor::EventProcessor(const std::string& detectorMappingFile, int verbose)
     : eventUnpacker(new unpackers::BasicEventUnpacker()), // Changed the name to eventUnpacker
       serializer(new unpackers::Serializer(detectorMappingFile, 0, 0, 0)),
-      serialized_data(""),
+      serialized_data({}),
       verbose(verbose),
       lastSerialNumberProcessed(0) {
 }
@@ -15,6 +15,7 @@ EventProcessor::~EventProcessor() {
     delete serializer;
 }
 
+/*
 int EventProcessor::processEvent(void* event_data, INT max_event_size) {
     // Process the event
     TMEvent tmEvent(event_data, max_event_size);
@@ -36,6 +37,7 @@ int EventProcessor::processEvent(void* event_data, INT max_event_size) {
     setSerializedData(serializedData);
     return 0;
 }
+*/
 
 int EventProcessor::processEvent(const MidasEvent& event, const std::string& bankName) {
     //if (!isNewEvent(event)) {
@@ -51,12 +53,16 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
 
             // Unpack and Serialize
             eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, "CR00");
-            std::vector<dataProducts::Waveform> waveformCollection = eventUnpacker->GetCollection<dataProducts::Waveform>("WaveformCollection");
-            waveforms = waveformCollection;
-            serializer->SetEvent(event.getSerialNumber());
-            serializer->SetWaveforms(waveformCollection);
-            std::string serializedData = serializer->GetString();
-            setSerializedData(serializedData);
+            std::vector<std::string> serializedDataVector;
+            std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection",&dataProducts::Waveform::waveformIndex);
+            for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
+                waveforms.insert(waveforms.end(),wfs.begin(),wfs.end());
+                serializer->SetEvent(event.getSerialNumber());
+                serializer->SetWaveforms(wfs);
+                std::string serializedData_i = serializer->GetString();
+                serializedDataVector.push_back(serializedData_i);
+            }
+            setSerializedData(serializedDataVector);
         }
     }
     return 0;
@@ -148,12 +154,12 @@ void EventProcessor::setEventUnpacker(unpackers::EventUnpacker* newEventUnpacker
 }
 
 // Getter for serialized_data
-std::string EventProcessor::getSerializedData() {
+std::vector<std::string> EventProcessor::getSerializedData() {
     return serialized_data;
 }
 
 // Setter for serialized_data
-void EventProcessor::setSerializedData(const std::string& data) {
+void EventProcessor::setSerializedData(const std::vector<std::string>& data) {
     serialized_data = data;
 }
 

@@ -23,6 +23,7 @@ DataChannel::DataChannel(const std::string& name, int eventsBeforeBreak, int eve
 }
 
 bool DataChannel::publish() {
+    ProjectPrinter printer;
     if (!transmitter->isBound()) {
         if (!transmitter->bind()) {
             return false;
