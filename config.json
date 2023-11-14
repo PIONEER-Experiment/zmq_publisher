@@ -1,6 +1,6 @@
 {
     "general-settings": {
-        "verbose": 1
+        "verbose": 3
     },
     "data-channels": {
         "mdump-channel": {
@@ -20,7 +20,7 @@
             ]
         },
         "odb-channel": {
-            "enabled": true,
+            "enabled": false,
             "zmq-address": "tcp://127.0.0.1:5555",
             "name": "ODB",
             "publishes-per-batch": 1,
@@ -30,12 +30,12 @@
                 {
                     "processor": "ODBProcessor",
                     "command": "$(MIDASSYS)/bin/odbedit -c json -q",
-                    "period-ms": 60000
+                    "period-ms": 100
                 }
             ]
         },
         "histogram-channel": {
-            "enabled": false,
+            "enabled": true,
             "zmq-address": "tcp://127.0.0.1:5555",
             "name": "HIST",
             "publishes-per-batch": 1,
