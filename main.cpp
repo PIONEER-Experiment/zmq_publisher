@@ -20,6 +20,7 @@
 #include "MdumpProcessor.h"
 #include "ODBProcessor.h"
 #include "HistogramProcessor.h"
+#include "RunNumberProcessor.h"
 #include "DataTransmitterManager.h"
 #include "DataChannelManager.h"
 
@@ -50,15 +51,21 @@ using json = nlohmann::json;
 // New processors MUST be registered here!
 void registerProcessors(nlohmann::json config) {
     int verbose = config["general-settings"]["verbose"].get<int>();
+
+    //These two are a bit of a hack, but I don't really care because the user
+    //Should be editting this place anyway
     std::string detectorMappingFile = config["data-channels"]["mdump-channel"]["processors"][0]["detector-mapping-file"].get<std::string>();
+    bool useMultiThreading = config["data-channels"]["mdump-channel"]["processors"][0]["multi-threading"].get<bool>();
+    int numWorkers = config["data-channels"]["mdump-channel"]["processors"][0]["num-workers"].get<int>();
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
 
     factory.RegisterProcessor("GeneralProcessor", [verbose]() -> GeneralProcessor* { return new GeneralProcessor(verbose); });
     factory.RegisterProcessor("CommandProcessor", [verbose]() -> CommandProcessor* { return new CommandProcessor(verbose); });
-    factory.RegisterProcessor("MdumpProcessor", [verbose, detectorMappingFile]() -> MdumpProcessor* {
-        return new MdumpProcessor(detectorMappingFile, verbose);
+    factory.RegisterProcessor("MdumpProcessor", [verbose, detectorMappingFile, useMultiThreading,numWorkers]() -> MdumpProcessor* {
+        return new MdumpProcessor(detectorMappingFile, verbose, useMultiThreading,numWorkers);
     });
     factory.RegisterProcessor("ODBProcessor", [verbose]() -> ODBProcessor* { return new ODBProcessor(verbose); });
+    factory.RegisterProcessor("RunNumberProcessor", [verbose]() -> RunNumberProcessor* { return new RunNumberProcessor(verbose); });
     factory.RegisterProcessor("HistogramProcessor", [verbose]() -> HistogramProcessor* { return new HistogramProcessor(verbose); });
 }
 

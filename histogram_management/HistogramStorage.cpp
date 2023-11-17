@@ -7,8 +7,7 @@
 #include "nlohmann/json.hpp"
 
 
-HistogramStorage::HistogramStorage() {
-    // Constructor implementation
+HistogramStorage::HistogramStorage() : needToResetHistograms(false) {
 }
 
 HistogramStorage::~HistogramStorage() {
@@ -35,6 +34,9 @@ TH1* HistogramStorage::getHistogram(std::string key) {
 }
 
 void HistogramStorage::addToHistogram(std::string key, double data) {
+    if (needToResetHistograms) {
+        resetHistograms();
+    }
     ProjectPrinter printer;
     // Check if the key exists in the map
     auto it = histogramMap.find(key);
@@ -59,6 +61,9 @@ void HistogramStorage::addToHistogram(std::string key, double data) {
 }
 
 void HistogramStorage::addToHistogram(std::string key, double dataX, double dataY) {
+    if (needToResetHistograms) {
+        resetHistograms();
+    }
     // Check if the key exists in the map
     auto it = histogramMap.find(key);
 
@@ -68,7 +73,7 @@ void HistogramStorage::addToHistogram(std::string key, double dataX, double data
     } else {
         // key doesn't exist, create a new histogram and add data
         //TH2D(name, title, Xbins, Xmin, Xmax, Ybins, Ymin, Ymax)
-        TH2D* newHistogram = new TH2D(("Histogram_" + key).c_str(), "", 12, 0, 11, 12, 0 , 11);
+        TH2D* newHistogram = new TH2D(("Histogram_" + key).c_str(), "", 12, -6, 6, 12, -6, 6);
         newHistogram->Fill(dataX,dataY);
 
         // Add the new histogram to the map
@@ -103,5 +108,22 @@ std::string HistogramStorage::serialize() {
 
     // Return the JSON string
     return serializedHistogramMap.dump();
+}
+
+void HistogramStorage::setRunNumber(int run_number) {
+    if (runNumber != run_number) {
+        needToResetHistograms = true;
+    }
+    runNumber = run_number;
+}
+
+void HistogramStorage::resetHistograms() {
+    for (auto& entry : histogramMap) {
+        TH1* histogram = entry.second;
+        if (histogram) {
+            histogram->Reset();
+        }
+    }
+    needToResetHistograms = false;
 }
 

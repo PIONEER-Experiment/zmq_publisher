@@ -15,7 +15,7 @@ EventProcessor::~EventProcessor() {
     delete serializer;
 }
 
-/*
+
 int EventProcessor::processEvent(void* event_data, INT max_event_size) {
     // Process the event
     TMEvent tmEvent(event_data, max_event_size);
@@ -28,16 +28,20 @@ int EventProcessor::processEvent(void* event_data, INT max_event_size) {
 
     // Access the WaveformCollection
     eventUnpacker->UnpackEvent(&tmEvent);
-    auto waveformCollection = eventUnpacker->GetCollection<dataProducts::Waveform>("WaveformCollection");
-
-    // Serialize the data (you can provide it to the data transmitter)
-    serializer->SetEvent(tmEvent.serial_number);
-    serializer->SetWaveforms(waveformCollection);
-    std::string serializedData = serializer->GetString();
-    setSerializedData(serializedData);
+    std::vector<std::string> serializedDataVector;
+    std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection",&dataProducts::Waveform::waveformIndex);
+    for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
+        waveforms.clear();
+        waveforms.insert(waveforms.end(),wfs.begin(),wfs.end());
+        serializer->SetEvent(tmEvent.serial_number);
+        serializer->SetWaveforms(wfs);
+        std::string serializedData_i = serializer->GetString();
+        serializedDataVector.push_back(serializedData_i);
+    }
+    setSerializedData(serializedDataVector);
     return 0;
 }
-*/
+
 
 int EventProcessor::processEvent(const MidasEvent& event, const std::string& bankName) {
     //if (!isNewEvent(event)) {

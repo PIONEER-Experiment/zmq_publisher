@@ -20,15 +20,20 @@ public:
     void addToHistogram(std::string key, double data);
     void addToHistogram(std::string key, double dataX, double dataY);
 
+    void setRunNumber(int run_number);
+
     std::string serialize();
 
 private:
     // Private constructor to enforce singleton pattern
     HistogramStorage();
     ~HistogramStorage();
+    void resetHistograms();
 
     // Map to store ChannelID to TH1 histograms
     std::map<std::string, TH1*> histogramMap;
+    int runNumber;
+    bool needToResetHistograms;
 };
 
 #endif // HISTOGRAM_STORAGE_H
