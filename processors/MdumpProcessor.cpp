@@ -297,7 +297,7 @@ void MdumpProcessor::updateXYHodoscopeHistograms(dataProducts::WaveformIntegralC
     // Process hodoscope integrals into a HodoscopeEvent object
     if (hodo_x_waveform_integrals.size() > 0 || hodo_y_waveform_integrals.size() > 0) {
         dataProducts::HodoscopeEvent hodoscopeEvent(&hodo_x_waveform_integrals, &hodo_y_waveform_integrals);
-        histogramStorage.addToHistogram("XY_hodoscope", hodoscopeEvent.max_channel_x, hodoscopeEvent.max_channel_y);
+        histogramStorage.addToHistogram("XY_hodoscope", hodoscopeEvent.max_x, hodoscopeEvent.max_y);
     }
 }
 
