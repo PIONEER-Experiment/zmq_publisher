@@ -4,14 +4,19 @@
 #include "CommandProcessor.h"
 #include "EventProcessor.h"
 #include "serializer/Serializer.hh"
+#include "MidasConnector.h"
+#include "MdumpDatabase.h"
 
 class MdumpProcessor : public CommandProcessor {
 public:
-    MdumpProcessor(const std::string& detectorMappingFile, int verbose = 0, const CommandRunner& runner = CommandRunner(""));
+    MdumpProcessor(const std::string& detectorMappingFile, int verbose = 0, bool use_multi_threading = false, int num_workers = 5, const CommandRunner& runner = CommandRunner(""));
 
     std::vector<std::string> getProcessedOutput() override;
+    
+    void setCommandRunner(const CommandRunner& runner) override;
 
 private:
+    bool initializeMidas(MidasConnector& midasConnector);
     void updateHistograms(std::vector<dataProducts::Waveform> waveforms);
     void doIntegration(dataProducts::WaveformCollection *input, dataProducts::WaveformIntegralCollection* output);
     void updateEnergyHistograms(dataProducts::WaveformIntegralCollection& waveform_integrals);
@@ -30,6 +35,9 @@ private:
     std::string detectorMappingFile;
     EventProcessor eventProcessor;
     unpackers::Serializer* serializer;
+    MdumpDatabase mdumpDatabase;
+    bool useMultiThreading;
+    int numWorkers;
 };
 
 #endif // MDUMPPROCESSOR_H

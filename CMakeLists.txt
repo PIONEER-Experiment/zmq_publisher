@@ -59,7 +59,9 @@ target_sources(publisher
    processors/MdumpProcessor.cpp
    processors/ODBProcessor.cpp
    processors/HistogramProcessor.cpp
+   processors/RunNumberProcessor.cpp
    histogram_management/HistogramStorage.cpp
+   multi_threading/MdumpDatabase.cpp
    utilities/ProjectPrinter.cpp
    utilities/EventLoopManager.cpp
    utilities/SignalHandler.cpp
@@ -126,6 +128,7 @@ target_include_directories(publisher PRIVATE
    ${CMAKE_SOURCE_DIR}/command_management
    ${CMAKE_SOURCE_DIR}/processors
    ${CMAKE_SOURCE_DIR}/histogram_management
+   ${CMAKE_SOURCE_DIR}/multi_threading
 
    # Include Boost Directory
    ${Boost_INCLUDE_DIRS}

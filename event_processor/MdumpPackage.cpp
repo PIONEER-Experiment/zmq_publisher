@@ -5,6 +5,10 @@ MdumpPackage::MdumpPackage(const std::string& mdumpOutput) {
     parseMdumpInfo(mdumpOutput);
 }
 
+MdumpPackage::MdumpPackage() {
+    // Default constructor
+}
+
 void MdumpPackage::parseMdumpInfo(const std::string& mdumpOutput) {
     std::vector<std::string> eventStrings;
 

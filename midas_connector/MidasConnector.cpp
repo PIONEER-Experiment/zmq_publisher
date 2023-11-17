@@ -1,6 +1,18 @@
 #include "MidasConnector.h"
 #include "ProjectPrinter.h"
 
+void process_event(HNDLE hBuf, HNDLE request_id, EVENT_HEADER *pheader, void *pevent) {
+   // Print a message indicating that data has been received
+   printf("Data received. Disconnecting...\n");
+
+   // Disconnect from the experiment
+   cm_disconnect_experiment();
+
+   // You might want to exit the program here if necessary
+   // exit(0);
+}
+
+
 MidasConnector::MidasConnector(const char* clientName) {
     // Initialize client name
     strncpy(client_name_, clientName, NAME_LENGTH);
@@ -107,7 +119,7 @@ bool MidasConnector::SetCacheSize(int cacheSize) {
 
 bool MidasConnector::RequestEvent() {
     int request_id;
-    int status = bm_request_event(hBufEvent, event_id, trigger_mask, sampling_type, &request_id, NULL);
+    int status = bm_request_event(hBufEvent, event_id, trigger_mask, sampling_type, &request_id, process_event);
     return status == BM_SUCCESS;
 }
 

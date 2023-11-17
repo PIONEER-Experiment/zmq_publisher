@@ -10,7 +10,7 @@ class CommandProcessor : public GeneralProcessor {
 public:
     CommandProcessor(int verbose = 0, const CommandRunner& runner = CommandRunner(""));
     std::vector<std::string> getProcessedOutput() override;
-    void setCommandRunner(const CommandRunner& runner);
+    virtual void setCommandRunner(const CommandRunner& runner);
     const CommandRunner& getCommandRunner() const;
     bool isReadyToProcess() const override;
     int getPeriod() const override;
