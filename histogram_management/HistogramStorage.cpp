@@ -116,6 +116,9 @@ void HistogramStorage::setRunNumber(int run_number) {
     }
     runNumber = run_number;
 }
+int HistogramStorage::getRunNumber() {
+    return runNumber;
+}
 
 void HistogramStorage::resetHistograms() {
     for (auto& entry : histogramMap) {

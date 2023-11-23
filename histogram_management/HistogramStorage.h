@@ -21,6 +21,7 @@ public:
     void addToHistogram(std::string key, double dataX, double dataY);
 
     void setRunNumber(int run_number);
+    int getRunNumber();
 
     std::string serialize();
 

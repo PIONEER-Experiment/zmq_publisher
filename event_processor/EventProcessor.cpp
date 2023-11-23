@@ -1,5 +1,7 @@
 #include "EventProcessor.h"
 #include "ProjectPrinter.h"
+#include "HistogramStorage.h"
+#include <chrono>
 
 EventProcessor::EventProcessor(const std::string& detectorMappingFile, int verbose)
     : eventUnpacker(new unpackers::BasicEventUnpacker()), // Changed the name to eventUnpacker
@@ -43,6 +45,74 @@ int EventProcessor::processEvent(void* event_data, INT max_event_size) {
 }
 
 
+/*
+int EventProcessor::processEvent(const MidasEvent& event, const std::string& bankName) {
+    // Start timing for the entire method
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // Uncomment if you want to measure the isNewEvent function
+    // if (!isNewEvent(event)) {
+    //    return 1;
+    // }
+
+    // Start timing for updateLastSerialNumberProcessed
+    auto startUpdateLastSerialNumber = std::chrono::high_resolution_clock::now();
+    updateLastSerialNumberProcessed(event.getSerialNumber());
+    // Stop timing for updateLastSerialNumberProcessed and print the duration
+    auto endUpdateLastSerialNumber = std::chrono::high_resolution_clock::now();
+    auto durationUpdateLastSerialNumber = std::chrono::duration_cast<std::chrono::microseconds>(endUpdateLastSerialNumber - startUpdateLastSerialNumber);
+    std::cout << "updateLastSerialNumberProcessed took " << durationUpdateLastSerialNumber.count() << " microseconds" << std::endl;
+
+    for (const MidasBank& bank : event.getBanks()) {
+        if (bank.getBankName() == bankName) {
+            // Start timing for the bank processing
+            auto startBankProcessing = std::chrono::high_resolution_clock::now();
+
+            // Get data in a form the unpacker likes
+            uint64_t* bankData = bank.getBankDataAsUint64();
+            int totalWords = bank.getNumUint64Words();
+
+            // Unpack and Serialize
+            eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, "CR00");
+            std::vector<std::string> serializedDataVector;
+            std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection", &dataProducts::Waveform::waveformIndex);
+
+            for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
+                // Start timing for waveform processing
+                auto startWaveformProcessing = std::chrono::high_resolution_clock::now();
+
+                waveforms.clear();
+                waveforms.insert(waveforms.end(), wfs.begin(), wfs.end());
+                serializer->SetEvent(event.getSerialNumber());
+                serializer->SetWaveforms(wfs);
+                std::string serializedData_i = serializer->GetString();
+                serializedDataVector.push_back(serializedData_i);
+
+                // Stop timing for waveform processing and print the duration
+                auto endWaveformProcessing = std::chrono::high_resolution_clock::now();
+                auto durationWaveformProcessing = std::chrono::duration_cast<std::chrono::microseconds>(endWaveformProcessing - startWaveformProcessing);
+                std::cout << "Waveform processing took " << durationWaveformProcessing.count() << " microseconds" << std::endl;
+            }
+
+            setSerializedData(serializedDataVector);
+
+            // Stop timing for the entire bank processing and print the duration
+            auto endBankProcessing = std::chrono::high_resolution_clock::now();
+            auto durationBankProcessing = std::chrono::duration_cast<std::chrono::microseconds>(endBankProcessing - startBankProcessing);
+            std::cout << "Bank processing took " << durationBankProcessing.count() << " microseconds" << std::endl;
+        }
+    }
+
+    // Stop timing for the entire method and print the duration
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    std::cout << "Total execution time: " << duration.count() << " microseconds" << std::endl;
+
+    return 0;
+}
+*/
+
+
 int EventProcessor::processEvent(const MidasEvent& event, const std::string& bankName) {
     //if (!isNewEvent(event)) {
     //    return 1;
@@ -62,6 +132,7 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
             for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
                 waveforms.clear();
                 waveforms.insert(waveforms.end(),wfs.begin(),wfs.end());
+                serializer->SetRun(HistogramStorage::getInstance().getRunNumber());
                 serializer->SetEvent(event.getSerialNumber());
                 serializer->SetWaveforms(wfs);
                 std::string serializedData_i = serializer->GetString();

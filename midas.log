@@ -1,0 +1,2 @@
+02:13:43.941 2023/11/23 [ODBEdit,ERROR] [odb.cxx:2763:db_delete_client_info,ERROR] invalid database handle
+02:13:43.941 2023/11/23 [ODBEdit,ERROR] [odb.cxx:2167:db_close_database,ERROR] database not attached
