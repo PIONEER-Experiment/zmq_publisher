@@ -109,9 +109,9 @@ search_and_set_directory_or_file 5 "cppzmq" "CPPZMQ_ROOT" "d" ""
 # Search for "eigen" directory backward with a timeout of 5 seconds
 search_and_set_directory_or_file 5 "eigen-3.4.0" "EIGEN_ROOT" "d" ""
 
-MIDAS_EXPT_NAME=$(timeout 5 sed -n '2{p;q}' "$MIDAS_EXPTAB" | awk '{print $1}')
+MIDAS_EXPT_NAME=$(timeout 5 sed -n '1{p;q}' "$MIDAS_EXPTAB" | awk '{print $1}')
 if [ -z "$MIDAS_EXPT_NAME" ]; then
-    echo "Warning: The second line in $MIDAS_EXPTAB is empty or doesn't exist."
+    echo "Warning: The first line in $MIDAS_EXPTAB is empty or doesn't exist."
 fi
 
 
