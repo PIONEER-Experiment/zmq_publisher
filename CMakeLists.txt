@@ -2,16 +2,6 @@ cmake_minimum_required(VERSION 3.0)
 
 project(publisher)
 
-if (NOT DEFINED ENV{ZEROMQ_ROOT})
-   message(SEND_ERROR "ZEROMQ_ROOT environment variable not defined.")
-endif()
-if (NOT DEFINED ENV{CPPZMQ_ROOT})
-   message(SEND_ERROR "CPPZMQ_ROOT environment variable not defined.")
-endif()
-
-# Find and use the zlib library
-find_package(ZLIB REQUIRED)
-
 file(GLOB DATA_TRANSMITTER_SOURCES "data_transmitter/*.cpp")
 file(GLOB COMMAND_MANAGEMENT_SOURCES "command_management/*.cpp")
 file(GLOB PROCESSORS_SOURCES "processors/*.cpp")
@@ -26,16 +16,59 @@ add_executable(publisher
     main.cpp
 )
 
-
-# Define libraries for the "publisher" target
-set(PUBLISHER_LIBS
-   # Include ZeroMQ Libraries
-   $ENV{ZEROMQ_ROOT}/lib/libzmq.so
+# Add the example_reciever executable
+add_executable(example_receiver
+   example_receiver/ExampleReceiver.cpp
+   utilities/ProjectPrinter.cpp
 )
+
+
+# Check if ZEROMQ_ROOT and CPPZMQ_ROOT are set
+if (DEFINED ENV{ZEROMQ_ROOT} AND DEFINED ENV{CPPZMQ_ROOT})
+    message(STATUS "ZEROMQ_ROOT and CPPZMQ_ROOT environment variables set.")
+    # Define libraries for the "publisher" target
+    set(PUBLISHER_LIBS
+        # Include ZeroMQ Libraries
+        $ENV{ZEROMQ_ROOT}/lib/libzmq.so
+    )
+    set(RECEIVER_LIBS
+        # Include ZeroMQ Libraries
+        $ENV{ZEROMQ_ROOT}/lib/libzmq.so
+    )
+else()
+    # Try to find libzmq.so
+    find_library(ZMQ_LIBRARY NAMES zmq PATHS "/usr/lib/x86_64-linux-gnu/")
+    
+    # Try to find zmq.hpp
+    find_path(ZMQ_INCLUDE_DIR zmq.hpp PATHS "/usr/include/")
+    
+    # If both libzmq and zmq.hpp are found, set include and link directories
+    if (ZMQ_LIBRARY AND ZMQ_INCLUDE_DIR)
+        message(STATUS "Found libzmq.so and zmq.hpp on the system.")
+        include_directories(${ZMQ_INCLUDE_DIR})
+
+        # Link the ZeroMQ library
+        target_link_libraries(publisher PRIVATE ${ZMQ_LIBRARY})
+        target_link_libraries(example_receiver PRIVATE ${ZMQ_LIBRARY})
+        
+        link_directories("/usr/lib/x86_64-linux-gnu/")
+    else()
+        # If not found, try to find cppzmq
+        find_package(cppzmq QUIET)
+        
+        # If cppzmq not found, provide hints
+        if (NOT cppzmq_FOUND)
+            message(WARNING "libzmq.so or zmq.hpp not found. Please set ZEROMQ_ROOT and CPPZMQ_ROOT environment variables manually.")
+        endif()
+    endif()
+endif()
+
+
+
 
 if (${CMAKE_SYSTEM_NAME} MATCHES Linux)
    # Add Linux-specific flags to PUBLISHER_LIBS
-   list(APPEND PUBLISHER_LIBS -lpthread -lutil -lrt -ldl)
+   list(APPEND ${PUBLISHER_LIBS} -lpthread -lutil -lrt -ldl)
 endif()
 
 target_include_directories(publisher PRIVATE
@@ -65,18 +98,6 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}") # Install to the parent director
 install(TARGETS publisher DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 #----------------------------------------------------------------------------------
-
-# Add the example_reciever executable
-add_executable(example_receiver
-   example_receiver/ExampleReceiver.cpp
-   utilities/ProjectPrinter.cpp
-)
-
-# Define libraries for the "example_reciever" target
-set(RECEIVER_LIBS
-   # Include ZeroMQ Libraries
-   $ENV{ZEROMQ_ROOT}/lib/libzmq.so
-)
 
 # Include directories for the "example_reciever" target
 target_include_directories(example_receiver PRIVATE

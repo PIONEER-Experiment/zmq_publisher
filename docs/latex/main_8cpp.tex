@@ -1,50 +1,49 @@
-\hypertarget{main_8cpp}{\section{main.\-cpp File Reference}
-\label{main_8cpp}\index{main.\-cpp@{main.\-cpp}}
-}
+\hypertarget{main_8cpp}{}\doxysection{main.\+cpp File Reference}
+\label{main_8cpp}\index{main.cpp@{main.cpp}}
 
 
 Entry point for the program.  
 
 
-{\ttfamily \#include \char`\"{}Project\-Printer.\-h\char`\"{}}\\*
-{\ttfamily \#include \char`\"{}Json\-Manager.\-h\char`\"{}}\\*
-{\ttfamily \#include \char`\"{}Data\-Transmitter\-Manager.\-h\char`\"{}}\\*
-{\ttfamily \#include \char`\"{}Data\-Channel\-Manager.\-h\char`\"{}}\\*
-{\ttfamily \#include \char`\"{}Signal\-Handler.\-h\char`\"{}}\\*
-{\ttfamily \#include \char`\"{}General\-Processor\-Factory.\-h\char`\"{}}\\*
-{\ttfamily \#include \char`\"{}General\-Processor.\-h\char`\"{}}\\*
-{\ttfamily \#include \char`\"{}Command\-Processor.\-h\char`\"{}}\\*
-{\ttfamily \#include $<$nlohmann/json.\-hpp$>$}\\*
-{\ttfamily \#include $<$fstream$>$}\\*
-{\ttfamily \#include $<$chrono$>$}\\*
-{\ttfamily \#include $<$thread$>$}\\*
-\subsection*{Typedefs}
+{\ttfamily \#include \char`\"{}Project\+Printer.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}Json\+Manager.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}Data\+Transmitter\+Manager.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}Data\+Channel\+Manager.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}Signal\+Handler.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}General\+Processor\+Factory.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}General\+Processor.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}Command\+Processor.\+h\char`\"{}}\newline
+{\ttfamily \#include $<$nlohmann/json.\+hpp$>$}\newline
+{\ttfamily \#include $<$fstream$>$}\newline
+{\ttfamily \#include $<$chrono$>$}\newline
+{\ttfamily \#include $<$thread$>$}\newline
+\doxysubsection*{Typedefs}
 \begin{DoxyCompactItemize}
 \item 
-\hypertarget{main_8cpp_ab701e3ac61a85b337ec5c1abaad6742d}{using {\bfseries json} = nlohmann\-::json}\label{main_8cpp_ab701e3ac61a85b337ec5c1abaad6742d}
-
+\mbox{\Hypertarget{main_8cpp_ab701e3ac61a85b337ec5c1abaad6742d}\label{main_8cpp_ab701e3ac61a85b337ec5c1abaad6742d}} 
+using {\bfseries json} = nlohmann\+::json
 \end{DoxyCompactItemize}
-\subsection*{Functions}
+\doxysubsection*{Functions}
 \begin{DoxyCompactItemize}
 \item 
-void \hyperlink{main_8cpp_abc6bfde2d5a3c8cd29cae7c4c0675129}{register\-Processors} (nlohmann\-::json config)
+void \mbox{\hyperlink{main_8cpp_abc6bfde2d5a3c8cd29cae7c4c0675129}{register\+Processors}} (nlohmann\+::json config)
 \begin{DoxyCompactList}\small\item\em Function to register processor classes. \end{DoxyCompactList}\item 
-int \hyperlink{main_8cpp_a0ddf1224851353fc92bfbff6f499fa97}{main} (int argc, char $\ast$argv\mbox{[}$\,$\mbox{]})
+int \mbox{\hyperlink{main_8cpp_a0ddf1224851353fc92bfbff6f499fa97}{main}} (int argc, char $\ast$argv\mbox{[}$\,$\mbox{]})
 \begin{DoxyCompactList}\small\item\em The main function of the program. \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
-\subsection{Detailed Description}
+\doxysubsection{Detailed Description}
 Entry point for the program. 
 
-\subsection{Function Documentation}
-\hypertarget{main_8cpp_a0ddf1224851353fc92bfbff6f499fa97}{\index{main.\-cpp@{main.\-cpp}!main@{main}}
-\index{main@{main}!main.cpp@{main.\-cpp}}
-\subsubsection[{main}]{\setlength{\rightskip}{0pt plus 5cm}int main (
-\begin{DoxyParamCaption}
-\item[{int}]{argc, }
-\item[{char $\ast$}]{argv\mbox{[}$\,$\mbox{]}}
-\end{DoxyParamCaption}
-)}}\label{main_8cpp_a0ddf1224851353fc92bfbff6f499fa97}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{main_8cpp_a0ddf1224851353fc92bfbff6f499fa97}\label{main_8cpp_a0ddf1224851353fc92bfbff6f499fa97}} 
+\index{main.cpp@{main.cpp}!main@{main}}
+\index{main@{main}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{main()}{main()}}
+{\footnotesize\ttfamily int main (\begin{DoxyParamCaption}\item[{int}]{argc,  }\item[{char $\ast$}]{argv\mbox{[}$\,$\mbox{]} }\end{DoxyParamCaption})}
+
 
 
 The main function of the program. 
@@ -59,21 +58,20 @@ The main function of the program.
 \begin{DoxyReturn}{Returns}
 Exit code. 
 \end{DoxyReturn}
-\hypertarget{main_8cpp_abc6bfde2d5a3c8cd29cae7c4c0675129}{\index{main.\-cpp@{main.\-cpp}!register\-Processors@{register\-Processors}}
-\index{register\-Processors@{register\-Processors}!main.cpp@{main.\-cpp}}
-\subsubsection[{register\-Processors}]{\setlength{\rightskip}{0pt plus 5cm}void register\-Processors (
-\begin{DoxyParamCaption}
-\item[{nlohmann\-::json}]{config}
-\end{DoxyParamCaption}
-)}}\label{main_8cpp_abc6bfde2d5a3c8cd29cae7c4c0675129}
+\mbox{\Hypertarget{main_8cpp_abc6bfde2d5a3c8cd29cae7c4c0675129}\label{main_8cpp_abc6bfde2d5a3c8cd29cae7c4c0675129}} 
+\index{main.cpp@{main.cpp}!registerProcessors@{registerProcessors}}
+\index{registerProcessors@{registerProcessors}!main.cpp@{main.cpp}}
+\doxysubsubsection{\texorpdfstring{registerProcessors()}{registerProcessors()}}
+{\footnotesize\ttfamily void register\+Processors (\begin{DoxyParamCaption}\item[{nlohmann\+::json}]{config }\end{DoxyParamCaption})}
+
 
 
 Function to register processor classes. 
 
-New processors M\-U\-S\-T be registered here!
+New processors MUST be registered here!
 
 
 \begin{DoxyParams}{Parameters}
-{\em config} & Configuration data in J\-S\-O\-N format. \\
+{\em config} & Configuration data in JSON format. \\
 \hline
 \end{DoxyParams}
