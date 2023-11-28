@@ -1,94 +1,93 @@
-//Project Specific headers
-#include "EventProcessor.h"
-#include "MidasEvent.h"
-#include "MidasBank.h"
-#include "MdumpPackage.h"
-#include "DataTransmitter.h"
-#include "DataBuffer.h"
-#include "DataChannel.h"
-#include "MidasConnector.h"
-#include "ODBGrabber.h"
+/**
+ * @file main.cpp
+ * @brief Entry point for the program.
+ */
+
+// Project Headers needed to run Main
 #include "ProjectPrinter.h"
-#include "EventLoopManager.h"
-#include "CommandRunner.h"
-#include "MdumpCommandRunner.h"
-#include "SignalHandler.h"
 #include "JsonManager.h"
-#include "GeneralProcessorFactory.h"
-#include "GeneralProcessor.h"
-#include "CommandProcessor.h"
-#include "MdumpProcessor.h"
-#include "ODBProcessor.h"
-#include "HistogramProcessor.h"
-#include "RunNumberProcessor.h"
 #include "DataTransmitterManager.h"
 #include "DataChannelManager.h"
+#include "SignalHandler.h"
+#include "GeneralProcessorFactory.h"
 
-//Special "External" Headers
-#include "midas.h"
-#include "midasio.h"
-#include "unpackers/BasicEventUnpacker.hh"
-#include "unpackers/EventUnpacker.hh"
-#include "serializer/Serializer.hh"
-#include "dataProducts/Waveform.hh"
-#include "odbxx.h"
+// Project Headers for processors
+#include "GeneralProcessor.h"
+#include "CommandProcessor.h"
 
-//Standard Libraries
+// Standard Libraries
 #include <nlohmann/json.hpp>
 #include <fstream>
-#include <cstdlib>
-#include <iostream>
-#include <sstream>
 #include <chrono>
 #include <thread>
-#include <termios.h>
-#include <unistd.h>
-#include <stdio.h>
 
 using json = nlohmann::json;
 
-// Function to register processor classes
-// New processors MUST be registered here!
+/**
+ * @brief Function to register processor classes.
+ *
+ * New processors MUST be registered here!
+ *
+ * @param config Configuration data in JSON format.
+ */
 void registerProcessors(nlohmann::json config) {
     int verbose = config["general-settings"]["verbose"].get<int>();
 
-    //These two are a bit of a hack, but I don't really care because the user
-    //Should be editting this place anyway
-    std::string detectorMappingFile = config["data-channels"]["mdump-channel"]["processors"][0]["detector-mapping-file"].get<std::string>();
-    bool useMultiThreading = config["data-channels"]["mdump-channel"]["processors"][0]["multi-threading"].get<bool>();
-    int numWorkers = config["data-channels"]["mdump-channel"]["processors"][0]["num-workers"].get<int>();
+    // Get the instance of the GeneralProcessorFactory
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
 
+    // Register GeneralProcessor with a lambda function creating an instance
     factory.RegisterProcessor("GeneralProcessor", [verbose]() -> GeneralProcessor* { return new GeneralProcessor(verbose); });
+
+    // Register CommandProcessor with a lambda function creating an instance
     factory.RegisterProcessor("CommandProcessor", [verbose]() -> CommandProcessor* { return new CommandProcessor(verbose); });
-    factory.RegisterProcessor("MdumpProcessor", [verbose, detectorMappingFile, useMultiThreading,numWorkers]() -> MdumpProcessor* {
-        return new MdumpProcessor(detectorMappingFile, verbose, useMultiThreading,numWorkers);
-    });
-    factory.RegisterProcessor("ODBProcessor", [verbose]() -> ODBProcessor* { return new ODBProcessor(verbose); });
-    factory.RegisterProcessor("RunNumberProcessor", [verbose]() -> RunNumberProcessor* { return new RunNumberProcessor(verbose); });
-    factory.RegisterProcessor("HistogramProcessor", [verbose]() -> HistogramProcessor* { return new HistogramProcessor(verbose); });
 }
 
-int generalMode() {
+/**
+ * @brief The main function of the program.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line arguments.
+ * @return Exit code.
+ */
+int main(int argc, char* argv[]) {
+    // Create an instance of ProjectPrinter
     ProjectPrinter printer;
-    nlohmann::json config = JsonManager::getInstance().getConfig(); //Get cleaned up config
+
+    // Get cleaned up config
+    nlohmann::json config = JsonManager::getInstance().getConfig();
+    
+    // Get verbosity level from configuration
     int verbose = config["general-settings"]["verbose"].get<int>();
-    DataTransmitterManager::Instance(config["general-settings"]["verbose"].get<int>()); //Initialize the DataTransmitterManager
-    registerProcessors(config); //Register processors so we can map strings to processor objects
-    DataChannelManager dataChannelManager(config["data-channels"],config["general-settings"]["verbose"].get<int>());
+
+    // Initialize the DataTransmitterManager
+    DataTransmitterManager::Instance(config["general-settings"]["verbose"].get<int>());
+
+    // Register processors so we can map strings to processor objects
+    registerProcessors(config);
+
+    // Initialize DataChannelManager with configuration and verbosity level
+    DataChannelManager dataChannelManager(config["data-channels"], config["general-settings"]["verbose"].get<int>());
+
+    // Set the global tick time
     dataChannelManager.setGlobalTickTime();
     int tickTime = dataChannelManager.getGlobalTickTime();
+
+    // Main loop
     while (!SignalHandler::getInstance().isQuitSignalReceived()) {
+        // Publish data
         dataChannelManager.publish();
+
+        // Print message if verbose
         if (verbose > 0) {
             printer.Print("Finished loop, sleeping for " + std::to_string(tickTime) + "ms ...");
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));     
+
+        // Sleep for the specified tick time
+        std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));
     }
+
+    // Print message and exit
     printer.Print("Received quit signal. Exiting the loop and ending program.");
     return 0;
-}
-
-int main(int argc, char* argv[]) {
-    return generalMode();
 }

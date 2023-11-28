@@ -40,4 +40,5 @@ Thumbs.db
 
 #Ignore custom files
 midas_publisher.log
-
+publisher
+example_receiver/example_receiver
