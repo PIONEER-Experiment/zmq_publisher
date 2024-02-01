@@ -1,0 +1,74 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Viewer</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Data Viewer</h1>
+        <!-- Display current Run, sub-run, and event here -->
+        <div id="current-run-info">
+            <p>Run: <span id="current-run"></span></p>
+            <p>Sub-Run: <span id="current-subrun"></span></p>
+            <p>Event: <span id="current-event"></span></p>
+        </div>
+    </header>
+    <main>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Address</th>
+                    <th>Channel Name</th>
+                    <th>Total Publishes</th>
+                    <th>Total Data Size [bytes]</th>
+                    <th>Average Data Size [bytes]</th>
+                    <th>Publish Rate [publishes/s]</th>
+                    <th>Data Rate [bytes/s]</th>
+                    <th>Start Time</th>
+                    <th>Last Receive Time</th>
+                </tr>
+            </thead>
+            <tbody id="data-container">
+                <!-- Table data will be dynamically updated here -->
+            </tbody>
+        </table>
+
+        <!-- Section for plots -->
+        <div>
+            <h2>Plot Selector</h2>
+            <div id="select-container">
+                <select id="plot-selector" multiple></select>
+            </div>
+            <div id="button-container">
+                <button id="toggle-selected-button" onclick="toggleSelectedPlots()">Toggle Selected Plots</button>
+                <button id="toggle-all-button" onclick="toggleAllPlots()">Toggle All</button>
+                <button id="toggle-all-traces-button" onclick="toggleAllTracesPlots()">Toggle All Traces</button>
+                <button id="toggle-all-hists-button" onclick="toggleAllHistsPlots()">Toggle All Hists</button>
+                <button id="toggle-histogram-mode-button" onclick="toggleHistogramMode()">Toggle Reciever Histogram Generation</button>
+            </div>
+            <div id="trace-update-frequency-section">
+                <label for="trace-update-frequency">Trace Update Frequency (Hz): </label>
+                <input type="number" id="trace-update-frequency" min="1" value="1">
+                <label for="hist-update-frequency">Histogram Update Frequency (Hz): </label>
+                <input type="number" id="hist-update-frequency" min="1" value="10">
+                <button id="apply-button" onclick="setUpdateInterval()">Apply</button>
+            </div>
+            <h2>Plots</h2>
+            <div id="plots-container">
+                <!-- Plots will be dynamically updated here -->
+            </div>
+        </div>
+    </main>
+
+    <script type="text/javascript" src="{{ url_for('static', filename='plot_update.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='table_update.js') }}"></script>
+</body>
+</html>

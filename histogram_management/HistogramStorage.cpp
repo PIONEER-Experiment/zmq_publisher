@@ -46,18 +46,12 @@ void HistogramStorage::addToHistogram(std::string key, double data) {
         it->second->Fill(data);
     } else {
         // key doesn't exist, create a new histogram and add data
-        //TH1D(name, title, bins, min, max)
         TH1D* newHistogram = new TH1D(("Histogram_" + key).c_str(), "", 100, 0, 250000);
         newHistogram->Fill(data);
 
         // Add the new histogram to the map
         histogramMap[key] = newHistogram;
     }
-
-    //ProjectPrinter printer;
-    //TString histoTstring = TBufferJSON::ToJSON(histogramMap[key]);
-    //std::string histoString(histoTstring.Data());
-    //printer.Print(histoString);
 }
 
 void HistogramStorage::addToHistogram(std::string key, double dataX, double dataY) {
@@ -79,11 +73,6 @@ void HistogramStorage::addToHistogram(std::string key, double dataX, double data
         // Add the new histogram to the map
         histogramMap[key] = newHistogram;
     }
-
-    //ProjectPrinter printer;
-    //TString histoTstring = TBufferJSON::ToJSON(histogramMap[key]);
-    //std::string histoString(histoTstring.Data());
-    //printer.Print(histoString);
 }
 
 std::string HistogramStorage::serialize() {

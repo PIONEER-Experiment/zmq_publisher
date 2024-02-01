@@ -1,0 +1,199 @@
+/* styles.css */
+
+/* Style for the main header (h1) */
+h1 {
+    color: #0033A0; /* University of Kentucky blue */
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Style for the plot selector header (h2) */
+h2 {
+    color: #0033A0; /* University of Kentucky blue */
+    border-bottom: 2px solid #0033A0; /* Add a blue border at the bottom */
+    padding-bottom: 5px; /* Add some space between the header and the border */
+    margin-bottom: 10px; /* Add extra margin at the bottom */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+  
+th, td {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+th {
+    background-color: #0033A0; /* University of Kentucky blue */
+    color: white;
+}
+
+tr:nth-child(even) {
+    background-color: #f0f0f0; /* Light gray for even rows */
+}
+
+tr:hover {
+    background-color: #ddd; /* Darker gray on hover */
+}
+
+#data-container {
+    font-family: Arial, sans-serif;
+    margin-top: 20px;
+}
+
+/* Style for the toggle buttons */
+.toggle-button {
+    background-color: #0033A0; /* University of Kentucky blue */
+    color: white;
+    padding: 10px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+  
+.toggle-button:hover {
+    background-color: #001F5B; /* Darker blue on hover */
+}
+
+/* Style for the plot containers */
+.plot-container {
+    border: 1px solid #dddddd;
+    padding: 8px;
+    background-color: #ffffff; /* White background */
+}
+
+#select-container {
+    display: inline-block;
+    vertical-align: top;
+}
+
+#button-container {
+    display: inline-block;
+    vertical-align: top;
+    margin-left: 10px; /* Adjust as needed for spacing between dropdown and buttons */
+}
+#plot-selector {
+    background-color: #f0f0f0; /* Initial background color (gray) */
+    color: black; /* Text color is black before hover */
+    padding: 10px;
+    border: 2px solid #0033A0; /* Border in UKY blue */
+    border-radius: 4px;
+    width: auto;
+    height: 256px; /* Set a specific height */
+    font-size: 16px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#plot-selector:hover {
+    background-color: white; /* Hover background in white */
+    color: #0033A0; /* Hover text color in UKY blue */
+}
+
+#plot-selector option {
+    background-color: white; /* Option background color in white */
+    color: black; /* Option text color in black */
+}
+
+#plot-selector option:hover {
+    background-color: #f0f0f0; /* Hover background for options in initial gray */
+    color: #0033A0; /* Hover text color in UKY blue */
+}
+
+#plot-selector option.selected-option {
+    /* Apply your desired styles to the selected option */
+    font-weight: bold; /* For example, make the text bold */
+    color: blue; /* For example, change the text color to blue */
+}
+
+/* Style for the hidden plots */
+.hidden {
+    display: none;
+}
+
+/* Style for the toggle buttons */
+button {
+    background-color: #0033A0; /* University of Kentucky blue */
+    color: white;
+    padding: 10px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block; 
+    font-size: 14px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    width: 150px; 
+}
+
+button:hover {
+    background-color: #001F5B; /* Darker blue on hover */
+}
+
+/* Style for the toggle buttons */
+#toggle-histogram-mode-button,
+#toggle-selected-button,
+#toggle-all-button,
+#toggle-all-hists-button,
+#toggle-all-traces-button {
+    display: block;
+}
+
+/* Add these styles to the end of your existing CSS */
+
+/* Style for the update frequency section */
+#update-frequency-section {
+    margin-top: 20px;
+}
+
+/* Style for the update frequency label */
+label {
+    display: inline-block;
+    margin-bottom: 5px;
+    color: #0033A0; /* University of Kentucky blue */
+}
+
+/* Style for the update frequency input */
+#update-frequency {
+    padding: 8px;
+    border: 2px solid #0033A0; /* Border in UKY blue */
+    border-radius: 4px;
+    margin-right: 5px;
+    font-size: 16px;
+    color: #0033A0; /* Text color in UKY blue */
+}
+
+#current-run-info {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: #0033A0;
+    color: #FFD700;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+#current-run-info p {
+    margin: 0;
+    font-size: 20px;
+    color: #FFD700;
+}
+
+#current-run-info span {
+    font-weight: bold;
+    font-size: 22px;
+    color: #FFFFFF;
+    margin-left: 10px; /* Add some space between the label and the value */
+}
+
+

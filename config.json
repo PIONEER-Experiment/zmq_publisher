@@ -47,7 +47,7 @@
             "name": "HIST",
             "publishes-per-batch": 1,
             "publishes-ignored-after-batch": 0,
-            "num-events-in-circular-buffer": 1,
+            "num-events-in-circular-buffer": 2,
             "processors": [
                 {
                     "processor": "HistogramProcessor",

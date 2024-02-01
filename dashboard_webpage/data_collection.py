@@ -2,6 +2,7 @@ import zmq
 import json
 import os
 from channel_info import ChannelInfo
+from multiprocessing import Lock
 
 def read_config(file_name="config.json"):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -81,10 +82,9 @@ def listen_to_channels(shared_data):
                     content = parts[1]  # The rest of the parts can be considered as content
 
                     data_size = sum(len(part) for part in parts)  # Calculate the data size
-                    print(data_size)
 
                     # Update the ChannelInfo using the extracted channel_name
-                    shared_data['channel_info_mapping'][(address, channel_name)].update_publish(data_size)
-                    print(shared_data['channel_info_mapping'][(address, channel_name)])
+                    shared_data['channel_info_mapping'][(address, channel_name)].update_publish(data_size,content)
+                    #print(shared_data['channel_info_mapping'][(address, channel_name)])
             except zmq.Again:
                 pass
