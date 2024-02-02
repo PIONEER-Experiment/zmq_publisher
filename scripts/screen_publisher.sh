@@ -1,21 +1,21 @@
 #!/bin/bash
 
 # Default log status is true
-log_enabled=true
+log_enabled=false
 
 # Function to display usage
 usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
-    echo "  --no-log    Disable output logging"
+    echo "  --log       Enables output logging"
     echo "  --help      Display this help message"
 }
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --no-log)
-            log_enabled=false
+        --log)
+            log_enabled=true
             shift
             ;;
         --help)
@@ -42,11 +42,14 @@ script_directory=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
 # Define the name for the screen session
 screen_session_name="midas_publisher"
 
-# Path to the setup_environment.sh script
-setup_script="$script_directory/environment_setup/setup_environment.sh"
+# Path to the setup_environment.sh script (replace with realpath)
+setup_script=$(realpath "$script_directory/../environment_setup/setup_environment.sh")
 
-# Define a log file for output
-log_file="$script_directory/midas_publisher.log"
+# Define a log file for output (replace with realpath)
+log_file=$(realpath "$script_directory/../midas_publisher.log")
+
+# Path to publisher (replace with realpath)
+main_script=$(realpath "$script_directory/../publisher")
 
 # Kill all instances of the screen session
 screen -ls | grep -oE "[0-9]+\.$screen_session_name" | while read -r session; do
@@ -63,8 +66,8 @@ screen -S "$screen_session_name" -X stuff $"source $setup_script\n"
 # Run your desired command with or without logging
 if [ "$log_enabled" = true ]; then
     screen -S "$screen_session_name" -X stuff $"echo 'Output is logged to $log_file.'\n"
-    screen -S "$screen_session_name" -X stuff $"./publisher > $log_file 2>&1\n"
+    screen -S "$screen_session_name" -X stuff $"$main_script > $log_file 2>&1\n"
     echo "Started './publisher' inside a new screen session with environment variables set. Output is logged to $log_file."
 else
-    screen -S "$screen_session_name" -X stuff $"./publisher\n"
+    screen -S "$screen_session_name" -X stuff $"$main_script\n"
 fi

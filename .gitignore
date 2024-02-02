@@ -40,4 +40,6 @@ Thumbs.db
 
 #Ignore custom files
 midas_publisher.log
+midas.log
+massif.*
 
