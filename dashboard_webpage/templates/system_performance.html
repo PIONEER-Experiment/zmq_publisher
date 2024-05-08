@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Performance</title>
+    <!-- Include custom CSS file -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include Plotly library -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Include Socket.IO library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
+    <!-- Include data_utils.js -->
+    <script type="text/javascript" src="{{ url_for('static', filename='data_utils.js') }}"></script>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/performance">Performance</a></li>
+            <li><a href="/data">Latest Raw Data</a></li>
+        </ul>
+    </nav>
+    <h1>System Performance</h1>
+    <h2>Timestamps</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>crateNum</th>
+                <th>cdfHeader</th>
+                <th>MidasFillNum</th>
+                <th>TCPFillNum</th>
+                <th>GPUFillNum</th>
+                <th>TCPProcUnlocked</th>
+                <th>gotTCPHeaderWord</th>
+                <th>gotTCPHeaderWord2</th>
+                <th>GPUProcUnlocked</th>
+                <th>GPUProcDone</th>
+                <th>GPUCopyDone</th>
+                <th>MFEProcUnlocked</th>
+                <th>MFEBanksMade</th>
+                <th>losslessComp</th>
+            </tr>
+        </thead>
+        <tbody id="perf-table-body">
+            <!-- Table data will be dynamically updated here by performance_table_update.js-->
+        </tbody>
+    </table>
+    <h2>Timing Differences (in microseconds)</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th></th> <!-- Empty top-left cell -->
+                <th>TCPProcUnlocked</th>
+                <th>gotTCPHeaderWord</th>
+                <th>gotTCPHeaderWord2</th>
+                <th>GPUProcUnlocked</th>
+                <th>GPUProcDone</th>
+                <th>GPUCopyDone</th>
+                <th>MFEProcUnlocked</th>
+                <th>MFEBanksMade</th>
+                <th>losslessComp</th>
+            </tr>
+        </thead>
+        <tbody id="diff-table-body">
+            <!-- Table data will be dynamically updated here by performance_table_update.js -->
+        </tbody>
+    </table>
+    <h2>Timing Difference Running plots (in microseconds)</h2>
+
+
+    <div id="performance-plots"></div> <!-- This will be populated by performance_plot_update.js -->
+    <div id="performance-histograms"></div> <!-- This will be populated by performance_histogram_update.js -->
+
+    <!-- Include custom JavaScript files for updating the performance table and plots -->
+    <script type="text/javascript" src="{{ url_for('static', filename='performance_table_update.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='performance_plot_update.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='performance_histogram_update.js') }}"></script>
+</body>
+</html>

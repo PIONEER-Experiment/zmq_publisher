@@ -3,9 +3,35 @@
 #include <sstream>
 #include <stdexcept>
 #include <bitset>
+#include <algorithm> // For std::find
+
+/*
+I don't like that I had to hardcode these two data types in,
+but I really didn't see another way.
+A template class wouldn't work as MidasEvent stores a vector of MidasBanks.
+I.e. it couldn't support different template classes in the vector.
+Perhaps a better way is to use polymorphism, i.e. have different bank data types
+be different derived classes. But this has drawbacks:
+    1. Is equal (or more) code to write
+    2. Data getters would have to be serialized to a common type (probably string)
+    3. Arguably doesn't lay down any additional (useful) framework for furture use cases
+*/
+
+// List of allowed data types
+const std::vector<std::string> allowedDataTypes = { "INT16", "INT32" };
 
 
-MidasBank::MidasBank(const std::string& bankInfo) {
+MidasBank::MidasBank(const std::string& bankInfo, const std::string& dataType) {
+    // Check if the given data type is in the list of allowed data types
+    if (std::find(allowedDataTypes.begin(), allowedDataTypes.end(), dataType) != allowedDataTypes.end()) {
+        // If the data type is allowed, set it
+        this->dataType = dataType;
+    } else {
+        // If not in the allowed list, default to "Int32"
+        this->dataType = "INT32";
+    }
+
+    // Now parse the bank info
     parseBankInfo(bankInfo);
 }
 
@@ -22,12 +48,11 @@ void MidasBank::parseBankInfo(const std::string& bankInfo) {
         }
     }
 
-    // Read and store the data lines into the data vector
+    // Read and store the data lines into the appropriate data vector based on the data type
     while (std::getline(iss, line)) {
         if (line.empty()) {
             break; // Stop when an empty line is encountered
         }
-
 
         // Find the position of "->" in the line
         size_t arrowPos = line.find("->");
@@ -35,14 +60,26 @@ void MidasBank::parseBankInfo(const std::string& bankInfo) {
             // Extract numbers to the right of "->"
             std::string numbersStr = line.substr(arrowPos + 2); // +2 to skip "->"
             std::istringstream numbersStream(numbersStr);
-            int16_t value;
-            while (numbersStream >> value) {
-                data.push_back(value);
+            if (dataType == "INT16") {
+                int16_t value;
+                while (numbersStream >> value) {
+                    int16Data.push_back(value);
+                }
+            } else { // Default to 32-bit integers
+                int32_t value;
+                while (numbersStream >> value) {
+                    int32Data.push_back(value);
+                }
             }
         }
     }
 
-    numBytes = data.size() * sizeof(int);
+    // Set the number of bytes based on the size of the data vectors
+    if (dataType == "INT16") {
+        numBytes = int16Data.size() * sizeof(int16_t);
+    } else {
+        numBytes = int32Data.size() * sizeof(int32_t);
+    }
 }
 
 std::string MidasBank::extractValue(const std::string& input, const std::string& keyword, char endSymbol) {
@@ -67,14 +104,33 @@ std::string MidasBank::extractValue(const std::string& input, const std::string&
 
 void MidasBank::displayBankData() const {
     std::cout << "Bank:" << bankName << " bytes:" << numBytes << std::endl;
-    for (size_t i = 0; i < data.size(); ++i) {
-        if (i % 8 == 0) {
-            std::cout << std::endl << " " << i + 1 << "->";
+    
+    // Determine which data vector to use based on the specified dataType
+    const std::vector<int16_t>& data16 = (dataType == "INT16") ? int16Data : std::vector<int16_t>();
+    const std::vector<int32_t>& data32 = (dataType == "INT32") ? int32Data : std::vector<int32_t>();
+
+    // Display data based on the selected dataType
+    if (dataType == "INT16") {
+        for (size_t i = 0; i < data16.size(); ++i) {
+            if (i % 8 == 0) {
+                std::cout << std::endl << " " << i + 1 << "->";
+            }
+            std::cout << " " << data16[i];
         }
-        std::cout << " " << data[i];
+    } else if (dataType == "INT32") {
+        for (size_t i = 0; i < data32.size(); ++i) {
+            if (i % 8 == 0) {
+                std::cout << std::endl << " " << i + 1 << "->";
+            }
+            std::cout << " " << data32[i];
+        }
+    } else {
+        std::cout << "Invalid data type specified: " << dataType << std::endl;
     }
+
     std::cout << std::endl;
 }
+
 
 // Define a getter for the bank name
 const std::string& MidasBank::getBankName() const {
@@ -86,32 +142,55 @@ int MidasBank::getNumBytes() const {
     return numBytes;
 }
 
-// Define a getter for the bank data
-const std::vector<int16_t>& MidasBank::getData() const {
-    return data;
+// Define a getter for the 16 bit int bank data
+const std::vector<int16_t>& MidasBank::getInt16Data() const {
+    return int16Data;
 }
 
+// Define a getter for the 32 bit int bank data
+const std::vector<int32_t>& MidasBank::getInt32Data() const {
+    return int32Data;
+}
+
+
 uint64_t* MidasBank::getBankDataAsUint64() const {
-    const int16_t* int16Data = data.data();
-    size_t numInt16Values = data.size();
-    
-    if (numInt16Values % 4 != 0) {
-        // Ensure there's a multiple of 4 values to combine
-        throw std::runtime_error("Invalid data size. Must be a multiple of 4.");
+    size_t numValues;
+    const std::vector<int16_t>* dataPtr16 = nullptr;
+    const std::vector<int32_t>* dataPtr32 = nullptr;
+
+    if (dataType == "INT16") {
+        numValues = int16Data.size();
+        dataPtr16 = &int16Data;
+    } else if (dataType == "INT32") {
+        numValues = int32Data.size();
+        dataPtr32 = &int32Data;
+    } else {
+        throw std::runtime_error("Invalid data type specified: " + dataType);
     }
 
-    size_t numUint64Values = numInt16Values / 4;
+    if ((dataType == "INT16" && numValues % 4 != 0) || (dataType == "INT32" && numValues % 2 != 0)) {
+        // Ensure there's a valid number of values
+        throw std::runtime_error("Invalid data size.");
+    }
+
+    size_t numUint64Values = (dataType == "int16") ? numValues / 4 : numValues / 2;
     uint64_t* uint64Data = new uint64_t[numUint64Values];
 
     for (size_t i = 0; i < numUint64Values; ++i) {
-        uint64Data[i] = (static_cast<uint64_t>(data[4 * i + 3] & 0xFFFF) << 48) |
-                        (static_cast<uint64_t>(data[4 * i + 2] & 0xFFFF) << 32) |
-                        (static_cast<uint64_t>(data[4 * i + 1] & 0xFFFF) << 16) |
-                         static_cast<uint64_t>(data[4 * i + 0] & 0xFFFF);
+        if (dataPtr16) {
+            uint64Data[i] = (static_cast<uint64_t>((*dataPtr16)[4 * i + 3] & 0xFFFF) << 48) |
+                            (static_cast<uint64_t>((*dataPtr16)[4 * i + 2] & 0xFFFF) << 32) |
+                            (static_cast<uint64_t>((*dataPtr16)[4 * i + 1] & 0xFFFF) << 16) |
+                            static_cast<uint64_t>((*dataPtr16)[4 * i + 0] & 0xFFFF);
+        } else if (dataPtr32) {
+            uint64Data[i] = (static_cast<uint64_t>((*dataPtr32)[2 * i + 1] & 0xFFFFFFFF) << 32) |
+                            static_cast<uint64_t>((*dataPtr32)[2 * i + 0] & 0xFFFFFFFF);
+        }
     }
 
     return uint64Data;
 }
+
 
 
 unsigned int MidasBank::getNumUint64Words() const {

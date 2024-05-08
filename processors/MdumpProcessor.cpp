@@ -39,11 +39,13 @@ std::vector<std::string> MdumpProcessor::getProcessedOutput() {
     }
 
     for (const MidasEvent& event : mdumpPackage.getEvents()) {
+        //event.displayEventDetails();
         if (eventProcessor.processEvent(event, "CR00") == 0) {
             std::vector<std::string> serializedData = eventProcessor.getSerializedData();
             updateHistograms(eventProcessor.getWaveforms());
             result.insert(result.end(), serializedData.begin(), serializedData.end());
         }
+        
     }
 
     return result;

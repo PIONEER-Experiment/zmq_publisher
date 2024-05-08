@@ -13,10 +13,28 @@
             "processors": [
                 {
                     "processor": "MdumpProcessor",
-                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z SYSTEM",
-                    "period-ms": 10,
+                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z BUF001 -f d",
+                    "period-ms": 50,
                     "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
-                    "multi-threading": true,
+                    "multi-threading": false,
+                    "num-workers": 5
+                }
+            ]
+        },
+        "performance-channel": {
+            "enabled": true,
+            "zmq-address": "tcp://127.0.0.1:5555",
+            "name": "PERF",
+            "publishes-per-batch": 1,
+            "publishes-ignored-after-batch": 0,
+            "num-events-in-circular-buffer": 5,
+            "processors": [
+                {
+                    "processor": "PerformanceProcessor",
+                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z BUF001 -f d",
+                    "period-ms": 50,
+                    "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
+                    "multi-threading": false,
                     "num-workers": 5
                 }
             ]

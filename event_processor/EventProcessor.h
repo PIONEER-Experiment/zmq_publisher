@@ -7,6 +7,7 @@
 #include "unpackers/EventUnpacker.hh" // Include the base EventUnpacker class
 #include "serializer/Serializer.hh"
 #include "dataProducts/Waveform.hh"
+#include "dataProducts/Performance.hh"
 #include <string>
 #include <vector>
 #include "MidasEvent.h"

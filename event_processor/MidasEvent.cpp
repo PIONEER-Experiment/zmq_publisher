@@ -12,6 +12,7 @@ void MidasEvent::parseEventInfo(const std::string& eventInfo) {
     std::istringstream iss(eventInfo);
     std::string line;
     std::vector<std::string> bankInfoArray;
+    std::vector<std::string> bankTypes;
 
     eventId = convertToInt(extractValue(eventInfo, "Evid:", '-'));
     mask = convertToInt(extractValue(eventInfo, "Mask:",'-'));
@@ -22,26 +23,48 @@ void MidasEvent::parseEventInfo(const std::string& eventInfo) {
 
     // Now, let's find the line with the first mention of "Bank"
     numBanks = 0;
+    std::string bankInfo; // Variable to store information about the current bank
+    bool foundFirstBank = false; // Flag to indicate whether the first bank is found
     while (std::getline(iss, line)) {
         if (line.find("Bank:") == 0) {
+            foundFirstBank = true; // Set flag indicating the first bank is found
             // A new bank starts
-            std::string bankInfo = line;
-            numBanks++;
-            // Collect the lines for this bank
-            while (std::getline(iss, line)) {
-                if (line.find("Bank:") == 0) {
-                    // A new bank starts
-                    break; // Start processing the next bank
-                } else {
-                    bankInfo += "\n" + line;
-                }
+            if (!bankInfo.empty()) {
+                // If bankInfo is not empty, store the information of the previous bank
+                bankInfoArray.push_back(bankInfo);
+                bankInfo.clear(); // Clear the bankInfo variable for the new bank
             }
-            bankInfoArray.push_back(bankInfo);
+            // Start collecting lines for the new bank
+            bankInfo += line;
+            
+            // Now let's check for the bank type
+            size_t typePos = line.find("Type:");
+            if (typePos != std::string::npos) {
+                std::string type = line.substr(typePos + 5); // Skip "Type:" and space
+                if (type.find("Signed Integer*2") != std::string::npos) {
+                    bankTypes.push_back("INT16");
+                } else if (type.find("Unsigned Integer*4") != std::string::npos) {
+                    bankTypes.push_back("INT32");
+                } else {
+                    // Handle unrecognized bank types
+                    bankTypes.push_back("UNKNOWN");
+                }
+            } else {
+                // Handle cases where bank type is not specified
+                bankTypes.push_back("UNKNOWN");
+            }
+        } else if (foundFirstBank) { // Only collect lines for banks after finding the first bank
+            // Continue collecting lines for the current bank
+            bankInfo += "\n" + line;
         }
     }
+    // Store the information of the last bank (if any)
+    if (!bankInfo.empty()) {
+        bankInfoArray.push_back(bankInfo);
+    }
     // Initialize MidasBank objects and store them in the banks vector
-    for (const std::string& bankInfo : bankInfoArray) {
-        MidasBank bank(bankInfo);
+    for (size_t i = 0; i < bankInfoArray.size(); ++i) {
+        MidasBank bank(bankInfoArray[i], bankTypes[i]);
         banks.push_back(bank);
     }
 }

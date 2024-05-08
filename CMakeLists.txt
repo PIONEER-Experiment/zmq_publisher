@@ -60,6 +60,7 @@ target_sources(publisher
    processors/ODBProcessor.cpp
    processors/HistogramProcessor.cpp
    processors/RunNumberProcessor.cpp
+   processors/PerformanceProcessor.cpp
    histogram_management/HistogramStorage.cpp
    multi_threading/MdumpDatabase.cpp
    utilities/ProjectPrinter.cpp

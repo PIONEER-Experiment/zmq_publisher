@@ -21,6 +21,7 @@
 #include "ODBProcessor.h"
 #include "HistogramProcessor.h"
 #include "RunNumberProcessor.h"
+#include "PerformanceProcessor.h"
 #include "DataTransmitterManager.h"
 #include "DataChannelManager.h"
 
@@ -57,6 +58,8 @@ void registerProcessors(nlohmann::json config) {
     std::string detectorMappingFile = config["data-channels"]["mdump-channel"]["processors"][0]["detector-mapping-file"].get<std::string>();
     bool useMultiThreading = config["data-channels"]["mdump-channel"]["processors"][0]["multi-threading"].get<bool>();
     int numWorkers = config["data-channels"]["mdump-channel"]["processors"][0]["num-workers"].get<int>();
+    bool useMultiThreading_performance= config["data-channels"]["performance-channel"]["processors"][0]["multi-threading"].get<bool>();
+    int numWorkers_performance = config["data-channels"]["performance-channel"]["processors"][0]["num-workers"].get<int>();
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
 
     factory.RegisterProcessor("GeneralProcessor", [verbose]() -> GeneralProcessor* { return new GeneralProcessor(verbose); });
@@ -67,6 +70,9 @@ void registerProcessors(nlohmann::json config) {
     factory.RegisterProcessor("ODBProcessor", [verbose]() -> ODBProcessor* { return new ODBProcessor(verbose); });
     factory.RegisterProcessor("RunNumberProcessor", [verbose]() -> RunNumberProcessor* { return new RunNumberProcessor(verbose); });
     factory.RegisterProcessor("HistogramProcessor", [verbose]() -> HistogramProcessor* { return new HistogramProcessor(verbose); });
+    factory.RegisterProcessor("PerformanceProcessor", [verbose, detectorMappingFile, useMultiThreading_performance,numWorkers_performance]() -> PerformanceProcessor* {
+        return new PerformanceProcessor(detectorMappingFile, verbose, useMultiThreading_performance,numWorkers_performance);
+    });
 }
 
 int generalMode() {
@@ -80,7 +86,7 @@ int generalMode() {
     int tickTime = dataChannelManager.getGlobalTickTime();
     while (!SignalHandler::getInstance().isQuitSignalReceived()) {
         dataChannelManager.publish();
-        if (verbose > 0) {
+        if (verbose > 1) {
             printer.Print("Finished loop, sleeping for " + std::to_string(tickTime) + "ms ...");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));     

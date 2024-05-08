@@ -124,19 +124,28 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
             // Get data in a form the unpacker likes
             uint64_t* bankData = bank.getBankDataAsUint64();
             int totalWords = bank.getNumUint64Words();
-
-            // Unpack and Serialize
-            eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, "CR00");
+            eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, bankName);
             std::vector<std::string> serializedDataVector;
-            std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection",&dataProducts::Waveform::waveformIndex);
-            for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
-                waveforms.clear();
-                waveforms.insert(waveforms.end(),wfs.begin(),wfs.end());
-                serializer->SetRun(HistogramStorage::getInstance().getRunNumber());
-                serializer->SetEvent(event.getSerialNumber());
-                serializer->SetWaveforms(wfs);
-                std::string serializedData_i = serializer->GetString();
-                serializedDataVector.push_back(serializedData_i);
+            if (bank.getBankName().find("CR") != std::string::npos) {
+                // Unpack and Serialize
+                std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection",&dataProducts::Waveform::waveformIndex);
+                for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
+                    waveforms.clear();
+                    waveforms.insert(waveforms.end(),wfs.begin(),wfs.end());
+                    serializer->SetRun(HistogramStorage::getInstance().getRunNumber());
+                    serializer->SetEvent(event.getSerialNumber());
+                    serializer->SetWaveforms(wfs);
+                    std::string serializedData_i = serializer->GetString();
+                    serializedDataVector.push_back(serializedData_i);
+                }
+                
+            }
+            else if (bank.getBankName().find("CC") != std::string::npos) {
+                std::vector<dataProducts::Performance> performances;
+                performances = eventUnpacker->GetCollection<dataProducts::Performance>("PerformanceCollection");
+                for (dataProducts::Performance& performance : performances) {
+                    serializedDataVector.push_back(serializer->GetPerfomanceString(performance));
+                }
             }
             setSerializedData(serializedDataVector);
         }

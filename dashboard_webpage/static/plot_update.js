@@ -7,11 +7,14 @@ var generateHistogramMode = true;
 
 // Global variables for update frequencies in hertz
 var traceUpdateFrequency = 1; // Default interval: 1 second for traces
-var histUpdateFrequency = 10; // Default interval: .1 seconds for histograms
+var histUpdateFrequency = 5; // Default interval: .2 seconds for histograms
 
 // Global variables to store the last update times
 var lastTraceUpdate = 0;
 var lastHistUpdate = 0;
+
+// Variable to store the last fetched data
+var lastFetchedData = null; 
 
 // Function to check if it's time to update based on the specified frequency and last update time
 function isReadyToUpdate(lastUpdate, updateFrequency) {
@@ -199,6 +202,7 @@ function createWaveformPlot(plotsContainer, title, trace) {
     // Create the plot using Plotly
     Plotly.newPlot(containerId, [plotlyTrace], layout);
 }
+
 function updateWaveformPlot(containerId, title, trace) {
     // Update the existing plot with new data using Plotly
     Plotly.update(containerId, {
@@ -493,8 +497,7 @@ function hidePlot(containerId) {
     }
 }
   
-
-// Add this function to your plot_update.js
+//Setps update interval on button press
 function setUpdateInterval() {
     var histUpdateFrequencyInput = document.getElementById('hist-update-frequency');
     var traceUpdateFrequencyInput = document.getElementById('trace-update-frequency');
@@ -545,12 +548,22 @@ function updatePlotsData() {
             if (Object.keys(data).length === 0) {
                 console.log('No data fetched.');
             } else {
-                updatePlots(data);
+                if (!isDataEqual(data, lastFetchedData)) { // Check if the fetched data is different from the last fetched data
+                    updatePlots(data); // If data is different, update the plots
+                    lastFetchedData = data; // Update the last fetched data
+                } else {
+                    console.log('Fetched data is the same as the last fetched data.');
+                }
             }
         })
         .catch(error => {
-            console.error('Error fetching data:', error.message);
+            console.error('Error fetching initial data:', error.message);
         });
+}
+
+// Function to check if two objects are equal
+function isDataEqual(obj1, obj2) {
+    return JSON.stringify(obj1) === JSON.stringify(obj2);
 }
 
 // Initial data update for plots

@@ -20,6 +20,10 @@ def get_data():
     json_data = {str(key): value.to_dict() for key, value in shared_data['channel_info_mapping'].items()}
     return jsonify(json_data)
 
+@app.route('/performance')
+def performance_page():
+    return render_template('system_performance.html')
+
 
 if __name__ == '__main__':
     # Read config

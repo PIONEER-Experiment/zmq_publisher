@@ -12,6 +12,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
 </head>
 <body>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/performance">Performance</a></li>
+            <li><a href="/data">Latest Raw Data</a></li>
+        </ul>
+    </nav>
     <header>
         <h1>Data Viewer</h1>
         <!-- Display current Run, sub-run, and event here -->
@@ -58,7 +65,7 @@
                 <label for="trace-update-frequency">Trace Update Frequency (Hz): </label>
                 <input type="number" id="trace-update-frequency" min="1" value="1">
                 <label for="hist-update-frequency">Histogram Update Frequency (Hz): </label>
-                <input type="number" id="hist-update-frequency" min="1" value="10">
+                <input type="number" id="hist-update-frequency" min="1" value="5">
                 <button id="apply-button" onclick="setUpdateInterval()">Apply</button>
             </div>
             <h2>Plots</h2>
