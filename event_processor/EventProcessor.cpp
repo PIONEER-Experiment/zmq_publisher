@@ -110,7 +110,6 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
 
     return 0;
 }
-*/
 
 
 int EventProcessor::processEvent(const MidasEvent& event, const std::string& bankName) {
@@ -119,13 +118,13 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
     //}
     //isNewEvent is unneccessary when using mdump, as it only gets events after it was called.
     updateLastSerialNumberProcessed(event.getSerialNumber());
+    std::vector<std::string> serializedDataVector;
     for (const MidasBank& bank : event.getBanks()) {
         if (bank.getBankName() == bankName) {
             // Get data in a form the unpacker likes
             uint64_t* bankData = bank.getBankDataAsUint64();
             int totalWords = bank.getNumUint64Words();
             eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, bankName);
-            std::vector<std::string> serializedDataVector;
             if (bank.getBankName().find("CR") != std::string::npos) {
                 // Unpack and Serialize
                 std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection",&dataProducts::Waveform::waveformIndex);
@@ -147,11 +146,65 @@ int EventProcessor::processEvent(const MidasEvent& event, const std::string& ban
                     serializedDataVector.push_back(serializer->GetPerfomanceString(performance));
                 }
             }
-            setSerializedData(serializedDataVector);
         }
     }
+    setSerializedData(serializedDataVector);
     return 0;
 }
+*/
+
+
+
+int EventProcessor::processWaveformDataBank(const MidasEvent& event, const std::string& bankPrefix) {
+    updateLastSerialNumberProcessed(event.getSerialNumber());
+    std::vector<std::string> serializedDataVector;
+    serializer->SetRun(HistogramStorage::getInstance().getRunNumber());
+    serializer->SetEvent(event.getSerialNumber());
+    waveforms.clear();
+    for (const MidasBank& bank : event.getBanks()) {
+        if (bank.getBankName().find(bankPrefix) != std::string::npos) {
+            // Get data in a form the unpacker likes
+            uint64_t* bankData = bank.getBankDataAsUint64();
+            int totalWords = bank.getNumUint64Words();
+            eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, bank.getBankName());
+            
+            std::vector<std::vector<dataProducts::Waveform>> waveformCollection = eventUnpacker->GetCollectionVector<dataProducts::Waveform>("WaveformCollection",&dataProducts::Waveform::waveformIndex);
+            for (std::vector<dataProducts::Waveform> wfs : waveformCollection) {
+                waveforms.insert(waveforms.end(),wfs.begin(),wfs.end());
+            }
+        }
+    }
+    serializer->SetWaveforms(waveforms);
+    std::string serializedData = serializer->GetString();
+    serializedDataVector.push_back(serializedData);
+    setSerializedData(serializedDataVector);
+    return 0;
+}
+
+int EventProcessor::processPerformanceDataBank(const MidasEvent& event, const std::string& bankPrefix) {
+    updateLastSerialNumberProcessed(event.getSerialNumber());
+    std::vector<std::string> serializedDataVector;
+    for (const MidasBank& bank : event.getBanks()) {
+        if (bank.getBankName().find(bankPrefix) != std::string::npos) {
+            // Get data in a form the unpacker likes
+            uint64_t* bankData = bank.getBankDataAsUint64();
+            int totalWords = bank.getNumUint64Words();
+            eventUnpacker->UnpackBank(bankData, bank.getNumUint64Words(), 0, bank.getBankName());
+
+            std::vector<dataProducts::Performance> performances;
+            performances = eventUnpacker->GetCollection<dataProducts::Performance>("PerformanceCollection");
+            for (dataProducts::Performance& performance : performances) {
+                serializedDataVector.push_back(serializer->GetPerfomanceString(performance));
+                std::cout << serializer->GetPerfomanceString(performance) << std::endl;
+            }
+        }
+    }
+    //std::string serializedData = serializer->GetString();
+    //serializedDataVector.push_back(serializedData);
+    setSerializedData(serializedDataVector);
+    return 0;
+}
+
 
 
 void EventProcessor::verbosePrint(TMEvent tmEvent) {

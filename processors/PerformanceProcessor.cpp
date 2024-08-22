@@ -33,7 +33,7 @@ std::vector<std::string> PerformanceProcessor::getProcessedOutput() {
 
     //Process CC bank events within mdump package
     for (const MidasEvent& event : mdumpPackage.getEvents()) {
-        if (eventProcessor.processEvent(event, "CC00") == 0) {
+        if (eventProcessor.processPerformanceDataBank(event, "CC") == 0) {
             std::vector<std::string> serializedData = eventProcessor.getSerializedData();
             result.insert(result.end(), serializedData.begin(), serializedData.end());
         }

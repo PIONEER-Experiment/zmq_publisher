@@ -13,7 +13,7 @@
             "processors": [
                 {
                     "processor": "MdumpProcessor",
-                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z BUF001 -f d",
+                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z SYSTEM -f d",
                     "period-ms": 50,
                     "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
                     "multi-threading": false,
@@ -31,7 +31,7 @@
             "processors": [
                 {
                     "processor": "PerformanceProcessor",
-                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z BUF001 -f d",
+                    "command": "$(MIDASSYS)/bin/mdump -l 1 -z SYSTEM -f d",
                     "period-ms": 50,
                     "detector-mapping-file": "$(UNPACKING_ROOT)/python/detector_mapping.json",
                     "multi-threading": false,
@@ -40,7 +40,7 @@
             ]
         },
         "odb-channel": {
-            "enabled": true,
+            "enabled": false,
             "zmq-address": "tcp://127.0.0.1:5555",
             "name": "ODB",
             "publishes-per-batch": 1,
@@ -60,7 +60,7 @@
             ]
         },
         "histogram-channel": {
-            "enabled": true,
+            "enabled": false,
             "zmq-address": "tcp://127.0.0.1:5555",
             "name": "HIST",
             "publishes-per-batch": 1,

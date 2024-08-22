@@ -21,6 +21,8 @@ if (NOT DEFINED ENV{EIGEN_ROOT})
    message(SEND_ERROR "EIGEN_ROOT environment variable not defined.")
 endif()
 
+# Set the directory where executables will be placed
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 if(DEFINED ENV{BOOST_1_70_0_ROOT})
     # Append the BOOST_1_70_0_ROOT to CMAKE_PREFIX_PATH
@@ -148,23 +150,23 @@ set_property(TARGET publisher PROPERTY CXX_STANDARD 17)
 # Set the installation directory to the parent directory
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}") # Install to the parent directory
 
-install(TARGETS publisher DESTINATION ${CMAKE_INSTALL_PREFIX})
+#install(TARGETS publisher DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 #----------------------------------------------------------------------------------
 
-# Add the example_reciever executable
+# Add the example_receiver executable
 add_executable(example_receiver
    example_receiver/ExampleReceiver.cpp
    utilities/ProjectPrinter.cpp
 )
 
-# Define libraries for the "example_reciever" target
+# Define libraries for the "example_receiver" target
 set(RECEIVER_LIBS
    # Include ZeroMQ Libraries
    $ENV{ZEROMQ_ROOT}/lib/libzmq.so
 )
 
-# Include directories for the "example_reciever" target
+# Include directories for the "example_receiver" target
 target_include_directories(example_receiver PRIVATE
    # Include ZeroMQ directories
    $ENV{ZEROMQ_ROOT}/include
@@ -172,15 +174,14 @@ target_include_directories(example_receiver PRIVATE
    # Include cppzmq directories
    $ENV{CPPZMQ_ROOT}/include
 
-   #Include Utiltiies
+   #Include Utilities
    ${CMAKE_SOURCE_DIR}/utilities
 )
 
-# Link the "example_reciever" with the specified libraries
+# Link the "example_receiver" with the specified libraries
 target_link_libraries(example_receiver PRIVATE ${RECEIVER_LIBS})
-
 
 # Set the installation directory for example_receiver
 set(RECEIVER_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/example_receiver")
-# Set the installation directory for example_reciever
+# Set the installation directory for example_receiver
 install(TARGETS example_receiver DESTINATION ${RECEIVER_INSTALL_PREFIX})

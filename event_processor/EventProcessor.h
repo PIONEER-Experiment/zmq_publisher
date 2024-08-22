@@ -18,7 +18,9 @@ public:
     ~EventProcessor();
 
     int processEvent(void* event_data, INT max_event_size);
-    int processEvent(const MidasEvent& event, const std::string& bankName);
+    //int processEvent(const MidasEvent& event, const std::string& bankName);
+    int processWaveformDataBank(const MidasEvent& event, const std::string& bankPrefix);
+    int processPerformanceDataBank(const MidasEvent& event, const std::string& bankPrefix);
 
     // Getter for the serializer
     unpackers::Serializer* getSerializer();
