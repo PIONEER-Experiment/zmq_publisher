@@ -79,7 +79,7 @@ set(PUBLISHER_LIBS
    $ENV{MIDASSYS}/lib/libmidas.a
 
    # ROOT libs
-   $ENV{ROOTSYS}/lib/libCore.so
+   # $ENV{ROOTSYS}/lib64/libCore.so
    ${ROOT_LIBRARIES}
 
    # Include unpacking libraries
