@@ -3,8 +3,8 @@
 #include "GeneralProcessorFactory.h"
 #include "GeneralProcessor.h"
 #include "CommandProcessor.h"
+#include "MidasEventProcessor.h"
 #include "CommandRunner.h"
-#include "ProjectPrinter.h"
 #include "TypeChecker.h"
 #include <algorithm> // Include for std::gcd
 #include <iostream>
@@ -72,111 +72,96 @@ void DataChannelManager::addChannel(const std::string& channelId, DataChannel da
 
 void DataChannelManager::addChannel(const std::string& channelId, const nlohmann::json& channelConfig) {
     ProjectPrinter printer;
-    std::string name = DEFAULT_NAME;
-    int publishesPerBatch = DEFAULT_PUBLISHES_PER_BATCH;
-    int publishesIgnoredAfterBatch = DEFAULT_PUBLISHES_IGNORED_AFTER_BATCH;
-    std::string zmq_address = DEFAULT_ZMQ_ADDRESS;
-    int eventsInCircularBuffer = DEFAULT_EVENTS_IN_CIRCULAR_BUFFER;
-    bool enabled = DEFAULT_ENABLED_VALUE;
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
 
-    //Ignore the channel if not enabled
-    if (channelConfig.contains("enabled")) {
-        enabled = channelConfig["enabled"].get<bool>();
-    } else {
-        printer.PrintWarning("Enabled not found in channel " + channelId + " configuration. Using the default name: " + DEFAULT_NAME, __LINE__, __FILE__);
-    }
-    if (!enabled) {
-        return;
-    }
+    // Read basic channel parameters with getOrDefault
+    bool enabled = getOrDefault(channelConfig, "enabled", DEFAULT_ENABLED_VALUE, channelId, "channel config");
+    if (!enabled) return;
 
-    if (channelConfig.contains("name")) {
-        name = channelConfig["name"].get<std::string>();
-    } else {
-        printer.PrintWarning("Name not found in channel " + channelId + " configuration. Using the default name: " + DEFAULT_NAME, __LINE__, __FILE__);
-    }
+    std::string name = getOrDefault(channelConfig, "name", std::string(DEFAULT_NAME), channelId, "channel config");
+    int publishesPerBatch = getOrDefault(channelConfig, "publishes-per-batch", DEFAULT_PUBLISHES_PER_BATCH, channelId, "channel config");
+    int publishesIgnoredAfterBatch = getOrDefault(channelConfig, "publishes-ignored-after-batch", DEFAULT_PUBLISHES_IGNORED_AFTER_BATCH, channelId, "channel config");
+    std::string zmq_address = getOrDefault(channelConfig, "zmq-address", std::string(DEFAULT_ZMQ_ADDRESS), channelId, "channel config");
+    int eventsInCircularBuffer = getOrDefault(channelConfig, "num-events-in-circular-buffer", DEFAULT_EVENTS_IN_CIRCULAR_BUFFER, channelId, "channel config");
 
-    if (channelConfig.contains("publishes-per-batch")) {
-        publishesPerBatch = channelConfig["publishes-per-batch"].get<int>();
-    } else {
-        printer.PrintWarning("Publishes per batch not found in channel " + channelId + " configuration. Using the default value: " + std::to_string(DEFAULT_PUBLISHES_PER_BATCH), __LINE__, __FILE__);
-    }
-
-    if (channelConfig.contains("publishes-ignored-after-batch")) {
-        publishesIgnoredAfterBatch = channelConfig["publishes-ignored-after-batch"].get<int>();
-    } else {
-        printer.PrintWarning("Publishes ignored after batch not found in channel " + channelId + " configuration. Using the default value: " + std::to_string(DEFAULT_PUBLISHES_IGNORED_AFTER_BATCH), __LINE__, __FILE__);
-    }
-
-    if (channelConfig.contains("zmq-address")) {
-        zmq_address = channelConfig["zmq-address"].get<std::string>();
-    } else {
-        printer.PrintWarning("ZMQ address not found in channel " + channelId + " configuration. Using the default ZMQ address: " + DEFAULT_ZMQ_ADDRESS, __LINE__, __FILE__);
-    }
-
-    if (channelConfig.contains("num-events-in-circular-buffer")) {
-        eventsInCircularBuffer = channelConfig["num-events-in-circular-buffer"].get<int>();
-    } else {
-        printer.PrintWarning("Num events in circular buffer not found in channel " + channelId + " configuration. Using the default value: " + std::to_string(DEFAULT_EVENTS_IN_CIRCULAR_BUFFER), __LINE__, __FILE__);
-    }
-
-    //Initialize DataChannel (will also link to a DataTransmitter class)
+    // Initialize DataChannel and ProcessesManager
     DataChannel dataChannel(name, publishesPerBatch, publishesIgnoredAfterBatch, zmq_address);
-
-    DataChannelProcessesManager processesManager(channelConfig["num-events-in-circular-buffer"].get<size_t>() + 1, verbose);
+    DataChannelProcessesManager processesManager(eventsInCircularBuffer + 1, verbose);
     dataChannel.setDataChannelProcessesManager(processesManager);
 
-    // Check if "processors" exist in the channelConfig
+    // If processors exist, configure them
     if (channelConfig.contains("processors")) {
-        const nlohmann::json& processorsConfig = channelConfig["processors"];
+        for (const auto& processorConfig : channelConfig["processors"]) {
+            GeneralProcessor* processor = nullptr;
 
-        // Iterate through processors
-        for (const auto& processorConfig : processorsConfig) {
-            GeneralProcessor* processor;
-            if (processorConfig.contains("processor")) {
-                std::string processorType = processorConfig["processor"].get<std::string>();
-                processor = factory.CreateProcessor(processorType);
-            } else {
-                printer.PrintWarning("Processor type not found in channel " + channelId + " configuration, using default processor: GeneralProcessor", __LINE__, __FILE__);
-                processor = factory.CreateProcessor("GeneralProcessor");
+            std::string processorType = getOrDefault(processorConfig, "processor", std::string("GeneralProcessor"), channelId, "processor config");
+
+            // Create processor instance from factory
+            processor = factory.CreateProcessor(processorType);
+
+            if (!processor) {
+                printer.PrintWarning("Failed to create processor '" + processorType + "' in channel " + channelId, __LINE__, __FILE__);
+                continue;
             }
-            if (TypeChecker::IsInstanceOf<CommandProcessor>(processor)) {
-                // Cast to CommandProcessor
-                auto commandProcessor = dynamic_cast<CommandProcessor*>(processor);
-                std::string commandString = DEFAULT_COMMAND_STRING;
-                if (processorConfig.contains("command")) {
-                    commandString = processorConfig["command"].get<std::string>();
-                } else {
-                    printer.PrintWarning("Command not found in channel " + channelId + " configuration, using default command: None", __LINE__, __FILE__);
-                }
-                // Create a CommandRunner and set the command
-                CommandRunner commandRunner(commandString);
 
-                // Create a CommandProcessor with the CommandRunner
+            // If MidasEventProcessor, initialize with its special params
+            if (TypeChecker::IsInstanceOf<MidasEventProcessor>(processor)) {
+                auto* midasProcessor = dynamic_cast<MidasEventProcessor*>(processor);
+                if (!midasProcessor) {
+                    printer.PrintWarning("Failed to cast to MidasEventProcessor in channel " + channelId, __LINE__, __FILE__);
+                    delete processor;
+                    continue;
+                }
+
+                std::string host = getOrDefault(processorConfig, "host", std::string(""), channelId, "processor config");
+                std::string experiment = getOrDefault(processorConfig, "experiment", std::string(""), channelId, "processor config");
+                std::string buffer = getOrDefault(processorConfig, "buffer", std::string("SYSTEM"), channelId, "processor config");
+                std::string clientName = getOrDefault(processorConfig, "client-name", std::string("MidasEventProcessor"), channelId, "processor config");
+                int eventId = getOrDefault(processorConfig, "event-id", EVENTID_ALL, channelId, "processor config");
+                bool getAll = getOrDefault(processorConfig, "get-all", true, channelId, "processor config");
+                int bufferSize = getOrDefault(processorConfig, "buffer-size", 1000, channelId, "processor config");
+                int yieldTimeoutMs = getOrDefault(processorConfig, "yield-timeout-ms", 300, channelId, "processor config");
+                size_t numEvents = getOrDefault(processorConfig, "num-events-per-retrieval", static_cast<size_t>(1), channelId, "processor config");
+
+                midasProcessor->init(host, experiment, buffer, clientName, eventId, getAll, bufferSize, yieldTimeoutMs, numEvents);
+
+                int periodMs = getOrDefault(processorConfig, "period-ms", DEFAULT_PERIOD_MS, channelId, "processor config");
+                midasProcessor->setPeriod(periodMs);
+
+                dataChannel.addProcessToManager(midasProcessor);
+            }
+            // Handle CommandProcessor specially
+            else if (TypeChecker::IsInstanceOf<CommandProcessor>(processor)) {
+                auto* commandProcessor = dynamic_cast<CommandProcessor*>(processor);
+                if (!commandProcessor) {
+                    printer.PrintWarning("Failed to cast to CommandProcessor in channel " + channelId, __LINE__, __FILE__);
+                    delete processor;
+                    continue;
+                }
+
+                std::string commandString = getOrDefault(processorConfig, "command", std::string(DEFAULT_COMMAND_STRING), channelId, "processor config");
+
+                CommandRunner commandRunner(commandString);
                 commandProcessor->setCommandRunner(commandRunner);
 
-                if (processorConfig.contains("period-ms")) {
-                    commandProcessor->setPeriod(processorConfig["period-ms"].get<int>());
-                } else {
-                    printer.PrintWarning("Period not found in channel " + channelId + " configuration, using default period: " + std::to_string(DEFAULT_PERIOD_MS), __LINE__, __FILE__);
-                    commandProcessor->setPeriod(DEFAULT_PERIOD_MS);
-                }
-                dataChannel.addProcessToManager(commandProcessor);
+                int periodMs = getOrDefault(processorConfig, "period-ms", DEFAULT_PERIOD_MS, channelId, "processor config");
+                commandProcessor->setPeriod(periodMs);
 
-            } else {
-                if (processorConfig.contains("period-ms")) {
-                    processor->setPeriod(processorConfig["period-ms"].get<int>());
-                } else {
-                    printer.PrintWarning("Period not found in channel " + channelId + " configuration, using default period: " + std::to_string(DEFAULT_PERIOD_MS), __LINE__, __FILE__);
-                    processor->setPeriod(DEFAULT_PERIOD_MS);
-                }
+                dataChannel.addProcessToManager(commandProcessor);
+            }
+            else {
+                // Default for GeneralProcessor and others
+                int periodMs = getOrDefault(processorConfig, "period-ms", DEFAULT_PERIOD_MS, channelId, "processor config");
+                processor->setPeriod(periodMs);
                 dataChannel.addProcessToManager(processor);
             }
         }
     }
+
     dataChannel.updateTickTime();
     channels[channelId] = dataChannel;
 }
+
 
 bool DataChannelManager::removeChannel(const std::string& channelId) {
     auto it = channels.find(channelId);

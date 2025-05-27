@@ -17,6 +17,29 @@
                     "period-ms": 1000
                 }
             ]
+        },
+        "midas-event-channel": {
+            "enabled": true,
+            "zmq-address": "tcp://127.0.0.1:5555",
+            "name": "DATA",
+            "publishes-per-batch": 1,
+            "publishes-ignored-after-batch": 0,
+            "num-events-in-circular-buffer": 5,
+            "processors": [
+                {
+                    "processor": "MidasEventProcessor",
+                    "period-ms": 100,
+                    "host": "",
+                    "experiment": "",
+                    "buffer": "SYSTEM",
+                    "client-name": "MidasEventPublisher",
+                    "event-id": -1,
+                    "get-all": true,
+                    "buffer-size": 1000,
+                    "yield-timeout-ms": 300,
+                    "num-events-per-retrieval": 1
+                }
+            ]
         }
-    }    
+    }
 }

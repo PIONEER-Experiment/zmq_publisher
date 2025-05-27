@@ -1,6 +1,15 @@
 /**
  * @file main.cpp
  * @brief Entry point for the program.
+ * 
+ *  This file contains the main function and initializes the necessary components
+ * for the program to run. It sets up the data channel manager, registers processors,
+ * and enters the main loop for data processing.
+ * 
+ *  @details Midas is a pain to work with, so this additional branch is a "workaround"
+ *  to use it. Midas works by handling a global state, which means we need to manage it in main
+ *  as well as in the processors. 
+ * 
  */
 
 // Project Headers needed to run Main
@@ -14,6 +23,7 @@
 // Project Headers for processors
 #include "GeneralProcessor.h"
 #include "CommandProcessor.h"
+#include "MidasEventProcessor.h"
 
 // Standard Libraries
 #include <nlohmann/json.hpp>
@@ -40,7 +50,12 @@ void registerProcessors(nlohmann::json config) {
     factory.RegisterProcessor("GeneralProcessor", [verbose]() -> GeneralProcessor* { return new GeneralProcessor(verbose); });
 
     // Register CommandProcessor with a lambda function creating an instance
-    factory.RegisterProcessor("CommandProcessor", [verbose]() -> CommandProcessor* { return new CommandProcessor(verbose); });
+    factory.RegisterProcessor("CommandProcessor", [verbose]() -> GeneralProcessor* { return new CommandProcessor(verbose); });
+
+    // Register MidasEventProcessor
+    factory.RegisterProcessor("MidasEventProcessor", [verbose]() -> GeneralProcessor* {
+        return new MidasEventProcessor(verbose);
+    });
 }
 
 /**
@@ -74,7 +89,12 @@ int main(int argc, char* argv[]) {
     int tickTime = dataChannelManager.getGlobalTickTime();
 
     // Main loop
-    while (!SignalHandler::getInstance().isQuitSignalReceived()) {
+    // Runs either are true:
+    // 1) Quit signal not recieved
+    // 2) Midas Reciever is running and listening for events
+    while (!SignalHandler::getInstance().isQuitSignalReceived() && 
+        (MidasReceiver::getInstance().isListeningForEvents() || !MidasReceiver::getInstance().IsRunning())) {
+
         // Publish data
         dataChannelManager.publish();
 
@@ -87,7 +107,9 @@ int main(int argc, char* argv[]) {
         std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));
     }
 
+
     // Print message and exit
+    MidasReceiver::getInstance().stop(); // clean up midas client if it exists
     printer.Print("Received quit signal. Exiting the loop and ending program.");
     return 0;
 }

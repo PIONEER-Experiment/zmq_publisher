@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <nlohmann/json.hpp>
+#include "ProjectPrinter.h"
 #include "DataChannel.h"
 
 /**
@@ -91,6 +92,31 @@ private:
     std::map<std::string, DataChannel> channels; ///< Map of data channels.
     int globalTickTime; ///< Global tick time for data channel publication.
     int verbose; ///< Verbosity level for logging.
+
+    //Private method for getting a value from JSON with default and warning
+    template<typename T>
+    T getOrDefault(const nlohmann::json& obj, 
+                   const std::string& key, 
+                   const T& defaultValue, 
+                   const std::string& channelId,
+                   const std::string& context = "",
+                   bool warnIfMissing = true) 
+    {
+        ProjectPrinter printer;
+        if (obj.contains(key)) {
+            try {
+                return obj.at(key).get<T>();
+            } catch (const std::exception& e) {
+                printer.PrintWarning("Failed to parse key '" + key + "' in channel " + channelId + " " + context + ". Using default value.", __LINE__, __FILE__);
+                return defaultValue;
+            }
+        } else {
+            if (warnIfMissing) {
+                printer.PrintWarning("Key '" + key + "' not found in channel " + channelId + " " + context + ". Using default value.", __LINE__, __FILE__);
+            }
+            return defaultValue;
+        }
+    }
 };
 
 #endif // DATA_CHANNEL_MANAGER_H
