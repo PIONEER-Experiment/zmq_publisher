@@ -85,8 +85,6 @@ else()
     endif()
 endif()
 
-# MIDAS support
-set(MIDAS_RECEIVER_DIR "/home/jack/cpp_projects/midas_stuff/midas_receiver")
 
 set(MIDAS_LIBS
     $ENV{MIDASSYS}/lib/libmfe.a
@@ -94,14 +92,13 @@ set(MIDAS_LIBS
 )
 
 target_include_directories(publisher PRIVATE
-    ${MIDAS_RECEIVER_DIR}/include
     $ENV{MIDASSYS}/include
     $ENV{MIDASSYS}/mxml
     $ENV{MIDASSYS}/midasio
 )
 
 list(APPEND PUBLISHER_LIBS
-    ${MIDAS_RECEIVER_DIR}/lib/libmidas_receiver_lib.a
+    midas_receiver_lib
     ${MIDAS_LIBS}
 )
 
