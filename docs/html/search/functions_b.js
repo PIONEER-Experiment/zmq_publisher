@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['seen_195',['seen',['../classDataChannel.html#ad543e7e4d545398af8301a1058a82ffa',1,'DataChannel']]],
+  ['serializebuffer_196',['SerializeBuffer',['../classDataBuffer.html#ab7df68f0442748698eb180d480c050f3',1,'DataBuffer']]],
+  ['setaddress_197',['setAddress',['../classDataChannel.html#a293e391e94c5920151a531078ecf9891',1,'DataChannel']]],
+  ['setcommandrunner_198',['setCommandRunner',['../classCommandProcessor.html#af344f7b0c5ee1bf8b6f675135ff0a7c5',1,'CommandProcessor']]],
+  ['setconfig_199',['setConfig',['../classProjectPrinter.html#a1dbbbe30f40f64a83ab3cec97ea9d47a',1,'ProjectPrinter']]],
+  ['setdatachannelprocessesmanager_200',['setDataChannelProcessesManager',['../classDataChannel.html#acacc333d8c6b849b51a5c0273d4bb14d',1,'DataChannel']]],
+  ['seterrorcolor_201',['setErrorColor',['../classProjectPrinter.html#a41a33969db5df74f99878f87a5502a83',1,'ProjectPrinter']]],
+  ['seteventsbeforebreak_202',['setEventsBeforeBreak',['../classDataChannel.html#a640900fcffff28e003bc0a34e6d4d68a',1,'DataChannel']]],
+  ['seteventstoignoreinbreak_203',['setEventsToIgnoreInBreak',['../classDataChannel.html#ab7faf42f153cdae64b36ed8f0f723dca',1,'DataChannel']]],
+  ['setglobalticktime_204',['setGlobalTickTime',['../classDataChannelManager.html#a9ba33da1945db20003a5b173a19a0ee6',1,'DataChannelManager::setGlobalTickTime()'],['../classDataChannelManager.html#a8703d69d6eb0c91274046c15b57323bf',1,'DataChannelManager::setGlobalTickTime(int tickTime)']]],
+  ['setinfocolor_205',['setInfoColor',['../classProjectPrinter.html#aa928801da0b7f7cd682cf4ef83860905',1,'ProjectPrinter']]],
+  ['setname_206',['setName',['../classDataChannel.html#ab5f6bc6ce5d7f83a26598069df067c5f',1,'DataChannel']]],
+  ['setperiod_207',['setPeriod',['../classGeneralProcessor.html#ae57c2ab2c7cc2a67fd535d388c39e3de',1,'GeneralProcessor::setPeriod()'],['../classCommandProcessor.html#a6366c78835ecc66e0dcfa3094a194de2',1,'CommandProcessor::setPeriod()']]],
+  ['setprefix_208',['setPrefix',['../classProjectPrinter.html#afaf17899693e0e4638d4a94e487640ad',1,'ProjectPrinter']]],
+  ['setprintlinenumber_209',['setPrintLineNumber',['../classProjectPrinter.html#af10003b5af5c5aaf500d444151103e11',1,'ProjectPrinter']]],
+  ['setprinttime_210',['setPrintTime',['../classProjectPrinter.html#a758fe582396d7abcbd6d6534e8fb94d0',1,'ProjectPrinter']]],
+  ['setsuffix_211',['setSuffix',['../classProjectPrinter.html#a138854bd8cf95a2535a425adc4768877',1,'ProjectPrinter']]],
+  ['setverbose_212',['setVerbose',['../classDataTransmitter.html#ac8c1d4439fa56be0e05104aa717ccc0e',1,'DataTransmitter::setVerbose()'],['../classDataTransmitterManager.html#ab1668356e2eef3e79a94969e05ed4a9d',1,'DataTransmitterManager::setVerbose()'],['../classGeneralProcessor.html#a676b026a03d5ba50da13d7be5eacd74a',1,'GeneralProcessor::setVerbose()']]],
+  ['setwaittime_213',['setWaitTime',['../classCommandRunner.html#a962a39f1d12393211becfbf7f0ae123f',1,'CommandRunner']]],
+  ['setwarningcolor_214',['setWarningColor',['../classProjectPrinter.html#ab0758201372a45c3d27b6dacb3a9456d',1,'ProjectPrinter']]],
+  ['setzmqaddress_215',['setZmqAddress',['../classDataTransmitterManager.html#a899a8ed901e0351c0d287735d975c59e',1,'DataTransmitterManager']]],
+  ['shouldprintlinenumber_216',['shouldPrintLineNumber',['../classProjectPrinter.html#a55c6607127f672925ee4e567e024ceca',1,'ProjectPrinter']]],
+  ['shouldprinttime_217',['shouldPrintTime',['../classProjectPrinter.html#a10bc534430156464f49dc85994950f3a',1,'ProjectPrinter']]],
+  ['signalhandler_218',['SignalHandler',['../classSignalHandler.html#a3149ab1b5e1c8940d11b182f8059d916',1,'SignalHandler']]]
+];
