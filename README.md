@@ -1,4 +1,7 @@
 # midas_publisher
+
+This version of the publisher was made in a hurry and contains a lot of hardcoded features. I would not recommend using this branch.
+
 Install instructions:
 1. cd environment_setup
 2. ./detect_environment.sh
