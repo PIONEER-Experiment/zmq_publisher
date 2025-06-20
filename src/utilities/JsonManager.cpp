@@ -1,9 +1,8 @@
-#include "JsonManager.h"
+#include "utilities/JsonManager.h"
 #include <fstream>
 #include <stdexcept>
 #include <filesystem>
 #include <iostream>
-#include <ProjectPrinter.h>
 
 nlohmann::json JsonManager::config;
 
@@ -50,7 +49,6 @@ void JsonManager::recursivelyReplacePlaceholders(nlohmann::json& json) {
 }
 
 nlohmann::json JsonManager::replaceEnvironmentVariables(const nlohmann::json& jsonConfig) {
-    ProjectPrinter printer;
     nlohmann::json replacedConfig = jsonConfig;
 
     recursivelyReplacePlaceholders(replacedConfig);

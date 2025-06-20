@@ -1,4 +1,4 @@
-#include "DataTransmitterManager.h"
+#include "data_transmitter/DataTransmitterManager.h"
 
 DataTransmitterManager::DataTransmitterManager(int verbose) : verbose(verbose) {}
 

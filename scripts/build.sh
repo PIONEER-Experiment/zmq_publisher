@@ -1,105 +1,70 @@
 #!/bin/bash
 
-# Function to display help
-display_help() {
-    echo "Usage: $0 [options]"
+# Resolve absolute paths
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+BASE_DIR=$(realpath "$SCRIPT_DIR/..")
+BUILD_DIR="$BASE_DIR/build"
+CLEANUP_SCRIPT="$SCRIPT_DIR/cleanup.sh"
+
+# Default flags
+OVERWRITE=false
+JOBS_ARG="-j"  # Use all processors
+
+# Help message
+show_help() {
+    echo "Usage: ./build.sh [OPTIONS]"
     echo
     echo "Options:"
-    echo "  --overwrite   Overwrite the build directory if it exists"
-    echo "  --install     Perform a full installation, including copying binaries"
-    echo "  --help        Display this help message"
-    exit 0
+    echo "  -o, --overwrite           Remove existing build directory before building"
+    echo "  -j, --jobs <number>       Specify number of processors to use (default: all available)"
+    echo "  -h, --help                Display this help message"
 }
 
-# Parse command-line arguments
-overwrite=false
-install=false
-for arg in "$@"; do
-    case $arg in
-        --overwrite)
-            overwrite=true
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -o|--overwrite)
+            OVERWRITE=true
             shift
             ;;
-        --install)
-            install=true
-            shift
+        -j|--jobs)
+            if [[ -n "$2" && "$2" != -* ]]; then
+                JOBS_ARG="-j$2"
+                shift 2
+            else
+                JOBS_ARG="-j"
+                shift
+            fi
             ;;
-        --help)
-            display_help
+        -h|--help)
+            show_help
+            exit 0
             ;;
         *)
-            echo "Unknown option: $arg"
-            display_help
+            echo "[build.sh, ERROR] Unknown option: $1"
+            show_help
+            exit 1
             ;;
     esac
 done
 
-# Get the directory of this script (scripts/build.sh)
-SOURCE="${BASH_SOURCE[0]}"
-while [ -L "$SOURCE" ]; do
-    DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
-    SOURCE=$(readlink "$SOURCE")
-    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
-done
-script_directory=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
-
-# Repo root is one level up from scripts directory
-repo_root=$(dirname "$script_directory")
-
-# Source environment setup quietly if the script exists
-env_setup="$repo_root/scripts/environment/setup_environment.sh"
-if [ -f "$env_setup" ]; then
-    source "$env_setup" -q
+# Optionally clean build
+if [ "$OVERWRITE" = true ]; then
+    echo "[build.sh] Cleaning previous build with: $CLEANUP_SCRIPT"
+    "$CLEANUP_SCRIPT"
 fi
 
-# Build directory (repo_root/build)
-build_directory="$repo_root/build"
+# Create and enter build directory
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR" || exit 1
 
-# Remove build directory if requested
-if $overwrite && [ -d "$build_directory" ]; then
-    echo "Removing existing build directory..."
-    rm -rf "$build_directory"
-fi
+# Run CMake and Make
+echo "[build.sh] Running cmake in: $BUILD_DIR"
+cmake "$BASE_DIR"
 
-# Create build directory if needed
-mkdir -p "$build_directory"
+echo "[build.sh] Building with make $JOBS_ARG"
+make $JOBS_ARG
 
-# Enter build directory
-cd "$build_directory"
-
-# Run cmake (try cmake3 fallback)
-if command -v cmake &> /dev/null; then
-    cmake ..
-elif command -v cmake3 &> /dev/null; then
-    cmake3 ..
-else
-    echo "Error: Neither cmake nor cmake3 is installed."
-    exit 1
-fi
-
-# Build and install with parallel jobs
-make install -j$(nproc)
-
-# If install flag is set, perform additional installation steps
-if $install; then
-    echo "Performing full installation..."
-
-    # Define install paths - you can adjust these as needed
-    BIN_DIR="$repo_root/build/bin"
-
-    if [ -d "$BIN_DIR" ]; then
-        echo "Copying binaries to /usr/local/bin..."
-        for binfile in "$BIN_DIR"/*; do
-            if [ -x "$binfile" ]; then
-                echo "Copying $(basename "$binfile")"
-                sudo cp "$binfile" /usr/local/bin/
-            fi
-        done
-    else
-        echo "Binary directory not found: $BIN_DIR"
-    fi
-
-    echo "Full installation finished."
-fi
-
-echo "Build and install process complete."
+echo "[build.sh] Build complete."
+echo "[build.sh] Executables are in: $BUILD_DIR/bin/"
+echo "[build.sh] Libraries are in: $BUILD_DIR/lib/"

@@ -9,21 +9,23 @@
  *  @details Midas is a pain to work with, so this additional branch is a "workaround"
  *  to use it. Midas works by handling a global state, which means we need to manage it in main
  *  as well as in the processors. 
- * 
  */
 
 // Project Headers needed to run Main
-#include "ProjectPrinter.h"
-#include "JsonManager.h"
-#include "DataTransmitterManager.h"
-#include "DataChannelManager.h"
-#include "SignalHandler.h"
-#include "GeneralProcessorFactory.h"
+#include "utilities/JsonManager.h"
+#include "data_transmitter/DataTransmitterManager.h"
+#include "data_transmitter/DataChannelManager.h"
+#include "utilities/SignalHandler.h"
+#include "processors/GeneralProcessorFactory.h"
+#include "utilities/LoggerConfig.h"
 
 // Project Headers for processors
-#include "GeneralProcessor.h"
-#include "CommandProcessor.h"
-#include "MidasEventProcessor.h"
+#include "processors/GeneralProcessor.h"
+#include "processors/CommandProcessor.h"
+#include "processors/MidasEventProcessor.h"
+
+// Logging
+#include <spdlog/spdlog.h>
 
 // Standard Libraries
 #include <nlohmann/json.hpp>
@@ -46,13 +48,14 @@ void registerProcessors(nlohmann::json config) {
     // Get the instance of the GeneralProcessorFactory
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
 
-    // Register GeneralProcessor with a lambda function creating an instance
-    factory.RegisterProcessor("GeneralProcessor", [verbose]() -> GeneralProcessor* { return new GeneralProcessor(verbose); });
+    factory.RegisterProcessor("GeneralProcessor", [verbose]() -> GeneralProcessor* {
+        return new GeneralProcessor(verbose);
+    });
 
-    // Register CommandProcessor with a lambda function creating an instance
-    factory.RegisterProcessor("CommandProcessor", [verbose]() -> GeneralProcessor* { return new CommandProcessor(verbose); });
+    factory.RegisterProcessor("CommandProcessor", [verbose]() -> GeneralProcessor* {
+        return new CommandProcessor(verbose);
+    });
 
-    // Register MidasEventProcessor
     factory.RegisterProcessor("MidasEventProcessor", [verbose]() -> GeneralProcessor* {
         return new MidasEventProcessor(verbose);
     });
@@ -66,51 +69,51 @@ void registerProcessors(nlohmann::json config) {
  * @return Exit code.
  */
 int main(int argc, char* argv[]) {
-    // Create an instance of ProjectPrinter
-    ProjectPrinter printer;
+    utils::LoggerConfig::ConfigureFromFile();
 
     // Get cleaned up config
     JsonManager::getInstance();
     nlohmann::json config = JsonManager::getInstance().getConfig();
-    
-    // Get verbosity level from configuration
+
+    // Get verbosity level
     int verbose = config["general-settings"]["verbose"].get<int>();
 
-    // Initialize the DataTransmitterManager
-    DataTransmitterManager::Instance(config["general-settings"]["verbose"].get<int>());
+    // Set global log level
+    if (verbose == 0) spdlog::set_level(spdlog::level::warn);
+    else if (verbose == 1) spdlog::set_level(spdlog::level::info);
+    else spdlog::set_level(spdlog::level::debug);
 
-    // Register processors so we can map strings to processor objects
+    spdlog::info("Starting main program with verbosity level {}", verbose);
+
+    // Initialize the DataTransmitterManager
+    DataTransmitterManager::Instance(verbose);
+
+    // Register processors
     registerProcessors(config);
 
-    // Initialize DataChannelManager with configuration and verbosity level
-    DataChannelManager dataChannelManager(config["data-channels"], config["general-settings"]["verbose"].get<int>());
+    // Initialize DataChannelManager
+    DataChannelManager dataChannelManager(config["data-channels"], verbose);
 
-    // Set the global tick time
+    // Set global tick time
     dataChannelManager.setGlobalTickTime();
     int tickTime = dataChannelManager.getGlobalTickTime();
 
     // Main loop
-    // Runs either are true:
-    // 1) Quit signal not recieved
-    // 2) Midas Reciever is running and listening for events
     while (!SignalHandler::getInstance().isQuitSignalReceived() && 
-        (MidasReceiver::getInstance().isListeningForEvents() || !MidasReceiver::getInstance().IsRunning())) {
+           (MidasReceiver::getInstance().isListeningForEvents() || !MidasReceiver::getInstance().IsRunning())) {
 
-        // Publish data
         dataChannelManager.publish();
 
-        // Print message if verbose
         if (verbose > 0) {
-            printer.Print("Finished loop, sleeping for " + std::to_string(tickTime) + "ms ...");
+            spdlog::info("Finished loop, sleeping for {}ms ...", tickTime);
         }
 
-        // Sleep for the specified tick time
         std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));
     }
 
-
-    // Print message and exit
-    MidasReceiver::getInstance().stop(); // clean up midas client if it exists
-    printer.Print("Received quit signal. Exiting the loop and ending program.");
+    // Clean up and exit
+    spdlog::info("Received quit signal or MidasReceiver is not running. Stopping MidasReceiver...");
+    MidasReceiver::getInstance().stop();
+    spdlog::info("Exiting main program.");
     return 0;
 }

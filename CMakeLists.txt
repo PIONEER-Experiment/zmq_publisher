@@ -1,123 +1,131 @@
-cmake_minimum_required(VERSION 3.0)
-project(publisher)
+cmake_minimum_required(VERSION 3.18)
+project(publisher LANGUAGES CXX)
 
-# Recursively find all .cpp source files under src/
-file(GLOB_RECURSE ALL_SRC_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+# ------------------------------------------------------------------------------
+# Project Settings
+# ------------------------------------------------------------------------------
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Filter out example_receiver sources for publisher
-set(SRC_SOURCES "")
-foreach(src_file ${ALL_SRC_SOURCES})
-    if(NOT src_file MATCHES "/example_receiver/" AND NOT src_file MATCHES "/build/")
-        list(APPEND SRC_SOURCES ${src_file})
-    endif()
-endforeach()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Recursively find all .h header files under include/
-file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS "include/*.h")
-
-# Recursively collect all include subdirectories inside include/
-file(GLOB_RECURSE ALL_INCLUDE_DIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/include/*")
-
-# Filter only directories (remove files)
-set(FILTERED_INCLUDE_DIRS "")
-foreach(dir ${ALL_INCLUDE_DIRS})
-    if(IS_DIRECTORY ${dir})
-        list(APPEND FILTERED_INCLUDE_DIRS ${dir})
-    endif()
-endforeach()
-
-# Create output directory for binaries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Publisher executable using filtered source files
-add_executable(publisher ${SRC_SOURCES})
-
-# Example receiver executable sources (unchanged)
-add_executable(example_receiver
-    src/example_receiver/ExampleReceiver.cpp
-    src/utilities/ProjectPrinter.cpp
-)
-
-# Add the filtered include directories to both targets
-target_include_directories(publisher PRIVATE ${FILTERED_INCLUDE_DIRS})
-target_include_directories(example_receiver PRIVATE ${FILTERED_INCLUDE_DIRS})
-
-# ZeroMQ and cppzmq detection
-set(PUBLISHER_LIBS "")
-set(RECEIVER_LIBS "")
-
-if (DEFINED ENV{ZEROMQ_ROOT} AND DEFINED ENV{CPPZMQ_ROOT})
-    # Using ZeroMQ and cppzmq from environment variables
-
-    target_include_directories(publisher PRIVATE
-        $ENV{ZEROMQ_ROOT}/include
-        $ENV{CPPZMQ_ROOT}/include
-    )
-
-    target_include_directories(example_receiver PRIVATE
-        $ENV{ZEROMQ_ROOT}/include
-        $ENV{CPPZMQ_ROOT}/include
-    )
-
-    list(APPEND PUBLISHER_LIBS "$ENV{ZEROMQ_ROOT}/build//lib/libzmq.so")
-    list(APPEND RECEIVER_LIBS "$ENV{ZEROMQ_ROOT}/build/lib/libzmq.so")
-
-else()
-    find_library(ZMQ_LIBRARY NAMES zmq)
-    find_path(ZMQ_INCLUDE_DIR zmq.hpp)
-
-    find_package(cppzmq QUIET)
-
-    if(ZMQ_LIBRARY AND ZMQ_INCLUDE_DIR)
-
-        target_include_directories(publisher PRIVATE ${ZMQ_INCLUDE_DIR})
-        target_include_directories(example_receiver PRIVATE ${ZMQ_INCLUDE_DIR})
-
-        list(APPEND PUBLISHER_LIBS ${ZMQ_LIBRARY})
-        list(APPEND RECEIVER_LIBS ${ZMQ_LIBRARY})
-
-        if(cppzmq_FOUND)
-            target_link_libraries(publisher PRIVATE cppzmq)
-            target_link_libraries(example_receiver PRIVATE cppzmq)
-        endif()
-    else()
-        message(FATAL_ERROR "Could not find ZeroMQ library or zmq.hpp. Please install ZeroMQ and cppzmq or set ZEROMQ_ROOT and CPPZMQ_ROOT environment variables.")
-    endif()
+# ------------------------------------------------------------------------------
+# MIDAS Environment (required by many libraries)
+# ------------------------------------------------------------------------------
+if(NOT DEFINED ENV{MIDASSYS})
+  message(FATAL_ERROR
+    "Environment variable MIDASSYS not set.\n"
+    "Please source your MIDAS environment or run the detect_environment.sh script:\n"
+    "  ./scripts/environment/detect_environment.sh\n"
+    "  source ./scripts/environment/.env"
+  )
 endif()
 
+set(MIDASSYS_INCLUDE_DIRS
+  $ENV{MIDASSYS}/include
+  $ENV{MIDASSYS}/mxml
+  $ENV{MIDASSYS}/midasio
+)
+set(MIDASSYS_LIB_DIR $ENV{MIDASSYS}/lib)
 
-set(MIDAS_LIBS
-    $ENV{MIDASSYS}/lib/libmfe.a
-    $ENV{MIDASSYS}/lib/libmidas.a
+# ------------------------------------------------------------------------------
+# CPM Setup (local CPM.cmake expected)
+# ------------------------------------------------------------------------------
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake)
+
+# ------------------------------------------------------------------------------
+# Dependencies via CPM
+# ------------------------------------------------------------------------------
+CPMAddPackage("gh:gabime/spdlog#v1.13.0")
+CPMAddPackage("gh:nlohmann/json#v3.11.3")
+CPMAddPackage("gh:fmtlib/fmt#10.1.1")
+
+CPMAddPackage(
+  NAME midas_receiver
+  GITHUB_REPOSITORY jaca230/midas_receiver
+  GIT_TAG main
 )
 
-target_include_directories(publisher PRIVATE
-    $ENV{MIDASSYS}/include
-    $ENV{MIDASSYS}/mxml
-    $ENV{MIDASSYS}/midasio
+CPMAddPackage(
+  NAME analysis_pipeline_stages
+  GITHUB_REPOSITORY jaca230/analysis_pipeline_stages
+  GIT_TAG midas
 )
 
-list(APPEND PUBLISHER_LIBS
-    midas_receiver_lib
-    ${MIDAS_LIBS}
+CPMAddPackage(
+  NAME analysis_pipeline
+  GITHUB_REPOSITORY jaca230/analysis_pipeline
+  GIT_TAG midas
 )
 
+# ------------------------------------------------------------------------------
+# System Dependencies
+# ------------------------------------------------------------------------------
+find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer)
+find_package(TBB REQUIRED)
 find_package(ZLIB REQUIRED)
-list(APPEND PUBLISHER_LIBS ZLIB::ZLIB)
 
-if(${CMAKE_SYSTEM_NAME} MATCHES Linux)
-    list(APPEND PUBLISHER_LIBS -lpthread -lutil -lrt -ldl)
+find_library(ZMQ_LIBRARY NAMES zmq REQUIRED)
+find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
+
+# ------------------------------------------------------------------------------
+# Sources
+# ------------------------------------------------------------------------------
+file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+
+add_executable(publisher ${APP_SOURCES})
+
+# ------------------------------------------------------------------------------
+# Include Paths
+# ------------------------------------------------------------------------------
+target_include_directories(publisher PRIVATE
+  ${ZMQ_INCLUDE_DIR}
+  ${MIDASSYS_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# ------------------------------------------------------------------------------
+# Link Libraries
+# ------------------------------------------------------------------------------
+target_link_libraries(publisher PRIVATE
+  spdlog::spdlog
+  fmt::fmt
+  nlohmann_json::nlohmann_json
+  ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
+  TBB::tbb
+  ZLIB::ZLIB
+  ${ZMQ_LIBRARY}
+  MidasReceiver::midas_receiver
+  AnalysisPipeline::analysis_pipeline
+  AnalysisPipelineStages::analysis_pipeline_stages
+  ${MIDASSYS_LIB_DIR}/libmfe.a
+  ${MIDASSYS_LIB_DIR}/libmidas.a
+)
+
+# ------------------------------------------------------------------------------
+# Compiler Definitions (optional)
+# ------------------------------------------------------------------------------
+target_compile_definitions(publisher PRIVATE
+  -DWD2_DONT_INCLUDE_REG_ACCESS_VARS
+  -DDCB_DONT_INCLUDE_REG_ACCESS_VARS
+)
+
+# ------------------------------------------------------------------------------
+# Examples (Submodule)
+# ------------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/example_zmq_receiver/CMakeLists.txt")
+  message(STATUS "Including example_zmq_receiver submodule for build")
+  add_subdirectory(examples/example_zmq_receiver)
+else()
+  message(WARNING "example_zmq_receiver submodule NOT found - skipping build")
 endif()
 
-target_link_libraries(publisher PRIVATE ${PUBLISHER_LIBS})
-target_link_libraries(example_receiver PRIVATE ${RECEIVER_LIBS})
-
-target_compile_definitions(publisher PRIVATE -DWD2_DONT_INCLUDE_REG_ACCESS_VARS -DDCB_DONT_INCLUDE_REG_ACCESS_VARS)
-set_property(TARGET publisher PROPERTY CXX_STANDARD 17)
-
-# Installation - bin folder inside source dir
-set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}")
-
-install(TARGETS publisher example_receiver
-    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-)
+# ------------------------------------------------------------------------------
+# No install() — this is a top-level application, not a reusable library
+# ------------------------------------------------------------------------------

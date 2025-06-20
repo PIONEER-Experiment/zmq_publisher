@@ -1,7 +1,7 @@
-#include "DataChannel.h"
-#include "ProjectPrinter.h"
-#include "DataTransmitterManager.h"
-#include "DataTransmitter.h"
+#include "data_transmitter/DataChannel.h"
+#include "data_transmitter/DataTransmitterManager.h"
+#include "data_transmitter/DataTransmitter.h"
+#include <spdlog/spdlog.h>
 
 const int DEFAULT_CHANNEL_TICK_TIME = 1000;
 
@@ -23,21 +23,16 @@ DataChannel::DataChannel(const std::string& name, int eventsBeforeBreak, int eve
 }
 
 bool DataChannel::publish() {
-    ProjectPrinter printer;
     if (!transmitter->isBound()) {
         if (!transmitter->bind()) {
             return false;
         }
     }
-    // Run the processes and add the output to the data buffer
-    // Really ProcessesManager can't have a simple boolean, it needs error codes, but whatever
-    if (processesManager.runProcesses()) { // Will return false if the eventBuffer was not changed
-        // Get the serialized data from the data buffer
+    if (processesManager.runProcesses()) {
         std::string serializedData = processesManager.getDataBuffer().SerializeBuffer();
         return transmitter->publish(*this, serializedData);
     }
-
-    return true; //Return true if the processes just didn't run for whatever reason, that's not a publishing error
+    return true;
 }
 
 void DataChannel::updateTickTime() {
@@ -98,35 +93,26 @@ const std::string& DataChannel::getAddress() const {
     return address;
 }
 
-// Check if the data channel is on a break
 bool DataChannel::isOnBreak() const {
     return onBreak;
 }
 
-// Get the number of events seen on the current break
 int DataChannel::getEventsSeenOnBreak() const {
     return eventsSeenOnBreak;
 }
 
-// Mark an event as published
 void DataChannel::published() {
     eventsPublished++;
-
-    // Check if the data channel should start a break
     if (shouldTakeBreak()) {
         startBreak();
     }
-
     if (onBreak) {
         eventsSeenOnBreak++;
     }
 }
 
-// Mark an event as seen
 void DataChannel::seen() {
     eventsSeen++;
-
-    // If we are on a break and have seen enough events to ignore, exit the break
     if (onBreak) {
         eventsSeenOnBreak++;
         if (eventsSeenOnBreak >= eventsToIgnoreInBreak) {
@@ -136,18 +122,15 @@ void DataChannel::seen() {
     }
 }
 
-// Check if the data channel should take a break
 bool DataChannel::shouldTakeBreak() {
     return (eventsPublished % eventsBeforeBreak == 0) && (eventsPublished > 0);
 }
 
-// Start a break
 void DataChannel::startBreak() {
     onBreak = true;
     eventsSeenOnBreak = 0;
 }
 
-// Reset all attributes
 void DataChannel::reset() {
     eventsPublished = 0;
     eventsSeen = 0;
@@ -156,34 +139,24 @@ void DataChannel::reset() {
 }
 
 void DataChannel::printAttributes() const {
-    ProjectPrinter printer;
     std::string attributes;
-
     attributes += "Data Channel Attributes:\n";
     attributes += "Name: " + name + "\n";
     attributes += "Events Before Break: " + std::to_string(eventsBeforeBreak) + "\n";
     attributes += "Events To Ignore In Break: " + std::to_string(eventsToIgnoreInBreak) + "\n";
     attributes += "Events Published: " + std::to_string(eventsPublished) + "\n";
     attributes += "Events Seen: " + std::to_string(eventsSeen) + "\n";
-
+    attributes += "On Break: " + std::string(onBreak ? "true" : "false") + "\n";
     if (onBreak) {
-        attributes += "On Break: true\n";
         attributes += "Events Seen On Break: " + std::to_string(eventsSeenOnBreak) + "\n";
-    } else {
-        attributes += "On Break: false\n";
     }
-
     attributes += "Address: " + address + "\n";
     attributes += "Tick Time: " + std::to_string(tickTime) + "\n";
 
-    // Add more attributes as needed
-
-    printer.Print(attributes);
+    spdlog::debug("{}", attributes);
 }
 
 void DataChannel::initializeTransmitter() {
-    // Get the DataTransmitterManager singleton
     DataTransmitterManager& transmitterManager = DataTransmitterManager::Instance();
     transmitter = transmitterManager.getTransmitter(address);
 }
-

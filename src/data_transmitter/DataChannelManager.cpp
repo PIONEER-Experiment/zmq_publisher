@@ -1,15 +1,16 @@
-#include "DataChannelManager.h"
-#include "DataChannelProcessesManager.h"
-#include "GeneralProcessorFactory.h"
-#include "GeneralProcessor.h"
-#include "CommandProcessor.h"
-#include "MidasEventProcessor.h"
-#include "CommandRunner.h"
-#include "TypeChecker.h"
-#include <algorithm> // Include for std::gcd
+#include "data_transmitter/DataChannelManager.h"
+#include "data_transmitter/DataChannelProcessesManager.h"
+#include "processors/GeneralProcessorFactory.h"
+#include "processors/GeneralProcessor.h"
+#include "processors/CommandProcessor.h"
+#include "processors/MidasEventProcessor.h"
+#include "command_management/CommandRunner.h"
+#include "utilities/TypeChecker.h"
+#include <algorithm>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
-//Default config
+// Default config
 const std::string DEFAULT_NAME                   = "";
 const int DEFAULT_PUBLISHES_PER_BATCH            = 1;
 const int DEFAULT_PUBLISHES_IGNORED_AFTER_BATCH  = 0;
@@ -19,15 +20,13 @@ const int DEFAULT_PERIOD_MS                      = 1000;
 const std::string DEFAULT_COMMAND_STRING         = "";
 const bool DEFAULT_ENABLED_VALUE                 = true;
 
-DataChannelManager::DataChannelManager(const nlohmann::json& channelConfig, int verbose) 
+DataChannelManager::DataChannelManager(const nlohmann::json& channelConfig, int verbose)
     : verbose(verbose) {
     for (auto it = channelConfig.begin(); it != channelConfig.end(); ++it) {
         const std::string& channelId = it.key();
         const nlohmann::json& channelData = it.value();
-        ProjectPrinter printer;
-        printer.Print("Processing " + channelId + "...");
-
-        addChannel(channelId,channelData);
+        spdlog::debug("Processing {}...", channelId);
+        addChannel(channelId, channelData);
     }
 }
 
@@ -37,8 +36,8 @@ bool DataChannelManager::publish() {
     for (auto& channelPair : channels) {
         if (!channelPair.second.publish()) {
             success = false;
-            ProjectPrinter printer;
-            printer.PrintWarning("Channel " + channelPair.first + " has failed to publish.", __LINE__, __FILE__);
+            spdlog::warn("Channel {} has failed to publish. [{}:{}]",
+                         channelPair.first, __FILE__, __LINE__);
             channelPair.second.printAttributes();
         }
     }
@@ -51,7 +50,7 @@ DataChannel* DataChannelManager::getChannel(const std::string& channelId) {
     if (it != channels.end()) {
         return &it->second;
     }
-    return nullptr; 
+    return nullptr;
 }
 
 const std::map<std::string, DataChannel>& DataChannelManager::getChannelMap() const {
@@ -71,10 +70,8 @@ void DataChannelManager::addChannel(const std::string& channelId, DataChannel da
 }
 
 void DataChannelManager::addChannel(const std::string& channelId, const nlohmann::json& channelConfig) {
-    ProjectPrinter printer;
     GeneralProcessorFactory& factory = GeneralProcessorFactory::Instance();
 
-    // Read basic channel parameters with getOrDefault
     bool enabled = getOrDefault(channelConfig, "enabled", DEFAULT_ENABLED_VALUE, channelId, "channel config");
     if (!enabled) return;
 
@@ -84,57 +81,55 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
     std::string zmq_address = getOrDefault(channelConfig, "zmq-address", std::string(DEFAULT_ZMQ_ADDRESS), channelId, "channel config");
     int eventsInCircularBuffer = getOrDefault(channelConfig, "num-events-in-circular-buffer", DEFAULT_EVENTS_IN_CIRCULAR_BUFFER, channelId, "channel config");
 
-    // Initialize DataChannel and ProcessesManager
     DataChannel dataChannel(name, publishesPerBatch, publishesIgnoredAfterBatch, zmq_address);
     DataChannelProcessesManager processesManager(eventsInCircularBuffer + 1, verbose);
     dataChannel.setDataChannelProcessesManager(processesManager);
 
-    // If processors exist, configure them
     if (channelConfig.contains("processors")) {
         for (const auto& processorConfig : channelConfig["processors"]) {
             GeneralProcessor* processor = nullptr;
 
             std::string processorType = getOrDefault(processorConfig, "processor", std::string("GeneralProcessor"), channelId, "processor config");
-
-            // Create processor instance from factory
             processor = factory.CreateProcessor(processorType);
 
             if (!processor) {
-                printer.PrintWarning("Failed to create processor '" + processorType + "' in channel " + channelId, __LINE__, __FILE__);
+                spdlog::warn("Failed to create processor '{}' in channel {} [{}:{}]",
+                             processorType, channelId, __FILE__, __LINE__);
                 continue;
             }
 
-            // If MidasEventProcessor, initialize with its special params
             if (TypeChecker::IsInstanceOf<MidasEventProcessor>(processor)) {
                 auto* midasProcessor = dynamic_cast<MidasEventProcessor*>(processor);
                 if (!midasProcessor) {
-                    printer.PrintWarning("Failed to cast to MidasEventProcessor in channel " + channelId, __LINE__, __FILE__);
+                    spdlog::warn("Failed to cast to MidasEventProcessor in channel {} [{}:{}]",
+                                channelId, __FILE__, __LINE__);
                     delete processor;
                     continue;
                 }
 
-                std::string host = getOrDefault(processorConfig, "host", std::string(""), channelId, "processor config");
-                std::string experiment = getOrDefault(processorConfig, "experiment", std::string(""), channelId, "processor config");
-                std::string buffer = getOrDefault(processorConfig, "buffer", std::string("SYSTEM"), channelId, "processor config");
-                std::string clientName = getOrDefault(processorConfig, "client-name", std::string("MidasEventProcessor"), channelId, "processor config");
-                int eventId = getOrDefault(processorConfig, "event-id", EVENTID_ALL, channelId, "processor config");
-                bool getAll = getOrDefault(processorConfig, "get-all", true, channelId, "processor config");
-                int bufferSize = getOrDefault(processorConfig, "buffer-size", 1000, channelId, "processor config");
-                int yieldTimeoutMs = getOrDefault(processorConfig, "yield-timeout-ms", 300, channelId, "processor config");
-                size_t numEvents = getOrDefault(processorConfig, "num-events-per-retrieval", static_cast<size_t>(1), channelId, "processor config");
+                // Extract the two JSON objects for the new Init() signature
+                if (!processorConfig.contains("midas_receiver_config") || !processorConfig.contains("pipeline_config")) {
+                    spdlog::warn("Missing 'midas_receiver_config' or 'pipeline_config' in MidasEventProcessor config for channel {} [{}:{}]",
+                                channelId, __FILE__, __LINE__);
+                    delete processor;
+                    continue;
+                }
 
-                midasProcessor->init(host, experiment, buffer, clientName, eventId, getAll, bufferSize, yieldTimeoutMs, numEvents);
+                const nlohmann::json& midas_receiver_config = processorConfig["midas_receiver_config"];
+                const nlohmann::json& pipeline_config = processorConfig["pipeline_config"];
+
+                midasProcessor->Init(midas_receiver_config, pipeline_config);
 
                 int periodMs = getOrDefault(processorConfig, "period-ms", DEFAULT_PERIOD_MS, channelId, "processor config");
                 midasProcessor->setPeriod(periodMs);
 
                 dataChannel.addProcessToManager(midasProcessor);
             }
-            // Handle CommandProcessor specially
             else if (TypeChecker::IsInstanceOf<CommandProcessor>(processor)) {
                 auto* commandProcessor = dynamic_cast<CommandProcessor*>(processor);
                 if (!commandProcessor) {
-                    printer.PrintWarning("Failed to cast to CommandProcessor in channel " + channelId, __LINE__, __FILE__);
+                    spdlog::warn("Failed to cast to CommandProcessor in channel {} [{}:{}]",
+                                 channelId, __FILE__, __LINE__);
                     delete processor;
                     continue;
                 }
@@ -150,7 +145,6 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
                 dataChannel.addProcessToManager(commandProcessor);
             }
             else {
-                // Default for GeneralProcessor and others
                 int periodMs = getOrDefault(processorConfig, "period-ms", DEFAULT_PERIOD_MS, channelId, "processor config");
                 processor->setPeriod(periodMs);
                 dataChannel.addProcessToManager(processor);
@@ -162,14 +156,13 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
     channels[channelId] = dataChannel;
 }
 
-
 bool DataChannelManager::removeChannel(const std::string& channelId) {
     auto it = channels.find(channelId);
     if (it != channels.end()) {
         channels.erase(it);
-        return true; // Channel removed successfully
+        return true;
     }
-    return false; // Channel not found
+    return false;
 }
 
 int DataChannelManager::getGlobalTickTime() const {
@@ -181,16 +174,13 @@ void DataChannelManager::setGlobalTickTime(int tickTime) {
 }
 
 void DataChannelManager::setGlobalTickTime() {
-    // Initialize globalTickTime with the tick time of the first DataChannel
     if (!channels.empty()) {
         globalTickTime = channels.begin()->second.getTickTime();
     } else {
         globalTickTime = 0;
     }
 
-    // Iterate through the channels and find the GCD of their tick times
     for (const auto& channelPair : channels) {
         globalTickTime = std::gcd(globalTickTime, channelPair.second.getTickTime());
     }
 }
-

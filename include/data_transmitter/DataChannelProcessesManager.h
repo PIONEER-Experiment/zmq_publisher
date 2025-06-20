@@ -4,8 +4,8 @@
 
 #include <vector>
 #include <memory>
-#include "GeneralProcessor.h"
-#include "DataBuffer.h"
+#include "processors/GeneralProcessor.h"
+#include "data_transmitter/DataBuffer.h"
 
 /**
  * @brief Manages data channel processors and their execution.

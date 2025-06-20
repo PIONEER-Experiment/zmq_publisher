@@ -1,78 +1,71 @@
 #!/bin/bash
 
-log_enabled=false
-debug_enabled=false
+# Get the absolute path of the script directory
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+BASE_DIR="$SCRIPT_DIR/.."
+EXECUTABLE="$BASE_DIR/build/bin/publisher"
 
-usage() {
-    echo "Usage: $0 [OPTIONS]"
+# Variables for options
+PRELOAD_LIBS=""
+DEBUG=false
+VALGRIND=false
+EXE_ARGS=()
+
+# Help message
+show_help() {
+    echo "Usage: ./run.sh [OPTIONS] [-- <args>]"
+    echo
     echo "Options:"
-    echo "  --log       Enable logging output to file"
-    echo "  --debug     Run executable under gdb"
-    echo "  --help      Show this help message"
+    echo "  -h, --help           Display this help message"
+    echo "  -d, --debug          Run with gdb for debugging"
+    echo "  -v, --valgrind       Run with valgrind for memory analysis"
+    echo "  --preload <libs>     Comma-separated list of library paths to LD_PRELOAD"
+    echo
+    echo "Arguments after '--' will be passed to the executable."
+    echo "Example: ./run.sh --preload /usr/lib/libfoo.so,/usr/lib/libbar.so -- -c config.json"
 }
 
 # Parse arguments
-while [[ $# -gt 0 ]]; do
+while [[ "$#" -gt 0 ]]; do
     case "$1" in
-        --log)
-            log_enabled=true
-            shift
+        -h|--help) show_help; exit 0 ;;
+        -d|--debug) DEBUG=true; shift ;;
+        -v|--valgrind) VALGRIND=true; shift ;;
+        --preload)
+            if [[ -n "$2" && "$2" != -* ]]; then
+                # Convert comma-separated list to colon-separated for LD_PRELOAD
+                PRELOAD_LIBS="${2//,/':' }"
+                shift 2
+            else
+                echo "[run.sh, ERROR] --preload requires a comma-separated list of paths"
+                exit 1
+            fi
             ;;
-        --debug)
-            debug_enabled=true
-            shift
-            ;;
-        --help)
-            usage
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            usage
-            exit 1
-            ;;
+        --) shift; EXE_ARGS+=("$@"); break ;;
+        *) echo "[run.sh, ERROR] Unknown option: $1"; show_help; exit 1 ;;
     esac
 done
 
-# Resolve script directory (scripts/run.sh)
-SOURCE="${BASH_SOURCE[0]}"
-while [ -L "$SOURCE" ]; do
-    DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
-    SOURCE=$(readlink "$SOURCE")
-    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
-done
-script_directory=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
-
-# Repo root is one level up from scripts directory
-repo_root=$(dirname "$script_directory")
-
-# Source environment setup quietly
-env_setup="$repo_root/scripts/environment/setup_environment.sh"
-if [ -f "$env_setup" ]; then
-    source "$env_setup" -q
-else
-    echo "Warning: environment setup script not found at $env_setup"
-fi
-
-# Define executable and log file paths
-executable="$repo_root/build/bin/publisher"
-log_dir="$repo_root/logs"
-mkdir -p "$log_dir"
-log_file="$log_dir/midas_publisher.log"
-
-if [ ! -x "$executable" ]; then
-    echo "Error: executable not found or not executable: $executable"
+# Check executable presence
+if [ ! -f "$EXECUTABLE" ]; then
+    echo "[run.sh, ERROR] Executable not found at: $EXECUTABLE"
+    echo "Try running './build.sh' first."
     exit 1
 fi
 
-# Run executable with or without logging or debugging
-if [ "$debug_enabled" = true ]; then
-    echo "Running publisher under gdb..."
-    gdb --args "$executable"
-elif [ "$log_enabled" = true ]; then
-    echo "Running publisher with output logged to $log_file"
-    "$executable" > "$log_file" 2>&1
+# Export LD_PRELOAD if any preload libs specified
+if [[ -n "$PRELOAD_LIBS" ]]; then
+    export LD_PRELOAD="$PRELOAD_LIBS${LD_PRELOAD:+:$LD_PRELOAD}"
+fi
+
+# Run accordingly
+if [ "$DEBUG" = true ]; then
+    echo "[run.sh, INFO] Running with gdb..."
+    gdb --args "$EXECUTABLE" "${EXE_ARGS[@]}"
+elif [ "$VALGRIND" = true ]; then
+    echo "[run.sh, INFO] Running with valgrind..."
+    valgrind --leak-check=full --track-origins=yes "$EXECUTABLE" "${EXE_ARGS[@]}"
 else
-    echo "Running publisher without logging"
-    "$executable"
+    echo "[run.sh, INFO] Running analysis_pipeline..."
+    "$EXECUTABLE" "${EXE_ARGS[@]}"
 fi

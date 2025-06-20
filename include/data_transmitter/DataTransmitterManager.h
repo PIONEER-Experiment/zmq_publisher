@@ -5,8 +5,7 @@
 #include <string>
 #include <zmq.hpp>
 #include <iostream>
-#include "ProjectPrinter.h"
-#include "DataTransmitter.h"
+#include "data_transmitter/DataTransmitter.h"
 #include <memory> // Include for std::shared_ptr
 
 /**
