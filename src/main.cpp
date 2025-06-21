@@ -98,14 +98,23 @@ int main(int argc, char* argv[]) {
     dataChannelManager.setGlobalTickTime();
     int tickTime = dataChannelManager.getGlobalTickTime();
 
+    // Variables for timing statistics
+    size_t loopCount = 0;
+    std::chrono::microseconds totalDuration(0);
+
     // Main loop
     while (!SignalHandler::getInstance().isQuitSignalReceived() && 
            (MidasReceiver::getInstance().isListeningForEvents() || !MidasReceiver::getInstance().IsRunning())) {
 
+        auto start = std::chrono::high_resolution_clock::now();
         dataChannelManager.publish();
+        auto end = std::chrono::high_resolution_clock::now();
+
+        totalDuration += std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        ++loopCount;
 
         if (verbose > 0) {
-            spdlog::info("Finished loop, sleeping for {}ms ...", tickTime);
+            spdlog::debug("Finished loop, sleeping for {}ms ...", tickTime);
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(tickTime));
@@ -114,6 +123,14 @@ int main(int argc, char* argv[]) {
     // Clean up and exit
     spdlog::info("Received quit signal or MidasReceiver is not running. Stopping MidasReceiver...");
     MidasReceiver::getInstance().stop();
+
+    // Print timing summary
+    if (loopCount > 0) {
+        double avgMillis = totalDuration.count() / 1000.0 / loopCount;
+        spdlog::info("Average publish time over {} iterations: {:.3f} ms", loopCount, avgMillis);
+    }
+
+
     spdlog::info("Exiting main program.");
     return 0;
 }

@@ -13,7 +13,7 @@
       "processors": [
         {
           "processor": "MidasEventProcessor",
-          "period-ms": 1000,
+          "period-ms": 0,
           "midas_receiver_config": {
             "host": "",
             "experiment": "",

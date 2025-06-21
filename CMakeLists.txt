@@ -40,28 +40,47 @@ set(MIDASSYS_LIB_DIR $ENV{MIDASSYS}/lib)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake)
 
 # ------------------------------------------------------------------------------
-# Dependencies via CPM
+# Load CPM Package Config Variables
 # ------------------------------------------------------------------------------
-CPMAddPackage("gh:gabime/spdlog#v1.13.0")
-CPMAddPackage("gh:nlohmann/json#v3.11.3")
-CPMAddPackage("gh:fmtlib/fmt#10.1.1")
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPMConfig.cmake)
+
+# ------------------------------------------------------------------------------
+# Dependencies via CPM using loaded variables
+# ------------------------------------------------------------------------------
+CPMAddPackage(
+  NAME spdlog
+  GITHUB_REPOSITORY ${SPDLOG_REPO}
+  GIT_TAG ${SPDLOG_TAG}
+)
+
+CPMAddPackage(
+  NAME nlohmann_json
+  GITHUB_REPOSITORY ${JSON_REPO}
+  GIT_TAG ${JSON_TAG}
+)
+
+CPMAddPackage(
+  NAME fmt
+  GITHUB_REPOSITORY ${FMT_REPO}
+  GIT_TAG ${FMT_TAG}
+)
 
 CPMAddPackage(
   NAME midas_receiver
-  GITHUB_REPOSITORY jaca230/midas_receiver
-  GIT_TAG main
+  GITHUB_REPOSITORY ${MIDAS_RECEIVER_REPO}
+  GIT_TAG ${MIDAS_RECEIVER_TAG}
 )
 
 CPMAddPackage(
   NAME analysis_pipeline_stages
-  GITHUB_REPOSITORY jaca230/analysis_pipeline_stages
-  GIT_TAG midas
+  GITHUB_REPOSITORY ${ANALYSIS_PIPELINE_STAGES_REPO}
+  GIT_TAG ${ANALYSIS_PIPELINE_STAGES_TAG}
 )
 
 CPMAddPackage(
   NAME analysis_pipeline
-  GITHUB_REPOSITORY jaca230/analysis_pipeline
-  GIT_TAG midas
+  GITHUB_REPOSITORY ${ANALYSIS_PIPELINE_REPO}
+  GIT_TAG ${ANALYSIS_PIPELINE_TAG}
 )
 
 # ------------------------------------------------------------------------------

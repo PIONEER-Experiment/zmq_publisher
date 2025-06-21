@@ -44,6 +44,7 @@ void LoggerConfig::ConfigureFromFile(const std::string& filename) {
         std::string loggerName = loggerConfig.value("name", "app_logger");
         std::string levelStr = loggerConfig.value("level", "info");
         std::string pattern = loggerConfig.value("pattern", "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
+        auto level = parseLevel(levelStr);
 
         std::vector<spdlog::sink_ptr> sinks;
 
@@ -56,11 +57,14 @@ void LoggerConfig::ConfigureFromFile(const std::string& filename) {
                 bool enabled = consoleConfig.value("enabled", true);
                 bool color = consoleConfig.value("color", true);
                 if (enabled) {
+                    spdlog::sink_ptr sink;
                     if (color) {
-                        sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+                        sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
                     } else {
-                        sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_mt>());
+                        sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
                     }
+                    sink->set_level(level);
+                    sinks.push_back(sink);
                 }
             }
 
@@ -73,8 +77,10 @@ void LoggerConfig::ConfigureFromFile(const std::string& filename) {
                     size_t max_size = fileConfig.value("max_size", 10485760); // 10 MB
                     size_t max_files = fileConfig.value("max_files", 3);
                     try {
-                        sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-                            file_path, max_size, max_files));
+                        auto sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+                            file_path, max_size, max_files);
+                        sink->set_level(level);
+                        sinks.push_back(sink);
                     } catch (const spdlog::spdlog_ex& ex) {
                         spdlog::error("LoggerConfig: Failed to create file sink: {}", ex.what());
                     }
@@ -84,14 +90,17 @@ void LoggerConfig::ConfigureFromFile(const std::string& filename) {
 
         if (sinks.empty()) {
             // fallback to console with color
-            sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+            auto fallbackSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+            fallbackSink->set_level(level);
+            sinks.push_back(fallbackSink);
         }
 
         auto logger = std::make_shared<spdlog::logger>(loggerName, sinks.begin(), sinks.end());
-        logger->set_level(parseLevel(levelStr));
+        logger->set_level(level);
         logger->set_pattern(pattern);
 
         spdlog::set_default_logger(logger);
+        spdlog::set_level(level);              // ✅ Global filter level
         spdlog::flush_on(spdlog::level::info);
 
         spdlog::info("LoggerConfig: Logger '{}' initialized with level '{}'", loggerName, levelStr);
@@ -99,5 +108,6 @@ void LoggerConfig::ConfigureFromFile(const std::string& filename) {
         spdlog::error("LoggerConfig: Exception caught during logger configuration: {}", e.what());
     }
 }
+
 
 } // namespace utils

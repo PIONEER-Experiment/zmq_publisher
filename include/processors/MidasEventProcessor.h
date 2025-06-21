@@ -26,7 +26,6 @@ private:
 
     std::shared_ptr<ConfigManager> configManager_;
     std::unique_ptr<Pipeline> pipeline_;
-    TTree* outputTree_ = nullptr;
 };
 
 #endif // MIDAS_EVENT_PROCESSOR_H
