@@ -9,7 +9,7 @@
       "name": "DATA",
       "publishes-per-batch": 1,
       "publishes-ignored-after-batch": 0,
-      "num-events-in-circular-buffer": 5,
+      "num-events-in-circular-buffer": 1,
       "processors": [
         {
           "processor": "MidasEventProcessor",
