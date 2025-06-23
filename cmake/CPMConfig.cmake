@@ -1,27 +1,55 @@
-# ------------------------------------------------------------------------------
-# CPM Package Configuration
-# Define GitHub repositories and version tags used by CPM.cmake
-# This file is included by the top-level CMakeLists.txt
-# ------------------------------------------------------------------------------
+# cmake/CPMConfig.cmake
 
-# Logging (spdlog)
-set(SPDLOG_REPO               "gabime/spdlog"                  CACHE STRING "SPDLog GitHub repo")
-set(SPDLOG_TAG                "v1.13.0"                       CACHE STRING "SPDLog version tag")
+# ---------------------- CPM Package Registry ----------------------
+# NOTE: Order matters! Dependencies should be declared in dependency order.
 
-# JSON Parsing (nlohmann/json)
-set(JSON_REPO                 "nlohmann/json"                 CACHE STRING "JSON GitHub repo")
-set(JSON_TAG                  "v3.11.3"                      CACHE STRING "JSON version tag")
+set(CPM_PACKAGE_LIST
+  spdlog
+  nlohmann_json
+  fmt
+  midas_receiver
+  unpacker
+  analysis_pipeline_stages
+  analysis_pipeline
+)
 
-# Formatting library (fmt)
-set(FMT_REPO                  "fmtlib/fmt"                   CACHE STRING "FMT GitHub repo")
-set(FMT_TAG                   "10.1.1"                       CACHE STRING "FMT version tag")
+# ---------------------- spdlog ----------------------
+set(spdlog_REPO   "gabime/spdlog")
+set(spdlog_TAG    "v1.13.0")
+set(spdlog_TARGET "spdlog::spdlog")
 
-# Project-Specific Dependencies
-set(MIDAS_RECEIVER_REPO       "jaca230/midas_receiver"       CACHE STRING "MIDAS receiver repo")
-set(MIDAS_RECEIVER_TAG        "main"                         CACHE STRING "MIDAS receiver tag")
+# ---------------------- nlohmann_json ----------------------
+set(nlohmann_json_REPO   "nlohmann/json")
+set(nlohmann_json_TAG    "v3.11.3")
+set(nlohmann_json_TARGET "nlohmann_json::nlohmann_json")
 
-set(ANALYSIS_PIPELINE_REPO    "jaca230/analysis_pipeline"    CACHE STRING "Analysis pipeline repo")
-set(ANALYSIS_PIPELINE_TAG     "midas"                        CACHE STRING "Analysis pipeline tag")
+# ---------------------- fmt ----------------------
+set(fmt_REPO   "fmtlib/fmt")
+set(fmt_TAG    "10.1.1")
+set(fmt_TARGET "fmt::fmt")
 
-set(ANALYSIS_PIPELINE_STAGES_REPO "jaca230/analysis_pipeline_stages" CACHE STRING "Analysis pipeline stages repo")
-set(ANALYSIS_PIPELINE_STAGES_TAG  "midas"                       CACHE STRING "Analysis pipeline stages tag")
+# ---------------------- midas_receiver ----------------------
+set(midas_receiver_REPO   "jaca230/midas_receiver")
+set(midas_receiver_TAG    "main")
+set(midas_receiver_TARGET "MidasReceiver::midas_receiver")
+
+# ---------------------- analysis_pipeline_stages ----------------------
+set(analysis_pipeline_stages_REPO   "jaca230/analysis_pipeline_stages")
+set(analysis_pipeline_stages_TAG    "midas_with_unpackers")
+set(analysis_pipeline_stages_TARGET "AnalysisPipelineStages::analysis_pipeline_stages")
+
+# ---------------------- analysis_pipeline ----------------------
+set(analysis_pipeline_REPO   "jaca230/analysis_pipeline")
+set(analysis_pipeline_TAG    "midas_with_unpackers")
+set(analysis_pipeline_TARGET "AnalysisPipeline::analysis_pipeline")
+
+# ---------------------- unpacker ----------------------
+set(unpacker_REPO   "jaca230/unpacker")
+set(unpacker_TAG    "debug/One-CMakeLists.txt")
+# Note: unpacker exports multiple targets, so we might list them separately if needed
+set(unpacker_TARGETS
+  unpacker::common_data_products
+  unpacker::common_unpacking
+  unpacker::nalu_data_products
+  unpacker::nalu_unpacking
+)

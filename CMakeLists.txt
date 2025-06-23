@@ -47,41 +47,17 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPMConfig.cmake)
 # ------------------------------------------------------------------------------
 # Dependencies via CPM using loaded variables
 # ------------------------------------------------------------------------------
-CPMAddPackage(
-  NAME spdlog
-  GITHUB_REPOSITORY ${SPDLOG_REPO}
-  GIT_TAG ${SPDLOG_TAG}
-)
-
-CPMAddPackage(
-  NAME nlohmann_json
-  GITHUB_REPOSITORY ${JSON_REPO}
-  GIT_TAG ${JSON_TAG}
-)
-
-CPMAddPackage(
-  NAME fmt
-  GITHUB_REPOSITORY ${FMT_REPO}
-  GIT_TAG ${FMT_TAG}
-)
-
-CPMAddPackage(
-  NAME midas_receiver
-  GITHUB_REPOSITORY ${MIDAS_RECEIVER_REPO}
-  GIT_TAG ${MIDAS_RECEIVER_TAG}
-)
-
-CPMAddPackage(
-  NAME analysis_pipeline_stages
-  GITHUB_REPOSITORY ${ANALYSIS_PIPELINE_STAGES_REPO}
-  GIT_TAG ${ANALYSIS_PIPELINE_STAGES_TAG}
-)
-
-CPMAddPackage(
-  NAME analysis_pipeline
-  GITHUB_REPOSITORY ${ANALYSIS_PIPELINE_REPO}
-  GIT_TAG ${ANALYSIS_PIPELINE_TAG}
-)
+foreach(pkg IN LISTS CPM_PACKAGE_LIST)
+  string(TOUPPER ${pkg} UPPER_NAME)
+  CPMAddPackage(
+    NAME ${pkg}
+    GITHUB_REPOSITORY ${${pkg}_REPO}
+    GIT_TAG ${${pkg}_TAG}
+    OPTIONS
+      "CMAKE_POSITION_INDEPENDENT_CODE ON"
+      "BUILD_TESTING OFF"
+  )
+endforeach()
 
 # ------------------------------------------------------------------------------
 # System Dependencies
@@ -112,21 +88,26 @@ target_include_directories(publisher PRIVATE
 # ------------------------------------------------------------------------------
 # Link Libraries
 # ------------------------------------------------------------------------------
+# Link all registered CPM targets
+foreach(pkg IN LISTS CPM_PACKAGE_LIST)
+  if(DEFINED ${pkg}_TARGET)
+    target_link_libraries(publisher PRIVATE ${${pkg}_TARGET})
+  elseif(DEFINED ${pkg}_TARGETS)
+    foreach(subtarget IN LISTS ${pkg}_TARGETS)
+      target_link_libraries(publisher PRIVATE ${subtarget})
+    endforeach()
+  endif()
+endforeach()
+
+
 target_link_libraries(publisher PRIVATE
-  spdlog::spdlog
-  fmt::fmt
-  nlohmann_json::nlohmann_json
   ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
   TBB::tbb
   ZLIB::ZLIB
   ${ZMQ_LIBRARY}
-  MidasReceiver::midas_receiver
-  AnalysisPipeline::analysis_pipeline
-  AnalysisPipelineStages::analysis_pipeline_stages
   ${MIDASSYS_LIB_DIR}/libmfe.a
   ${MIDASSYS_LIB_DIR}/libmidas.a
 )
-
 # ------------------------------------------------------------------------------
 # Compiler Definitions (optional)
 # ------------------------------------------------------------------------------
