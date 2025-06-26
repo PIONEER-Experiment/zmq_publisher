@@ -29,16 +29,22 @@ void MidasEventProcessor::init(
 ) {
     this->numEventsPerRetrieval = numEventsPerRetrieval;
 
-    midasReceiver.init(
-        host,
-        experiment,
-        buffer,
-        clientName,
-        eventId,
-        getAll,
-        bufferSize,
-        yieldTimeoutMs
-    );
+    MidasReceiverConfig config;
+    config.host = host;
+    config.experiment = experiment;
+    config.bufferName = buffer;
+    config.clientName = clientName;
+    config.eventID = eventId;
+    config.getAllEvents = getAll;
+    config.maxBufferSize = bufferSize;
+    config.cmYieldTimeout = yieldTimeoutMs;
+    // Set transition registrations explicitly (this overrides the defaults)
+    config.transitionRegistrations = {
+        {TR_START,      100},  // early consumer of START sequence
+    };
+
+
+    midasReceiver.init(config);
     midasReceiver.start();
     initialized = true;
 }

@@ -97,13 +97,15 @@ target_include_directories(publisher PRIVATE
     $ENV{MIDASSYS}/midasio
 )
 
-list(APPEND PUBLISHER_LIBS
-    midas_receiver_lib
-    ${MIDAS_LIBS}
-)
-
 find_package(ZLIB REQUIRED)
-list(APPEND PUBLISHER_LIBS ZLIB::ZLIB)
+find_package(MidasReceiver REQUIRED)
+find_package(Threads REQUIRED)
+
+list(APPEND PUBLISHER_LIBS
+    MidasReceiver::midas_receiver
+    ${MIDAS_LIBS}
+    ZLIB::ZLIB
+)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES Linux)
     list(APPEND PUBLISHER_LIBS -lpthread -lutil -lrt -ldl)
