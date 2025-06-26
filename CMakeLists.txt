@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.18)
 project(publisher LANGUAGES CXX)
 
+# Suppress stringop-overflow warning on GCC globally
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-Wno-stringop-overflow)
+endif()
+
 # ------------------------------------------------------------------------------
 # Project Settings
 # ------------------------------------------------------------------------------
@@ -49,13 +54,18 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPMConfig.cmake)
 # ------------------------------------------------------------------------------
 foreach(pkg IN LISTS CPM_PACKAGE_LIST)
   string(TOUPPER ${pkg} UPPER_NAME)
+
+  # Gather package options if defined
+  set(pkg_OPTIONS "")
+  if(DEFINED ${pkg}_OPTIONS)
+    set(pkg_OPTIONS ${${pkg}_OPTIONS})
+  endif()
+
   CPMAddPackage(
     NAME ${pkg}
     GITHUB_REPOSITORY ${${pkg}_REPO}
     GIT_TAG ${${pkg}_TAG}
-    OPTIONS
-      "CMAKE_POSITION_INDEPENDENT_CODE ON"
-      "BUILD_TESTING OFF"
+    OPTIONS ${pkg_OPTIONS}
   )
 endforeach()
 

@@ -29,6 +29,7 @@ compile_commands.json
 # Ignore text editor backup files
 *~
 *.swp
+*.tmp
 
 # Ignore system and OS-specific files
 .DS_Store

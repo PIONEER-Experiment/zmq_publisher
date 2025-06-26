@@ -13,7 +13,10 @@
       "processors": [
         {
           "processor": "MidasEventProcessor",
-          "period-ms": 0,
+          "period-ms": 1000,
+          "midas_event_processor_config": {
+            "clear-products-on-new-run": true
+          },
           "midas_receiver_config": {
             "host": "",
             "experiment": "",
@@ -26,12 +29,29 @@
             "num-events-per-retrieval": 1
           },
           "pipeline_config": {
+              "plugin_libraries": [
+              ],
             "pipeline": [
               {
-                "id": "stage0",
+                "id": "unpacker",
                 "type": "CustomMidasUnpackerStage",
                 "parameters": {
                   "unpacker_class": "unpackers::NaluEventUnpacker"
+                },
+                "next": ["cleanup"]
+              },
+              {
+                "id": "cleanup",
+                "type": "ClearProductsStage",
+                "parameters": {
+                  "products": [
+                    "NaluEventFooterCollection",
+                    "NaluEventHeaderCollection",
+                    "NaluPacketFooterCollection",
+                    "NaluPacketHeaderCollection",
+                    "NaluTimeCollection",
+                    "NaluWaveformCollection"
+                  ]
                 },
                 "next": []
               }
