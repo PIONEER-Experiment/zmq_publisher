@@ -66,6 +66,14 @@ void MidasEventProcessor::Init(const json& midas_receiver_config,
     // Apply midas_event_processor_config
     if (midas_event_processor_config.is_object()) {
         clearProductsOnNewRun_ = midas_event_processor_config.value("clear-products-on-new-run", true);
+
+        if (midas_event_processor_config.contains("tags_to_omit_from_clear") &&
+            midas_event_processor_config["tags_to_omit_from_clear"].is_array()) {
+            
+            for (const auto& tag : midas_event_processor_config["tags_to_omit_from_clear"]) {
+                tagsToOmitFromClear_.insert(tag.get<std::string>());
+            }
+        }
     }
 
     initialized_ = true;
@@ -100,7 +108,14 @@ void MidasEventProcessor::setRunNumber(INT newRunNumber) {
 
     if (clearProductsOnNewRun_) {
         spdlog::debug("[MidasEventProcessor] Clearing data products for new run.");
-        pipeline_->getDataProductManager().clear();
+
+        auto& dataProductManager = pipeline_->getDataProductManager();
+
+        if (tagsToOmitFromClear_.empty()) {
+            dataProductManager.clear();
+        } else {
+            dataProductManager.removeExcludingTags(tagsToOmitFromClear_);
+        }
     }
 }
 
