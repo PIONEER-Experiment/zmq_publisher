@@ -107,7 +107,6 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
                     continue;
                 }
 
-                // Extract the two JSON objects for the new Init() signature
                 if (!processorConfig.contains("midas_receiver_config") || !processorConfig.contains("pipeline_config")) {
                     spdlog::warn("Missing 'midas_receiver_config' or 'pipeline_config' in MidasEventProcessor config for channel {} [{}:{}]",
                                 channelId, __FILE__, __LINE__);
@@ -117,8 +116,12 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
 
                 const nlohmann::json& midas_receiver_config = processorConfig["midas_receiver_config"];
                 const nlohmann::json& pipeline_config = processorConfig["pipeline_config"];
+                const nlohmann::json& event_processor_config =
+                    processorConfig.contains("midas_event_processor_config") && processorConfig["midas_event_processor_config"].is_object()
+                        ? processorConfig["midas_event_processor_config"]
+                        : nlohmann::json::object();
 
-                midasProcessor->Init(midas_receiver_config, pipeline_config);
+                midasProcessor->Init(midas_receiver_config, pipeline_config, event_processor_config);
 
                 int periodMs = getOrDefault(processorConfig, "period-ms", DEFAULT_PERIOD_MS, channelId, "processor config");
                 midasProcessor->setPeriod(periodMs);

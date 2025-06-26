@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.18)
 project(publisher LANGUAGES CXX)
 
+# Suppress stringop-overflow warning on GCC globally
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-Wno-stringop-overflow)
+endif()
+
 # ------------------------------------------------------------------------------
 # Project Settings
 # ------------------------------------------------------------------------------
@@ -47,41 +52,23 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPMConfig.cmake)
 # ------------------------------------------------------------------------------
 # Dependencies via CPM using loaded variables
 # ------------------------------------------------------------------------------
-CPMAddPackage(
-  NAME spdlog
-  GITHUB_REPOSITORY ${SPDLOG_REPO}
-  GIT_TAG ${SPDLOG_TAG}
-)
+foreach(pkg IN LISTS CPM_PACKAGE_LIST)
+  string(TOUPPER ${pkg} UPPER_NAME)
 
-CPMAddPackage(
-  NAME nlohmann_json
-  GITHUB_REPOSITORY ${JSON_REPO}
-  GIT_TAG ${JSON_TAG}
-)
+  # Gather package options if defined
+  set(pkg_OPTIONS "")
+  if(DEFINED ${pkg}_OPTIONS)
+    set(pkg_OPTIONS ${${pkg}_OPTIONS})
+  endif()
 
-CPMAddPackage(
-  NAME fmt
-  GITHUB_REPOSITORY ${FMT_REPO}
-  GIT_TAG ${FMT_TAG}
-)
+  CPMAddPackage(
+    NAME ${pkg}
+    GITHUB_REPOSITORY ${${pkg}_REPO}
+    GIT_TAG ${${pkg}_TAG}
+    OPTIONS ${pkg_OPTIONS}
+  )
+endforeach()
 
-CPMAddPackage(
-  NAME midas_receiver
-  GITHUB_REPOSITORY ${MIDAS_RECEIVER_REPO}
-  GIT_TAG ${MIDAS_RECEIVER_TAG}
-)
-
-CPMAddPackage(
-  NAME analysis_pipeline_stages
-  GITHUB_REPOSITORY ${ANALYSIS_PIPELINE_STAGES_REPO}
-  GIT_TAG ${ANALYSIS_PIPELINE_STAGES_TAG}
-)
-
-CPMAddPackage(
-  NAME analysis_pipeline
-  GITHUB_REPOSITORY ${ANALYSIS_PIPELINE_REPO}
-  GIT_TAG ${ANALYSIS_PIPELINE_TAG}
-)
 
 # ------------------------------------------------------------------------------
 # System Dependencies

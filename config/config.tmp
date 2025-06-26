@@ -1,0 +1,29 @@
+{
+  "pipeline": [
+    {
+      "id": "stage0",
+      "type": "CustomMidasUnpackerStage",
+      "parameters": {
+        "unpacker_class": "unpackers::NaluEventUnpacker"
+      },
+      "next": ["stage1"]
+    },
+    {
+      "id": "stage1",
+      "type": "ClearProductsStage",
+      "parameters": {
+        "products": [
+          "NaluEventFooter",
+          "NaluEventHeader",
+          "NaluODB",
+          "NaluPacket",
+          "NaluPacketFooter",
+          "NaluPacketHeader",
+          "NaluTime",
+          "NaluWaveform"
+        ]
+      },
+      "next": []
+    }
+  ]
+}
