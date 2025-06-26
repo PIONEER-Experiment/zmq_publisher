@@ -11,6 +11,7 @@ set(CPM_PACKAGE_LIST
   unpacker
   analysis_pipeline_stages
   default_midas_unpacking_pipeline_plugin
+  custom_midas_unpacking_pipeline_plugin
   analysis_pipeline
 )
 
@@ -76,6 +77,14 @@ set(default_midas_unpacking_pipeline_plugin_REPO   "jaca230/default_midas_unpack
 set(default_midas_unpacking_pipeline_plugin_TAG    "main")
 set(default_midas_unpacking_pipeline_plugin_TARGET "default_midas_unpacking_pipeline_plugin::default_midas_unpacking_pipeline_plugin")
 set(default_midas_unpacking_pipeline_plugin_OPTIONS
+  "CMAKE_POSITION_INDEPENDENT_CODE ON"
+)
+
+# ---------------------- custom_midas_unpacking_pipeline_plugin ----------------------
+set(custom_midas_unpacking_pipeline_plugin_REPO   "jaca230/custom_midas_unpacking_pipeline_plugin")
+set(custom_midas_unpacking_pipeline_plugin_TAG    "main")
+set(custom_midas_unpacking_pipeline_plugin_TARGET "custom_midas_unpacking_pipeline_plugin::custom_midas_unpacking_pipeline_plugin")
+set(custom_midas_unpacking_pipeline_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 

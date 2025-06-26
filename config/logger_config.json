@@ -1,7 +1,7 @@
 {
   "logger": {
     "name": "Midas_Publisher_Logger",
-    "level": "info",
+    "level": "debug",
     "pattern": "[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v",
     "sinks": {
       "console": {
