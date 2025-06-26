@@ -28,6 +28,7 @@ private:
     size_t numEventsPerRetrieval_ = 1;
     INT lastRunNumber_ = -1;
     bool clearProductsOnNewRun_ = true;
+    std::unordered_set<std::string> tagsToOmitFromClear_;
 
     std::shared_ptr<ConfigManager> configManager_;
     std::unique_ptr<Pipeline> pipeline_;
