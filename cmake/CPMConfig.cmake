@@ -12,6 +12,7 @@ set(CPM_PACKAGE_LIST
   analysis_pipeline_stages
   default_midas_unpacking_pipeline_plugin
   custom_midas_unpacking_pipeline_plugin
+  hdsoc_analysis_stages
   analysis_pipeline
 )
 
@@ -85,6 +86,14 @@ set(custom_midas_unpacking_pipeline_plugin_REPO   "jaca230/custom_midas_unpackin
 set(custom_midas_unpacking_pipeline_plugin_TAG    "main")
 set(custom_midas_unpacking_pipeline_plugin_TARGET "custom_midas_unpacking_pipeline_plugin::custom_midas_unpacking_pipeline_plugin")
 set(custom_midas_unpacking_pipeline_plugin_OPTIONS
+  "CMAKE_POSITION_INDEPENDENT_CODE ON"
+)
+
+# ---------------------- hdsoc_analysis_stages ----------------------
+set(hdsoc_analysis_stages_REPO   "jaca230/hdsoc_analysis_stages")
+set(hdsoc_analysis_stages_TAG    "main")
+set(hdsoc_analysis_stages_TARGET "hdsoc_analysis_stages::hdsoc_analysis_stages")
+set(hdsoc_analysis_stages_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 

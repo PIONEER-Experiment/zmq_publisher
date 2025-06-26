@@ -35,7 +35,8 @@
                 "build/lib/libcommon_data_products.so",
                 "build/lib/libnalu_data_products.so",
                 "build/lib/libcommon_unpacking.so",
-                "build/lib/libnalu_unpacking.so"
+                "build/lib/libnalu_unpacking.so",
+                "build/lib/libhdsoc_analysis_stages.so"
               ],
             "pipeline": [
               {
@@ -43,6 +44,28 @@
                 "type": "CustomMidasUnpackerStage",
                 "parameters": {
                   "unpacker_class": "unpackers::NaluEventUnpacker"
+                },
+                "next": ["integrator"]
+              },
+              {
+                "id": "integrator",
+                "type": "NaluWaveformsIntegratorStage",
+                "parameters": {
+                  "input_product": "NaluWaveformCollection",
+                  "product_name": "ChannelIntegralCollection"
+                },
+                "next": ["histogram"]
+              },
+              {
+                "id": "histogram",
+                "type": "ChannelIntegralHistogramStage",
+                "parameters": {
+                  "input_product": "ChannelIntegralCollection",
+                  "product_name": "ChannelIntegralHistogramCollection",
+                  "title_prefix": "Integral",
+                  "bins": 100,
+                  "min": 0,
+                  "max": 10000
                 },
                 "next": ["cleanup"]
               },
@@ -54,9 +77,7 @@
                     "NaluEventFooterCollection",
                     "NaluEventHeaderCollection",
                     "NaluPacketFooterCollection",
-                    "NaluPacketHeaderCollection",
-                    "NaluTimeCollection",
-                    "NaluWaveformCollection"
+                    "NaluPacketHeaderCollection"
                   ]
                 },
                 "next": []
