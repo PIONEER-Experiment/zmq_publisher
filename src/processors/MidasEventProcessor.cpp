@@ -114,8 +114,8 @@ std::vector<std::string> MidasEventProcessor::getProcessedOutput() {
     // Fetch new events
     auto timedEvents = midasReceiver_.getLatestEvents(numEventsPerRetrieval_, lastEventTimestamp_);
 
-    for (const auto& timedEvent : timedEvents) {
-        pipeline_->setCurrentEvent(timedEvent.event);
+    for (auto& timedEvent : timedEvents) {
+        pipeline_->setInputData(std::ref(timedEvent.event));
         pipeline_->execute();
 
         json serializedData = pipeline_->getDataProductManager().serializeAll();

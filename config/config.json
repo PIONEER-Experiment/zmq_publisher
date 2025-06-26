@@ -30,29 +30,13 @@
           },
           "pipeline_config": {
               "plugin_libraries": [
+                "build/lib/libdefault_midas_unpacking_pipeline_plugin.so"
               ],
             "pipeline": [
               {
-                "id": "unpacker",
-                "type": "CustomMidasUnpackerStage",
-                "parameters": {
-                  "unpacker_class": "unpackers::NaluEventUnpacker"
-                },
-                "next": ["cleanup"]
-              },
-              {
-                "id": "cleanup",
-                "type": "ClearProductsStage",
-                "parameters": {
-                  "products": [
-                    "NaluEventFooterCollection",
-                    "NaluEventHeaderCollection",
-                    "NaluPacketFooterCollection",
-                    "NaluPacketHeaderCollection",
-                    "NaluTimeCollection",
-                    "NaluWaveformCollection"
-                  ]
-                },
+                "id": "unpack",
+                "type": "DefaultMidasUnpackerStage",
+                "parameters": {},
                 "next": []
               }
             ]

@@ -10,6 +10,7 @@ set(CPM_PACKAGE_LIST
   midas_receiver
   unpacker
   analysis_pipeline_stages
+  default_midas_unpacking_pipeline_plugin
   analysis_pipeline
 )
 
@@ -63,16 +64,24 @@ set(unpacker_OPTIONS
 )
 
 # ---------------------- analysis_pipeline_stages ----------------------
-set(analysis_pipeline_stages_REPO   "jaca230/analysis_pipeline_stages")
-set(analysis_pipeline_stages_TAG    "midas_with_unpackers")
-set(analysis_pipeline_stages_TARGET "AnalysisPipelineStages::analysis_pipeline_stages")
+set(analysis_pipeline_stages_REPO   "jaca230/analysis_pipeline_stages_core")
+set(analysis_pipeline_stages_TAG    "main")
+set(analysis_pipeline_stages_TARGET "AnalysisPipelineStagesCore::analysis_pipeline_stages_core")
 set(analysis_pipeline_stages_OPTIONS
+  "CMAKE_POSITION_INDEPENDENT_CODE ON"
+)
+
+# ---------------------- default_midas_unpacking_pipeline_plugin ----------------------
+set(default_midas_unpacking_pipeline_plugin_REPO   "jaca230/default_midas_unpacking_pipeline_plugin")
+set(default_midas_unpacking_pipeline_plugin_TAG    "main")
+set(default_midas_unpacking_pipeline_plugin_TARGET "default_midas_unpacking_pipeline_plugin::default_midas_unpacking_pipeline_plugin")
+set(default_midas_unpacking_pipeline_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
 # ---------------------- analysis_pipeline ----------------------
 set(analysis_pipeline_REPO   "jaca230/analysis_pipeline")
-set(analysis_pipeline_TAG    "midas_with_unpackers")
+set(analysis_pipeline_TAG    "main")
 set(analysis_pipeline_TARGET "AnalysisPipeline::analysis_pipeline")
 set(analysis_pipeline_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
