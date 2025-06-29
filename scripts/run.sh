@@ -56,7 +56,7 @@ if [ ! -f "$EXECUTABLE" ]; then
 fi
 
 # Set environment variables
-export UNPACKER_ROOT="$BASE_DIR/build/_deps/unpacker-src"
+export UNPACKER_PATH="$BASE_DIR/build/_deps/unpacker-src"
 
 # Export LD_PRELOAD if any preload libs specified
 if [[ -n "$PRELOAD_LIBS" ]]; then

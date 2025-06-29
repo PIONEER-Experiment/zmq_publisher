@@ -13,7 +13,7 @@
       "processors": [
         {
           "processor": "MidasEventProcessor",
-          "period-ms": 1000,
+          "period-ms": 0,
           "midas_event_processor_config": {
             "clear-products-on-new-run": true,
             "tags_to_omit_from_clear": [
@@ -68,8 +68,8 @@
                   "product_name": "ChannelIntegralHistogramCollection",
                   "title_prefix": "Integral",
                   "bins": 100,
-                  "min": 0,
-                  "max": 10000
+                  "relative_min": -1300,
+                  "relative_max": 1300
                 },
                 "next": ["cleanup"]
               },
@@ -81,7 +81,8 @@
                     "NaluEventFooterCollection",
                     "NaluEventHeaderCollection",
                     "NaluPacketFooterCollection",
-                    "NaluPacketHeaderCollection"
+                    "NaluPacketHeaderCollection",
+                    "ChannelIntegralCollection"
                   ]
                 },
                 "next": []

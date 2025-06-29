@@ -2,6 +2,8 @@
 
 # ---------------------- CPM Package Registry ----------------------
 # NOTE: Order matters! Dependencies should be declared in dependency order.
+# NOTE: The name in package list matters! Dependencies use "Find{name}.cmake",
+# so the name has to match the normal package export name for that package
 
 set(CPM_PACKAGE_LIST
   spdlog
@@ -9,11 +11,11 @@ set(CPM_PACKAGE_LIST
   fmt
   midas_receiver
   unpacker
-  analysis_pipeline_stages
+  AnalysisPipelineStagesCore
   default_midas_unpacking_pipeline_plugin
   custom_midas_unpacking_pipeline_plugin
   hdsoc_analysis_stages
-  analysis_pipeline
+  AnalysisPipeline
 )
 
 # ---------------------- spdlog ----------------------
@@ -66,10 +68,10 @@ set(unpacker_OPTIONS
 )
 
 # ---------------------- analysis_pipeline_stages ----------------------
-set(analysis_pipeline_stages_REPO   "jaca230/analysis_pipeline_stages_core")
-set(analysis_pipeline_stages_TAG    "main")
-set(analysis_pipeline_stages_TARGET "AnalysisPipelineStagesCore::analysis_pipeline_stages_core")
-set(analysis_pipeline_stages_OPTIONS
+set(AnalysisPipelineStagesCore_REPO   "jaca230/analysis_pipeline_stages_core")
+set(AnalysisPipelineStagesCore_TAG    "main")
+set(AnalysisPipelineStagesCore_TARGET "AnalysisPipelineStagesCore::analysis_pipeline_stages_core")
+set(AnalysisPipelineStagesCore_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
@@ -98,10 +100,10 @@ set(hdsoc_analysis_stages_OPTIONS
 )
 
 # ---------------------- analysis_pipeline ----------------------
-set(analysis_pipeline_REPO   "jaca230/analysis_pipeline")
-set(analysis_pipeline_TAG    "main")
-set(analysis_pipeline_TARGET "AnalysisPipeline::analysis_pipeline")
-set(analysis_pipeline_OPTIONS
+set(AnalysisPipeline_REPO   "jaca230/analysis_pipeline")
+set(AnalysisPipeline_TAG    "main")
+set(AnalysisPipeline_TARGET "AnalysisPipeline::analysis_pipeline")
+set(AnalysisPipeline_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
   "BUILD_EXAMPLE_PLUGIN OFF"
 )
