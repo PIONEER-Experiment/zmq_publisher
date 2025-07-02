@@ -49,25 +49,40 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake)
 # ------------------------------------------------------------------------------
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPMConfig.cmake)
 
-# ------------------------------------------------------------------------------
-# Dependencies via CPM using loaded variables
-# ------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
+# Automatically add INTERFACE target for header-only packages
+# -------------------------------------------------------------------------
+function(add_header_only_target pkg)
+  if(NOT TARGET ${pkg}_header_only)
+    add_library(${pkg}_header_only INTERFACE)
+    target_include_directories(${pkg}_header_only INTERFACE
+      $<BUILD_INTERFACE:${${pkg}_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+    )
+    add_library(${pkg}::${pkg} ALIAS ${pkg}_header_only)
+    set(${pkg}_TARGET ${pkg}::${pkg} PARENT_SCOPE)
+  endif()
+endfunction()
+
+# -------------------------------------------------------------------------
+# Loop over all CPM packages
+# -------------------------------------------------------------------------
 foreach(pkg IN LISTS CPM_PACKAGE_LIST)
   string(TOUPPER ${pkg} UPPER_NAME)
 
-  # Gather package options if defined
+  # Gather options and flags
   set(pkg_OPTIONS "")
   if(DEFINED ${pkg}_OPTIONS)
     set(pkg_OPTIONS ${${pkg}_OPTIONS})
   endif()
 
-  # Gather download_only flag; default to YES if not defined
   if(DEFINED ${pkg}_DOWNLOAD_ONLY)
     set(pkg_DOWNLOAD_ONLY ${${pkg}_DOWNLOAD_ONLY})
   else()
     set(pkg_DOWNLOAD_ONLY NO)
   endif()
 
+  # Add the package
   CPMAddPackage(
     NAME ${pkg}
     GITHUB_REPOSITORY ${${pkg}_REPO}
@@ -75,7 +90,14 @@ foreach(pkg IN LISTS CPM_PACKAGE_LIST)
     DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
     OPTIONS ${pkg_OPTIONS}
   )
+
+  # Create interface target for header-only packages
+  if(${pkg}_DOWNLOAD_ONLY)
+    message(STATUS "Package ${pkg} is header-only or download-only, creating interface target")
+    add_header_only_target(${pkg})
+  endif()
 endforeach()
+
 
 
 # ------------------------------------------------------------------------------

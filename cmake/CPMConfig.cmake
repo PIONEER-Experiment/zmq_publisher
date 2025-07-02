@@ -52,7 +52,8 @@ set(TBB_OPTIONS
 # ---------------------- nlohmann_json ----------------------
 set(nlohmann_json_REPO   "nlohmann/json")
 set(nlohmann_json_TAG    "v3.11.3")
-set(nlohmann_json_TARGET "nlohmann_json::nlohmann_json")
+set(nlohmann_json_TARGET "")
+set(nlohmann_json_DOWNLOAD_ONLY YES)
 set(nlohmann_json_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
