@@ -61,19 +61,27 @@ foreach(pkg IN LISTS CPM_PACKAGE_LIST)
     set(pkg_OPTIONS ${${pkg}_OPTIONS})
   endif()
 
+  # Gather download_only flag; default to YES if not defined
+  if(DEFINED ${pkg}_DOWNLOAD_ONLY)
+    set(pkg_DOWNLOAD_ONLY ${${pkg}_DOWNLOAD_ONLY})
+  else()
+    set(pkg_DOWNLOAD_ONLY NO)
+  endif()
+
   CPMAddPackage(
     NAME ${pkg}
     GITHUB_REPOSITORY ${${pkg}_REPO}
     GIT_TAG ${${pkg}_TAG}
+    DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
     OPTIONS ${pkg_OPTIONS}
   )
 endforeach()
+
 
 # ------------------------------------------------------------------------------
 # System Dependencies
 # ------------------------------------------------------------------------------
 find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer)
-find_package(TBB REQUIRED)
 find_package(ZLIB REQUIRED)
 
 find_library(ZMQ_LIBRARY NAMES zmq REQUIRED)
@@ -100,19 +108,21 @@ target_include_directories(publisher PRIVATE
 # ------------------------------------------------------------------------------
 # Link all registered CPM targets
 foreach(pkg IN LISTS CPM_PACKAGE_LIST)
-  if(DEFINED ${pkg}_TARGET)
+  # Skip linking if target is empty (header-only)
+  if(DEFINED ${pkg}_TARGET AND NOT ${${pkg}_TARGET} STREQUAL "")
     target_link_libraries(publisher PRIVATE ${${pkg}_TARGET})
   elseif(DEFINED ${pkg}_TARGETS)
     foreach(subtarget IN LISTS ${pkg}_TARGETS)
       target_link_libraries(publisher PRIVATE ${subtarget})
     endforeach()
+  else()
+    message(STATUS "Skipping linking header-only or no-target package: ${pkg}")
   endif()
 endforeach()
 
 
 target_link_libraries(publisher PRIVATE
   ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
-  TBB::tbb
   ZLIB::ZLIB
   ${ZMQ_LIBRARY}
   ${MIDASSYS_LIB_DIR}/libmfe.a
@@ -131,7 +141,7 @@ target_compile_definitions(publisher PRIVATE
 # ------------------------------------------------------------------------------
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/example_zmq_receiver/CMakeLists.txt")
   message(STATUS "Including example_zmq_receiver submodule for build")
-  add_subdirectory(examples/example_zmq_receiver)
+  #add_subdirectory(examples/example_zmq_receiver)
 else()
   message(WARNING "example_zmq_receiver submodule NOT found - skipping build")
 endif()

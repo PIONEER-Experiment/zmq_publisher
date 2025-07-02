@@ -8,7 +8,7 @@
 #include "utilities/TypeChecker.h"
 #include <algorithm>
 #include <iostream>
-#include <spdlog/spdlog.h>
+//#include <spdlog/spdlog.h>
 
 // Default config
 const std::string DEFAULT_NAME                   = "";
@@ -25,7 +25,7 @@ DataChannelManager::DataChannelManager(const nlohmann::json& channelConfig, int 
     for (auto it = channelConfig.begin(); it != channelConfig.end(); ++it) {
         const std::string& channelId = it.key();
         const nlohmann::json& channelData = it.value();
-        spdlog::debug("Processing {}...", channelId);
+        //spdlog::debug("Processing {}...", channelId);
         addChannel(channelId, channelData);
     }
 }
@@ -36,8 +36,8 @@ bool DataChannelManager::publish() {
     for (auto& channelPair : channels) {
         if (!channelPair.second.publish()) {
             success = false;
-            spdlog::warn("Channel {} has failed to publish. [{}:{}]",
-                         channelPair.first, __FILE__, __LINE__);
+            //spdlog::warn("Channel {} has failed to publish. [{}:{}]",
+            //             channelPair.first, __FILE__, __LINE__);
             channelPair.second.printAttributes();
         }
     }
@@ -93,23 +93,23 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
             processor = factory.CreateProcessor(processorType);
 
             if (!processor) {
-                spdlog::warn("Failed to create processor '{}' in channel {} [{}:{}]",
-                             processorType, channelId, __FILE__, __LINE__);
+                //spdlog::warn("Failed to create processor '{}' in channel {} [{}:{}]",
+                //             processorType, channelId, __FILE__, __LINE__);
                 continue;
             }
 
             if (TypeChecker::IsInstanceOf<MidasEventProcessor>(processor)) {
                 auto* midasProcessor = dynamic_cast<MidasEventProcessor*>(processor);
                 if (!midasProcessor) {
-                    spdlog::warn("Failed to cast to MidasEventProcessor in channel {} [{}:{}]",
-                                channelId, __FILE__, __LINE__);
+                    //spdlog::warn("Failed to cast to MidasEventProcessor in channel {} [{}:{}]",
+                    //            channelId, __FILE__, __LINE__);
                     delete processor;
                     continue;
                 }
 
                 if (!processorConfig.contains("midas_receiver_config") || !processorConfig.contains("pipeline_config")) {
-                    spdlog::warn("Missing 'midas_receiver_config' or 'pipeline_config' in MidasEventProcessor config for channel {} [{}:{}]",
-                                channelId, __FILE__, __LINE__);
+                    //spdlog::warn("Missing 'midas_receiver_config' or 'pipeline_config' in MidasEventProcessor config for channel {} [{}:{}]",
+                    //            channelId, __FILE__, __LINE__);
                     delete processor;
                     continue;
                 }
@@ -131,8 +131,8 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
             else if (TypeChecker::IsInstanceOf<CommandProcessor>(processor)) {
                 auto* commandProcessor = dynamic_cast<CommandProcessor*>(processor);
                 if (!commandProcessor) {
-                    spdlog::warn("Failed to cast to CommandProcessor in channel {} [{}:{}]",
-                                 channelId, __FILE__, __LINE__);
+                    //spdlog::warn("Failed to cast to CommandProcessor in channel {} [{}:{}]",
+                    //             channelId, __FILE__, __LINE__);
                     delete processor;
                     continue;
                 }
