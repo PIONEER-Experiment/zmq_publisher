@@ -76,7 +76,7 @@ set(unpacker_OPTIONS
 # ---------------------- analysis_pipeline_stages ----------------------
 set(AnalysisPipelineStagesCore_REPO   "jaca230/analysis_pipeline_stages_core")
 set(AnalysisPipelineStagesCore_TAG    "main")
-set(AnalysisPipelineStagesCore_TARGET "") # Public Dependecy of Analysis Pipeline, no need to link
+set(AnalysisPipelineStagesCore_TARGET "AnalysisPipelineStagesCore::analysis_pipeline_stages_core")
 set(AnalysisPipelineStagesCore_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )

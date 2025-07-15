@@ -9,6 +9,9 @@
 // Logging
 #include <spdlog/spdlog.h>
 
+// Input Bundle from AnalysisPipelineCore
+#include "context/input_bundle.h"
+
 using json = nlohmann::json;
 
 MidasEventProcessor::MidasEventProcessor(int verbose)
@@ -130,12 +133,16 @@ std::vector<std::string> MidasEventProcessor::getProcessedOutput() {
     auto timedEvents = midasReceiver_.getLatestEvents(numEventsPerRetrieval_, lastEventTimestamp_);
 
     for (auto& timedEvent : timedEvents) {
-        pipeline_->setInputData(std::ref(timedEvent.event));
+        InputBundle input;
+        input.setRef("TMEvent", timedEvent.event);
+        input.setRef("timestamp", timedEvent.timestamp);
+        input.setRef("run_number", lastRunNumber_);
+
+        pipeline_->setInputData(std::move(input));
         pipeline_->execute();
 
         json serializedData = pipeline_->getDataProductManager().serializeAll();
 
-        // Create a new JSON object to hold run number and serialized data products
         json outJson;
         outJson["run_number"] = lastRunNumber_;
         outJson["data_products"] = serializedData;

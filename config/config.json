@@ -27,7 +27,7 @@
             "buffer": "SYSTEM",
             "client-name": "MidasEventPublisher",
             "event-id": -1,
-            "get-all": true,
+            "get-all": false,
             "buffer-size": 1000,
             "yield-timeout-ms": 300,
             "num-events-per-retrieval": 1
