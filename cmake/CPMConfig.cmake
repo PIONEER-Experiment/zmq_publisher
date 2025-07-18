@@ -13,6 +13,7 @@ set(CPM_PACKAGE_LIST
   analysis_pipeline_core
   midas_receiver
   unpacker
+  unpacker_data_products_core
   midas_event_unpacker_plugin
   sbfoster_midas_event_unpacker_plugin
   hdsoc_pipeline_plugin
@@ -67,6 +68,14 @@ set(unpacker_TARGETS
   unpacker::nalu_unpacking
 )
 set(unpacker_OPTIONS
+  "CMAKE_POSITION_INDEPENDENT_CODE ON"
+)
+
+# ---------------------- unpacker_data_products_core ----------------------
+set(unpacker_data_products_core_REPO   "jaca230/unpacker_data_products_core")
+set(unpacker_data_products_core_TAG    "main")
+set(unpacker_data_products_core_TARGET "") # Dynamically linked
+set(unpacker_data_products_coren_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 

@@ -34,6 +34,7 @@
           },
           "pipeline_config": {
               "plugin_libraries": [
+                "build/lib/libunpacker_data_products_core.so",
                 "build/lib/libmidas_event_unpacker_plugin.so",
                 "build/lib/libcommon_data_products.so",
                 "build/lib/libnalu_data_products.so",
