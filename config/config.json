@@ -34,18 +34,18 @@
           },
           "pipeline_config": {
               "plugin_libraries": [
-                "build/lib/libdefault_midas_unpacking_pipeline_plugin.so",
-                "build/lib/libcustom_midas_unpacking_pipeline_plugin.so",
+                "build/lib/libmidas_event_unpacker_plugin.so",
                 "build/lib/libcommon_data_products.so",
                 "build/lib/libnalu_data_products.so",
                 "build/lib/libcommon_unpacking.so",
                 "build/lib/libnalu_unpacking.so",
-                "build/lib/libhdsoc_analysis_stages.so"
+                "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so",
+                "build/lib/libhdsoc_pipeline_plugin.so"
               ],
             "pipeline": [
               {
                 "id": "unpacker",
-                "type": "CustomMidasUnpackerStage",
+                "type": "SbfosterMidasEventUnpackerStage",
                 "parameters": {
                   "unpacker_class": "unpackers::NaluEventUnpacker"
                 },

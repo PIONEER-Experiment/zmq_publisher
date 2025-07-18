@@ -9,16 +9,14 @@
 
 set(CPM_PACKAGE_LIST
   cppzmq
-  spdlog
   TBB
-  nlohmann_json
+  analysis_pipeline_core
   midas_receiver
   unpacker
-  AnalysisPipelineStagesCore
-  default_midas_unpacking_pipeline_plugin
-  custom_midas_unpacking_pipeline_plugin
-  hdsoc_analysis_stages
-  AnalysisPipeline
+  midas_event_unpacker_plugin
+  sbfoster_midas_event_unpacker_plugin
+  hdsoc_pipeline_plugin
+  analysis_pipeline
 )
 
 # ---------------------- cppzmq (header-only) ----------------------
@@ -31,16 +29,6 @@ set(cppzmq_OPTIONS
   "BUILD_TESTS OFF"
 )
 
-# ---------------------- spdlog ----------------------
-set(spdlog_REPO   "gabime/spdlog")
-set(spdlog_TAG    "v1.13.0")
-set(spdlog_TARGET "")
-set(spdlog_DOWNLOAD_ONLY YES)
-set(spdlog_OPTIONS
-  "SPDLOG_BUILD_TESTS OFF"
-  "SPDLOG_BUILD_EXAMPLE OFF"
-)
-
 # ---------------------- oneTBB ----------------------
 set(TBB_REPO   "oneapi-src/oneTBB")
 set(TBB_TAG    "v2021.12.0")  # Or latest stable
@@ -49,12 +37,15 @@ set(TBB_OPTIONS
   "TBB_TEST OFF;TBB_STRICT OFF;TBB_EXAMPLES OFF;CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
-# ---------------------- nlohmann_json ----------------------
-set(nlohmann_json_REPO   "nlohmann/json")
-set(nlohmann_json_TAG    "v3.11.3")
-set(nlohmann_json_TARGET "")
-set(nlohmann_json_DOWNLOAD_ONLY YES)
-set(nlohmann_json_OPTIONS
+# ---------------------- analysis_pipeline_core ----------------------
+set(analysis_pipeline_core_REPO   "jaca230/analysis_pipeline_core")
+set(analysis_pipeline_core_TAG    "main")
+set(analysis_pipeline_core_TARGETS
+  analysis_pipeline::analysis_pipeline_core
+  analysis_pipeline::spdlog_header_only
+  analysis_pipeline::nlohmann_json_header_only
+)
+set(analysis_pipeline_core_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
@@ -69,48 +60,46 @@ set(midas_receiver_OPTIONS
 # ---------------------- unpacker ----------------------
 set(unpacker_REPO   "jaca230/unpacker")
 set(unpacker_TAG    "debug/One-CMakeLists.txt")
+set(unpacker_TARGETS
+  unpacker::common_data_products
+  unpacker::common_unpacking
+  unpacker::nalu_data_products
+  unpacker::nalu_unpacking
+)
 set(unpacker_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
-# ---------------------- analysis_pipeline_stages ----------------------
-set(AnalysisPipelineStagesCore_REPO   "jaca230/analysis_pipeline_stages_core")
-set(AnalysisPipelineStagesCore_TAG    "main")
-set(AnalysisPipelineStagesCore_TARGET "AnalysisPipelineStagesCore::analysis_pipeline_stages_core")
-set(AnalysisPipelineStagesCore_OPTIONS
-  "CMAKE_POSITION_INDEPENDENT_CODE ON"
-)
-
 # ---------------------- default_midas_unpacking_pipeline_plugin ----------------------
-set(default_midas_unpacking_pipeline_plugin_REPO   "jaca230/default_midas_unpacking_pipeline_plugin")
-set(default_midas_unpacking_pipeline_plugin_TAG    "main")
-set(default_midas_unpacking_pipeline_plugin_TARGET "") # Dynamically linked
-set(default_midas_unpacking_pipeline_plugin_OPTIONS
+set(midas_event_unpacker_plugin_REPO   "jaca230/midas_event_unpacker_plugin")
+set(midas_event_unpacker_plugin_TAG    "main")
+set(midas_event_unpacker_plugin_TARGET "") # Dynamically linked
+set(midas_event_unpacker_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
 # ---------------------- custom_midas_unpacking_pipeline_plugin ----------------------
-set(custom_midas_unpacking_pipeline_plugin_REPO   "jaca230/custom_midas_unpacking_pipeline_plugin")
-set(custom_midas_unpacking_pipeline_plugin_TAG    "main")
-set(custom_midas_unpacking_pipeline_plugin_TARGET "") # Dynamically linked
-set(custom_midas_unpacking_pipeline_plugin_OPTIONS
+set(sbfoster_midas_event_unpacker_plugin_REPO   "jaca230/sbfoster_midas_event_unpacker_plugin")
+set(sbfoster_midas_event_unpacker_plugin_TAG    "main")
+set(sbfoster_midas_event_unpacker_plugin_TARGET "") # Dynamically linked
+set(sbfoster_midas_event_unpacker_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
 # ---------------------- hdsoc_analysis_stages ----------------------
-set(hdsoc_analysis_stages_REPO   "jaca230/hdsoc_analysis_stages")
-set(hdsoc_analysis_stages_TAG    "main")
-set(hdsoc_analysis_stages_TARGET "") # Dynamically linked
-set(hdsoc_analysis_stages_OPTIONS
+set(hdsoc_pipeline_plugin_REPO   "jaca230/hdsoc_pipeline_plugin")
+set(hdsoc_pipeline_plugin_TAG    "main")
+set(hdsoc_pipeline_plugin_TARGET "") # Dynamically linked
+set(hdsoc_pipeline_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
 
 # ---------------------- analysis_pipeline ----------------------
-set(AnalysisPipeline_REPO   "jaca230/analysis_pipeline")
-set(AnalysisPipeline_TAG    "main")
-set(AnalysisPipeline_TARGET "AnalysisPipeline::analysis_pipeline")
-set(AnalysisPipeline_OPTIONS
+set(analysis_pipeline_REPO   "jaca230/analysis_pipeline")
+set(analysis_pipeline_TAG    "main")
+set(analysis_pipeline_TARGET "analysis_pipeline::analysis_pipeline")
+set(analysis_pipeline_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
   "BUILD_EXAMPLE_PLUGIN OFF"
 )

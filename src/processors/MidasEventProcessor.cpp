@@ -1,16 +1,10 @@
+// MidasEventProcessor.cpp
 #include "processors/MidasEventProcessor.h"
-#include <TTreeReader.h>
-#include <TTreeReaderValue.h>
 #include <iostream>
 #include <stdexcept>
 #include <chrono>
-#include <ctime>
-
-// Logging
 #include <spdlog/spdlog.h>
-
-// Input Bundle from AnalysisPipelineCore
-#include "context/input_bundle.h"
+#include "analysis_pipeline/core/context/input_bundle.h"
 
 using json = nlohmann::json;
 
@@ -27,14 +21,13 @@ MidasEventProcessor::~MidasEventProcessor() {
 }
 
 void MidasEventProcessor::Init(const json& midas_receiver_config,
-                                const json& pipeline_config,
-                                const json& midas_event_processor_config)
+                               const json& pipeline_config,
+                               const json& midas_event_processor_config)
 {
     if (!midas_receiver_config.is_object() || !pipeline_config.is_object() || !midas_event_processor_config.is_object()) {
         throw std::invalid_argument("[MidasEventProcessor] Init requires three JSON objects.");
     }
 
-    // MIDAS Receiver Config
     MidasReceiverConfig config;
     config.host = midas_receiver_config.value("host", "");
     config.experiment = midas_receiver_config.value("experiment", "");
@@ -53,7 +46,6 @@ void MidasEventProcessor::Init(const json& midas_receiver_config,
     midasReceiver_.init(config);
     midasReceiver_.start();
 
-    // Pipeline Config
     configManager_ = std::make_shared<ConfigManager>();
     configManager_->reset();
     configManager_->addJsonObject(pipeline_config);
@@ -66,13 +58,11 @@ void MidasEventProcessor::Init(const json& midas_receiver_config,
         throw std::runtime_error("[MidasEventProcessor] Failed to build pipeline.");
     }
 
-    // Apply midas_event_processor_config
     if (midas_event_processor_config.is_object()) {
         clearProductsOnNewRun_ = midas_event_processor_config.value("clear-products-on-new-run", true);
 
         if (midas_event_processor_config.contains("tags_to_omit_from_clear") &&
             midas_event_processor_config["tags_to_omit_from_clear"].is_array()) {
-            
             for (const auto& tag : midas_event_processor_config["tags_to_omit_from_clear"]) {
                 tagsToOmitFromClear_.insert(tag.get<std::string>());
             }
@@ -82,13 +72,11 @@ void MidasEventProcessor::Init(const json& midas_receiver_config,
     initialized_ = true;
 }
 
-
 bool MidasEventProcessor::isReadyToProcess() const {
     return initialized_;
 }
 
 void MidasEventProcessor::handleTransitions() {
-    // Should just be 1 transition (not 10), but I am paranoid we may somehow miss a transition otherwise
     auto transitions = midasReceiver_.getLatestTransitions(10, lastTransitionTimestamp_);
 
     for (const auto& t : transitions) {
@@ -111,7 +99,6 @@ void MidasEventProcessor::setRunNumber(INT newRunNumber) {
 
     if (clearProductsOnNewRun_) {
         spdlog::debug("[MidasEventProcessor] Clearing data products for new run.");
-
         auto& dataProductManager = pipeline_->getDataProductManager();
 
         if (tagsToOmitFromClear_.empty()) {
@@ -126,17 +113,16 @@ std::vector<std::string> MidasEventProcessor::getProcessedOutput() {
     std::vector<std::string> out;
     if (!initialized_) return out;
 
-    // Handle any TR_START transitions
     handleTransitions();
 
-    // Fetch new events
     auto timedEvents = midasReceiver_.getLatestEvents(numEventsPerRetrieval_, lastEventTimestamp_);
 
     for (auto& timedEvent : timedEvents) {
         InputBundle input;
-        input.setRef("TMEvent", timedEvent.event);
-        input.setRef("timestamp", timedEvent.timestamp);
-        input.setRef("run_number", lastRunNumber_);
+
+        input.set("TMEvent", timedEvent->event);
+        input.set("timestamp", timedEvent->timestamp);
+        input.set("run_number", lastRunNumber_);
 
         pipeline_->setInputData(std::move(input));
         pipeline_->execute();
@@ -151,7 +137,7 @@ std::vector<std::string> MidasEventProcessor::getProcessedOutput() {
     }
 
     if (!timedEvents.empty()) {
-        lastEventTimestamp_ = timedEvents.back().timestamp;
+        lastEventTimestamp_ = timedEvents.back()->timestamp;
     }
 
     return out;

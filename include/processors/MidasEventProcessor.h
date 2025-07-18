@@ -1,12 +1,14 @@
+// MidasEventProcessor.h
 #ifndef MIDAS_EVENT_PROCESSOR_H
 #define MIDAS_EVENT_PROCESSOR_H
 
 #include "processors/GeneralProcessor.h"
 #include "MidasReceiver.h"
-#include "pipeline/pipeline.h"
-#include "config/config_manager.h"
+#include "analysis_pipeline/pipeline/pipeline.h"
+#include "analysis_pipeline/config/config_manager.h"
 #include <chrono>
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 
 class MidasEventProcessor : public GeneralProcessor {
 public:
@@ -14,8 +16,8 @@ public:
     ~MidasEventProcessor() override;
 
     void Init(const nlohmann::json& midas_receiver_config,
-            const nlohmann::json& pipeline_config,
-            const nlohmann::json& midas_event_processor_config);
+              const nlohmann::json& pipeline_config,
+              const nlohmann::json& midas_event_processor_config);
 
     std::vector<std::string> getProcessedOutput() override;
     bool isReadyToProcess() const override;
