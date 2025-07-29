@@ -33,7 +33,7 @@ set(cppzmq_OPTIONS
 # ---------------------- oneTBB ----------------------
 set(TBB_REPO   "oneapi-src/oneTBB")
 set(TBB_TAG    "v2021.12.0")  # Or latest stable
-set(TBB_TARGET "") # Public Dependecy of Analysis Pipeline, no need to link
+set(TBB_TARGET "TBB::tbb")
 set(TBB_OPTIONS
   "TBB_TEST OFF;TBB_STRICT OFF;TBB_EXAMPLES OFF;CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
@@ -67,19 +67,6 @@ set(midas_receiver_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
-# ---------------------- unpacker ----------------------
-set(unpacker_REPO   "jaca230/unpacker")
-set(unpacker_TAG    "debug/One-CMakeLists.txt")
-set(unpacker_TARGETS
-  unpacker::common_data_products
-  unpacker::common_unpacking
-  unpacker::nalu_data_products
-  unpacker::nalu_unpacking
-)
-set(unpacker_OPTIONS
-  "CMAKE_POSITION_INDEPENDENT_CODE ON"
-)
-
 # ---------------------- unpacker_data_products_core ----------------------
 set(unpacker_data_products_core_REPO   "jaca230/unpacker_data_products_core")
 set(unpacker_data_products_core_TAG    "main")
@@ -99,7 +86,7 @@ set(midas_event_unpacker_plugin_OPTIONS
 # ---------------------- mu-data-products ----------------------
 set(DataProducts_REPO   "sbfoster12/mu-data-products")
 set(DataProducts_TAG    "main")
-set(DataProducts_TARGET "DataProducts::data_products") # Dynamically linked
+set(DataProducts_TARGET "") # Dynamically linked
 set(DataProducts_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
@@ -107,7 +94,7 @@ set(DataProducts_OPTIONS
 # ---------------------- mu-unpackers ----------------------
 set(Unpackers_REPO   "sbfoster12/mu-unpackers")
 set(Unpackers_TAG    "main")
-set(Unpackers_TARGET "Unpackers::unpackers") # Dynamically linked
+set(Unpackers_TARGET "") # Dynamically linked
 set(Unpackers_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
@@ -115,7 +102,7 @@ set(Unpackers_OPTIONS
 # ---------------------- custom_midas_unpacking_pipeline_plugin ----------------------
 set(sbfoster_midas_event_unpacker_plugin_REPO   "jaca230/sbfoster_midas_event_unpacker_plugin")
 set(sbfoster_midas_event_unpacker_plugin_TAG    "PSI_testbeam_august_2025")
-set(sbfoster_midas_event_unpacker_plugin_TARGET "analysis_pipeline::sbfoster_midas_unpacking_pipeline") # Dynamically linked
+set(sbfoster_midas_event_unpacker_plugin_TARGET "") # Dynamically linked
 set(sbfoster_midas_event_unpacker_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )

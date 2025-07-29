@@ -1,11 +1,11 @@
 {
   "general-settings": {
-    "verbose": 2
+    "verbose": 3
   },
   "data-channels": {
     "midas-event-channel": {
       "enabled": true,
-      "zmq-address": "tcp://127.0.0.1:5555",
+      "zmq-address": "tcp://127.0.0.1:5556",
       "name": "DATA",
       "publishes-per-batch": 1,
       "publishes-ignored-after-batch": 0,
@@ -13,7 +13,7 @@
       "processors": [
         {
           "processor": "MidasEventProcessor",
-          "period-ms": 0,
+          "period-ms": 5,
           "midas_event_processor_config": {
             "clear-products-on-new-run": true,
             "tags_to_omit_from_clear": [
@@ -22,14 +22,14 @@
             ]
           },
           "midas_receiver_config": {
-            "host": "",
-            "experiment": "",
-            "buffer": "SYSTEM",
+            "host": "10.163.105.238",
+            "experiment": "DAQ",
+            "buffer": "BUF001",
             "client-name": "MidasEventPublisher",
             "event-id": -1,
             "get-all": false,
             "buffer-size": 1000,
-            "yield-timeout-ms": 300,
+            "yield-timeout-ms": 1,
             "num-events-per-retrieval": 1
           },
           "pipeline_config": {

@@ -25,6 +25,7 @@ compile_commands.json
 *.user
 *.sln
 *.sdf
+*.log
 
 # Ignore text editor backup files
 *~
