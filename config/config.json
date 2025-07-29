@@ -36,41 +36,16 @@
               "plugin_libraries": [
                 "build/lib/libunpacker_data_products_core.so",
                 "build/lib/libmidas_event_unpacker_plugin.so",
-                "build/lib/libcommon_data_products.so",
-                "build/lib/libnalu_data_products.so",
-                "build/lib/libcommon_unpacking.so",
-                "build/lib/libnalu_unpacking.so",
-                "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so",
-                "build/lib/libhdsoc_pipeline_plugin.so"
+                "build/lib/libdata_products.so",
+                "build/lib/libunpackers.so",
+                "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so"
               ],
             "pipeline": [
               {
                 "id": "unpacker",
                 "type": "SbfosterMidasEventUnpackerStage",
                 "parameters": {
-                  "unpacker_class": "unpackers::NaluEventUnpacker"
-                },
-                "next": ["integrator"]
-              },
-              {
-                "id": "integrator",
-                "type": "NaluWaveformsIntegratorStage",
-                "parameters": {
-                  "input_product": "NaluWaveformCollection",
-                  "product_name": "ChannelIntegralCollection"
-                },
-                "next": ["histogram"]
-              },
-              {
-                "id": "histogram",
-                "type": "ChannelIntegralHistogramStage",
-                "parameters": {
-                  "input_product": "ChannelIntegralCollection",
-                  "product_name": "ChannelIntegralHistogramCollection",
-                  "title_prefix": "Integral",
-                  "bins": 100,
-                  "relative_min": -1300,
-                  "relative_max": 1300
+                  "unpacker_class": "unpackers::WFD5EventUnpacker"
                 },
                 "next": ["cleanup"]
               },
@@ -79,11 +54,6 @@
                 "type": "ClearProductsStage",
                 "parameters": {
                   "products": [
-                    "NaluEventFooterCollection",
-                    "NaluEventHeaderCollection",
-                    "NaluPacketFooterCollection",
-                    "NaluPacketHeaderCollection",
-                    "ChannelIntegralCollection"
                   ]
                 },
                 "next": []

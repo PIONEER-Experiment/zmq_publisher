@@ -5,6 +5,7 @@ project(publisher LANGUAGES CXX)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-Wno-stringop-overflow)
 endif()
+add_compile_options(-Wno-cpp)
 
 # ------------------------------------------------------------------------------
 # Project Settings
