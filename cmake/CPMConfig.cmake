@@ -15,8 +15,8 @@ set(CPM_PACKAGE_LIST
   midas_receiver
   unpacker_data_products_core
   midas_event_unpacker_plugin
-  mu-data-products
-  mu-unpackers
+  DataProducts
+  Unpackers
   sbfoster_midas_event_unpacker_plugin
 )
 
@@ -97,25 +97,25 @@ set(midas_event_unpacker_plugin_OPTIONS
 )
 
 # ---------------------- mu-data-products ----------------------
-set(mu-data-products_REPO   "sbfoster12/mu-data-products")
-set(mu-data-products_TAG    "main")
-set(mu-data-products_TARGET "") # Dynamically linked
-set(mu-data-products_OPTIONS
+set(DataProducts_REPO   "sbfoster12/mu-data-products")
+set(DataProducts_TAG    "main")
+set(DataProducts_TARGET "DataProducts::data_products") # Dynamically linked
+set(DataProducts_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
 # ---------------------- mu-unpackers ----------------------
-set(mu-unpackers_REPO   "sbfoster12/mu-unpackers")
-set(mu-unpackers_TAG    "main")
-set(mu-unpackers_TARGET "") # Dynamically linked
-set(mu-unpackers_OPTIONS
+set(Unpackers_REPO   "sbfoster12/mu-unpackers")
+set(Unpackers_TAG    "main")
+set(Unpackers_TARGET "Unpackers::unpackers") # Dynamically linked
+set(Unpackers_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
 # ---------------------- custom_midas_unpacking_pipeline_plugin ----------------------
 set(sbfoster_midas_event_unpacker_plugin_REPO   "jaca230/sbfoster_midas_event_unpacker_plugin")
 set(sbfoster_midas_event_unpacker_plugin_TAG    "PSI_testbeam_august_2025")
-set(sbfoster_midas_event_unpacker_plugin_TARGET "") # Dynamically linked
+set(sbfoster_midas_event_unpacker_plugin_TARGET "analysis_pipeline::sbfoster_midas_unpacking_pipeline") # Dynamically linked
 set(sbfoster_midas_event_unpacker_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
