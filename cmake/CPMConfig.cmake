@@ -18,6 +18,7 @@ set(CPM_PACKAGE_LIST
   DataProducts
   Unpackers
   sbfoster_midas_event_unpacker_plugin
+  wfd5_pipeline_plugin
 )
 
 # ---------------------- cppzmq (header-only) ----------------------
@@ -32,10 +33,14 @@ set(cppzmq_OPTIONS
 
 # ---------------------- oneTBB ----------------------
 set(TBB_REPO   "oneapi-src/oneTBB")
-set(TBB_TAG    "v2021.12.0")  # Or latest stable
+set(TBB_TAG    "v2021.12.0")
 set(TBB_TARGET "TBB::tbb")
 set(TBB_OPTIONS
-  "TBB_TEST OFF;TBB_STRICT OFF;TBB_EXAMPLES OFF;CMAKE_POSITION_INDEPENDENT_CODE ON"
+  "TBB_TEST OFF"
+  "TBB_STRICT OFF" 
+  "TBB_EXAMPLES OFF"
+  "TBB_FIND_PACKAGE OFF"
+  "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
 # ---------------------- analysis_pipeline_core ----------------------
@@ -104,5 +109,13 @@ set(sbfoster_midas_event_unpacker_plugin_REPO   "jaca230/sbfoster_midas_event_un
 set(sbfoster_midas_event_unpacker_plugin_TAG    "PSI_testbeam_august_2025")
 set(sbfoster_midas_event_unpacker_plugin_TARGET "") # Dynamically linked
 set(sbfoster_midas_event_unpacker_plugin_OPTIONS
+  "CMAKE_POSITION_INDEPENDENT_CODE ON"
+)
+
+# ---------------------- wfd5_pipeline_plugin ----------------------
+set(wfd5_pipeline_plugin_REPO   "jaca230/wfd5_pipeline_plugin")
+set(wfd5_pipeline_plugin_TAG    "main")
+set(wfd5_pipeline_plugin_TARGET "") # Dynamically linked
+set(wfd5_pipeline_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )

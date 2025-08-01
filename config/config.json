@@ -1,6 +1,6 @@
 {
   "general-settings": {
-    "verbose": 3
+    "verbose": 2
   },
   "data-channels": {
     "midas-event-channel": {
@@ -13,7 +13,7 @@
       "processors": [
         {
           "processor": "MidasEventProcessor",
-          "period-ms": 5,
+          "period-ms": 1,
           "midas_event_processor_config": {
             "clear-products-on-new-run": true,
             "tags_to_omit_from_clear": [
@@ -38,7 +38,8 @@
                 "build/lib/libmidas_event_unpacker_plugin.so",
                 "build/lib/libdata_products.so",
                 "build/lib/libunpackers.so",
-                "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so"
+                "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so",
+                "build/lib/libwfd5_pipeline_plugin.so"
               ],
             "pipeline": [
               {
@@ -47,6 +48,28 @@
                 "parameters": {
                   "unpacker_class": "unpackers::WFD5EventUnpacker"
                 },
+                "next": ["integrator"]
+              },
+              {
+                "id": "integrator",
+                "type": "WFD5WaveformsIntegratorStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "product_name": "WFD5TraceIntegralCollection"
+                },
+                "next": ["histogram"]
+              },
+              {
+                "id": "histogram",
+                "type": "WFD5TraceIntegralHistogramStage",
+                "parameters": {
+                  "input_product": "WFD5TraceIntegralCollection",
+                  "product_name": "WFD5TraceIntegralHistogramCollection",
+                  "title_prefix": "Integral",
+                  "bins": 100,
+                  "relative_min": -1300,
+                  "relative_max": 1300
+                },
                 "next": ["cleanup"]
               },
               {
@@ -54,6 +77,11 @@
                 "type": "ClearProductsStage",
                 "parameters": {
                   "products": [
+                    "FC7HeaderCollection",
+                    "WFD5ChannelHeaderCollection",
+                    "WFD5HeaderCollection",
+                    "WFD5WaveformHeaderCollection",
+                    "WFD5TraceIntegralCollection"
                   ]
                 },
                 "next": []

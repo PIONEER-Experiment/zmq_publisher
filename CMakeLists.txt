@@ -83,8 +83,9 @@ foreach(pkg IN LISTS CPM_PACKAGE_LIST)
     set(pkg_DOWNLOAD_ONLY NO)
   endif()
 
-  # Add the package
-  CPMAddPackage(
+  # Use CPMFindPackage instead of CPMAddPackage
+  # This tries find_package first, then downloads if not found
+  CPMFindPackage(
     NAME ${pkg}
     GITHUB_REPOSITORY ${${pkg}_REPO}
     GIT_TAG ${${pkg}_TAG}
@@ -129,6 +130,15 @@ target_include_directories(publisher PRIVATE
 # ------------------------------------------------------------------------------
 # Link Libraries
 # ------------------------------------------------------------------------------
+
+target_link_libraries(publisher PRIVATE
+  ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
+  ZLIB::ZLIB
+  ${ZMQ_LIBRARY}
+  ${MIDASSYS_LIB_DIR}/libmfe.a
+  ${MIDASSYS_LIB_DIR}/libmidas.a
+)
+
 # Link all registered CPM targets
 foreach(pkg IN LISTS CPM_PACKAGE_LIST)
   # Skip linking if target is empty (header-only)
@@ -143,14 +153,6 @@ foreach(pkg IN LISTS CPM_PACKAGE_LIST)
   endif()
 endforeach()
 
-
-target_link_libraries(publisher PRIVATE
-  ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
-  ZLIB::ZLIB
-  ${ZMQ_LIBRARY}
-  ${MIDASSYS_LIB_DIR}/libmfe.a
-  ${MIDASSYS_LIB_DIR}/libmidas.a
-)
 # ------------------------------------------------------------------------------
 # Compiler Definitions (optional)
 # ------------------------------------------------------------------------------
