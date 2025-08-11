@@ -114,7 +114,7 @@ set(sbfoster_midas_event_unpacker_plugin_OPTIONS
 
 # ---------------------- wfd5_pipeline_plugin ----------------------
 set(wfd5_pipeline_plugin_REPO   "jaca230/wfd5_pipeline_plugin")
-set(wfd5_pipeline_plugin_TAG    "main")
+set(wfd5_pipeline_plugin_TAG    "psi_beamtime_2025")
 set(wfd5_pipeline_plugin_TARGET "") # Dynamically linked
 set(wfd5_pipeline_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"

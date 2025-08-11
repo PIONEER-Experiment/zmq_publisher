@@ -33,20 +33,39 @@
             "num-events-per-retrieval": 1
           },
           "pipeline_config": {
-              "plugin_libraries": [
-                "build/lib/libunpacker_data_products_core.so",
-                "build/lib/libmidas_event_unpacker_plugin.so",
-                "build/lib/libdata_products.so",
-                "build/lib/libunpackers.so",
-                "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so",
-                "build/lib/libwfd5_pipeline_plugin.so"
-              ],
+            "plugin_libraries": [
+              "build/lib/libunpacker_data_products_core.so",
+              "build/lib/libmidas_event_unpacker_plugin.so",
+              "build/lib/libdata_products.so",
+              "build/lib/libunpackers.so",
+              "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so",
+              "build/lib/libwfd5_pipeline_plugin.so"
+            ],
             "pipeline": [
               {
                 "id": "unpacker",
                 "type": "SbfosterMidasEventUnpackerStage",
                 "parameters": {
                   "unpacker_class": "unpackers::WFD5EventUnpacker"
+                },
+                "next": ["pedestal"]
+              },
+              {
+                "id": "pedestal",
+                "type": "WFD5PedestalCorrectionStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "pedestal_nsamples": 20,
+                  "pedestal_method": "average"
+                },
+                "next": ["mapping"]
+              },
+              {
+                "id": "mapping",
+                "type": "WFD5ChannelMappingStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "channel_map_file": "config/channel_map.json"
                 },
                 "next": ["integrator"]
               },
@@ -57,10 +76,35 @@
                   "input_product": "WFD5WaveformCollection",
                   "product_name": "WFD5TraceIntegralCollection"
                 },
-                "next": ["histogram"]
+                "next": ["event_builder"]
               },
               {
-                "id": "histogram",
+                "id": "event_builder",
+                "type": "WFD5HodoscopeEventBuilderStage",
+                "parameters": {
+                  "integral_input": "WFD5TraceIntegralCollection",
+                  "waveform_input": "WFD5WaveformCollection",
+                  "output_product": "HodoscopeEvent",
+                  "detector_system": "HODO"
+                },
+                "next": ["position_histogram", "integral_histogram"]
+              },
+              {
+                "id": "position_histogram",
+                "type": "WFD5HodoscopePositionHistogramStage",
+                "parameters": {
+                  "input_product": "HodoscopeEvent",
+                  "output_product": "HodoscopePositionHistogram",
+                  "title": "Hodoscope Position",
+                  "x_min": -7,
+                  "x_max": 7,
+                  "y_min": -7,
+                  "y_max": 7
+                },
+                "next": ["cleanup"]
+              },
+              {
+                "id": "integral_histogram",
                 "type": "WFD5TraceIntegralHistogramStage",
                 "parameters": {
                   "input_product": "WFD5TraceIntegralCollection",
