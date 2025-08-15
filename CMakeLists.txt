@@ -83,15 +83,40 @@ foreach(pkg IN LISTS CPM_PACKAGE_LIST)
     set(pkg_DOWNLOAD_ONLY NO)
   endif()
 
-  # Use CPMFindPackage instead of CPMAddPackage
-  # This tries find_package first, then downloads if not found
-  CPMFindPackage(
-    NAME ${pkg}
-    GITHUB_REPOSITORY ${${pkg}_REPO}
-    GIT_TAG ${${pkg}_TAG}
-    DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
-    OPTIONS ${pkg_OPTIONS}
-  )
+  # Handle different repository types correctly
+  if(DEFINED ${pkg}_URL)
+    # Use URL if defined
+    CPMFindPackage(
+      NAME ${pkg}
+      URL ${${pkg}_URL}
+      GIT_TAG ${${pkg}_TAG}
+      DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
+      OPTIONS ${pkg_OPTIONS}
+    )
+  elseif(DEFINED ${pkg}_REPO)
+    # Check if it's a full git URL (contains git@ or https://)
+    if(${${pkg}_REPO} MATCHES "^(git@|https://)")
+      # It's a full git URL, use GIT_REPOSITORY
+      CPMFindPackage(
+        NAME ${pkg}
+        GIT_REPOSITORY ${${pkg}_REPO}
+        GIT_TAG ${${pkg}_TAG}
+        DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
+        OPTIONS ${pkg_OPTIONS}
+      )
+    else()
+      # It's a GitHub shorthand (owner/repo), use GITHUB_REPOSITORY
+      CPMFindPackage(
+        NAME ${pkg}
+        GITHUB_REPOSITORY ${${pkg}_REPO}
+        GIT_TAG ${${pkg}_TAG}
+        DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
+        OPTIONS ${pkg_OPTIONS}
+      )
+    endif()
+  else()
+    message(FATAL_ERROR "Neither URL nor REPO defined for package ${pkg}")
+  endif()
 
   # Create interface target for header-only packages
   if(${pkg}_DOWNLOAD_ONLY)
@@ -100,16 +125,15 @@ foreach(pkg IN LISTS CPM_PACKAGE_LIST)
   endif()
 endforeach()
 
-
-
 # ------------------------------------------------------------------------------
 # System Dependencies
 # ------------------------------------------------------------------------------
 find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer)
 find_package(ZLIB REQUIRED)
-
+find_package(Threads REQUIRED)
 find_library(ZMQ_LIBRARY NAMES zmq REQUIRED)
 find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
+message(STATUS "ZMQ include dir: ${ZMQ_INCLUDE_DIR}")
 
 # ------------------------------------------------------------------------------
 # Sources
@@ -134,6 +158,7 @@ target_include_directories(publisher PRIVATE
 target_link_libraries(publisher PRIVATE
   ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
   ZLIB::ZLIB
+  Threads::Threads
   ${ZMQ_LIBRARY}
   ${MIDASSYS_LIB_DIR}/libmfe.a
   ${MIDASSYS_LIB_DIR}/libmidas.a

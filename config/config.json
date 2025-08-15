@@ -5,7 +5,7 @@
   "data-channels": {
     "midas-event-channel": {
       "enabled": true,
-      "zmq-address": "tcp://127.0.0.1:5556",
+      "zmq-address": "tcp://127.0.0.1:5555",
       "name": "DATA",
       "publishes-per-batch": 1,
       "publishes-ignored-after-batch": 0,
@@ -22,9 +22,9 @@
             ]
           },
           "midas_receiver_config": {
-            "host": "10.163.105.238",
-            "experiment": "DAQ",
-            "buffer": "BUF001",
+            "host": "",
+            "experiment": "",
+            "buffer": "",
             "client-name": "MidasEventPublisher",
             "event-id": -1,
             "get-all": false,
@@ -48,16 +48,6 @@
                 "parameters": {
                   "unpacker_class": "unpackers::WFD5EventUnpacker"
                 },
-                "next": ["pedestal"]
-              },
-              {
-                "id": "pedestal",
-                "type": "WFD5PedestalCorrectionStage",
-                "parameters": {
-                  "input_product": "WFD5WaveformCollection",
-                  "pedestal_nsamples": 20,
-                  "pedestal_method": "average"
-                },
                 "next": ["mapping"]
               },
               {
@@ -67,6 +57,25 @@
                   "input_product": "WFD5WaveformCollection",
                   "channel_map_file": "config/channel_map.json"
                 },
+                "next": ["jitter_correction"]
+              },
+              {
+                "id": "jitter_correction",
+                "type": "WFD5JitterCorrectionStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "pedestal_file": "config/pedestals.json"
+                },
+                "next": ["pedestal"]
+              },
+              {
+                "id": "pedestal",
+                "type": "WFD5PedestalCorrectionStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "pedestal_nsamples": 20,
+                  "pedestal_method": "first"
+                },
                 "next": ["integrator"]
               },
               {
@@ -74,7 +83,12 @@
                 "type": "WFD5WaveformsIntegratorStage",
                 "parameters": {
                   "input_product": "WFD5WaveformCollection",
-                  "product_name": "WFD5TraceIntegralCollection"
+                  "product_name": "WFD5TraceIntegralCollection",
+                  "nsigma": 10.0,
+                  "search_method": 1,
+                  "presample_config": [25, 100],
+                  "seed_index": -1,
+                  "seeded_search_window": -1
                 },
                 "next": ["event_builder"]
               },
@@ -87,7 +101,7 @@
                   "output_product": "HodoscopeEvent",
                   "detector_system": "HODO"
                 },
-                "next": ["position_histogram", "integral_histogram"]
+                "next": ["position_histogram"]
               },
               {
                 "id": "position_histogram",
@@ -101,18 +115,18 @@
                   "y_min": -7,
                   "y_max": 7
                 },
-                "next": ["cleanup"]
+                "next": ["integral_histogram"]
               },
               {
                 "id": "integral_histogram",
-                "type": "WFD5TraceIntegralHistogramStage",
+                "type": "WFD5WaveformIntegralHistogramStage",
                 "parameters": {
                   "input_product": "WFD5TraceIntegralCollection",
                   "product_name": "WFD5TraceIntegralHistogramCollection",
                   "title_prefix": "Integral",
                   "bins": 100,
-                  "relative_min": -1300,
-                  "relative_max": 1300
+                  "relative_min": -200,
+                  "relative_max": 200
                 },
                 "next": ["cleanup"]
               },
@@ -124,8 +138,7 @@
                     "FC7HeaderCollection",
                     "WFD5ChannelHeaderCollection",
                     "WFD5HeaderCollection",
-                    "WFD5WaveformHeaderCollection",
-                    "WFD5TraceIntegralCollection"
+                    "WFD5WaveformHeaderCollection"
                   ]
                 },
                 "next": []

@@ -47,4 +47,5 @@ publisher
 example_receiver/example_receiver
 example/example_receiver
 scripts/environment/environment_variables.txt
+deprecated/
 

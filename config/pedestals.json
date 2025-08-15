@@ -1,0 +1,184 @@
+{
+   "pedestals": [
+      {
+         "crateNum": 1,
+         "amcSlotNum": 2,
+         "channelNum": 0,
+         "pedestal": -3.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 2,
+         "channelNum": 1,
+         "pedestal": -8.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 2,
+         "channelNum": 2,
+         "pedestal": -3.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 2,
+         "channelNum": 3,
+         "pedestal": -2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 2,
+         "channelNum": 4,
+         "pedestal": -3.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 3,
+         "channelNum": 0,
+         "pedestal": 2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 3,
+         "channelNum": 1,
+         "pedestal": -8.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 3,
+         "channelNum": 2,
+         "pedestal": -1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 3,
+         "channelNum": 3,
+         "pedestal": -2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 3,
+         "channelNum": 4,
+         "pedestal": -1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 4,
+         "channelNum": 0,
+         "pedestal": 0.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 4,
+         "channelNum": 1,
+         "pedestal": 1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 4,
+         "channelNum": 2,
+         "pedestal": 0.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 4,
+         "channelNum": 3,
+         "pedestal": 2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 4,
+         "channelNum": 4,
+         "pedestal": -2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 5,
+         "channelNum": 0,
+         "pedestal": -4.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 5,
+         "channelNum": 1,
+         "pedestal": -7.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 5,
+         "channelNum": 2,
+         "pedestal": -6.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 5,
+         "channelNum": 3,
+         "pedestal": -2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 5,
+         "channelNum": 4,
+         "pedestal": 5.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 7,
+         "channelNum": 0,
+         "pedestal": 1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 7,
+         "channelNum": 1,
+         "pedestal": 2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 7,
+         "channelNum": 2,
+         "pedestal": 1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 7,
+         "channelNum": 3,
+         "pedestal": -4.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 7,
+         "channelNum": 4,
+         "pedestal": 1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 11,
+         "channelNum": 0,
+         "pedestal": 1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 11,
+         "channelNum": 1,
+         "pedestal": -1.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 11,
+         "channelNum": 2,
+         "pedestal": -6.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 11,
+         "channelNum": 3,
+         "pedestal": -2.0
+      },
+      {
+         "crateNum": 1,
+         "amcSlotNum": 11,
+         "channelNum": 4,
+         "pedestal": -3.0
+      }
+   ]
+}
