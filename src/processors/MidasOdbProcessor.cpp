@@ -48,11 +48,15 @@ std::vector<std::string> MidasOdbProcessor::getProcessedOutput() {
     if (!initialized_) return out;
 
     try {
-        std::string odbJson = midasReceiver_.getOdb("/");
-        out.push_back(odbJson);
+        std::string odbJsonStr = midasReceiver_.getOdb("/");
+        // Parse then re-serialize to remove unwanted formatting
+        auto odbJson = json::parse(odbJsonStr);
+        out.push_back(odbJson.dump()); // compact, no extra newlines
     } catch (const std::exception& e) {
-        spdlog::error("[MidasOdbProcessor] Failed to retrieve ODB: {}", e.what());
+        spdlog::error("[MidasOdbProcessor] Failed to retrieve or parse ODB: {}", e.what());
     }
+
+    lastProcessedTime_ = std::chrono::system_clock::now();
 
     return out;
 }

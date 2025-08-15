@@ -177,5 +177,7 @@ std::vector<std::string> MidasEventProcessor::getProcessedOutput() {
         lastEventTimestamp_ = timedEvents.back()->timestamp;
     }
 
+    lastProcessedTime_ = std::chrono::system_clock::now();
+
     return out;
 }
