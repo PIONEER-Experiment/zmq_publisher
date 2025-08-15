@@ -23,6 +23,7 @@
 #include "processors/GeneralProcessor.h"
 #include "processors/CommandProcessor.h"
 #include "processors/MidasEventProcessor.h"
+#include "processors/MidasOdbProcessor.h"
 
 // Logging
 #include <spdlog/spdlog.h>
@@ -58,6 +59,10 @@ void registerProcessors(nlohmann::json config) {
 
     factory.RegisterProcessor("MidasEventProcessor", [verbose]() -> GeneralProcessor* {
         return new MidasEventProcessor(verbose);
+    });
+
+    factory.RegisterProcessor("MidasOdbProcessor", [verbose]() -> GeneralProcessor* {
+        return new MidasOdbProcessor(verbose);
     });
 }
 

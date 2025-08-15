@@ -147,6 +147,30 @@
           }
         }
       ]
+    },
+    "odb-channel": {
+      "enabled": true,
+      "zmq-address": "tcp://127.0.0.1:5556",
+      "name": "ODB",
+      "publishes-per-batch": 1,
+      "publishes-ignored-after-batch": 0,
+      "num-events-in-circular-buffer": 1,
+      "processors": [
+        {
+          "processor": "MidasOdbProcessor",
+          "period-ms": 10000,
+          "midas_receiver_config": {
+            "host": "",
+            "experiment": "",
+            "buffer": "",
+            "client-name": "MidasEventPublisher",
+            "event-id": -1,
+            "get-all": false,
+            "buffer-size": 1000,
+            "yield-timeout-ms": 1
+          }
+        }
+      ]
     }
   }
 }

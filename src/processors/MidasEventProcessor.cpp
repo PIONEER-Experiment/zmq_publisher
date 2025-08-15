@@ -43,7 +43,9 @@ void MidasEventProcessor::Init(const json& midas_receiver_config,
         {TR_START, 100}
     };
 
-    midasReceiver_.init(config);
+    if (!midasReceiver_.IsInitialized()) {
+        midasReceiver_.init(config);
+    }
     midasReceiver_.start();
 
     configManager_ = std::make_shared<ConfigManager>();
@@ -69,11 +71,30 @@ void MidasEventProcessor::Init(const json& midas_receiver_config,
         }
     }
 
+    // Immediately set internal run number from ODB
+    INT currentRun = getRunNumberFromOdb();
+    if (currentRun >= 0) {
+        lastRunNumber_ = currentRun;
+        if (verbose > 0) {
+            spdlog::debug("[MidasEventProcessor] Initial run number retrieved from ODB: {}", lastRunNumber_);
+        }
+    } else {
+        if (verbose > 0) {
+            spdlog::warn("[MidasEventProcessor] Failed to retrieve initial run number from ODB. Using -1.");
+        }
+        lastRunNumber_ = -1;
+    }
+
     initialized_ = true;
 }
 
 bool MidasEventProcessor::isReadyToProcess() const {
-    return initialized_;
+    if (!initialized_) return false;
+
+    auto now = std::chrono::system_clock::now();
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProcessedTime_).count();
+
+    return elapsedMs >= period;
 }
 
 void MidasEventProcessor::handleTransitions() {
@@ -107,6 +128,22 @@ void MidasEventProcessor::setRunNumber(INT newRunNumber) {
             dataProductManager.removeExcludingTags(tagsToOmitFromClear_);
         }
     }
+}
+
+INT MidasEventProcessor::getRunNumberFromOdb(const std::string& odbPath) const {
+    try {
+        std::string odbJsonStr = midasReceiver_.getOdb(odbPath);
+        auto odbJson = json::parse(odbJsonStr);
+
+        if (odbJson.contains("Run number") && odbJson["Run number"].is_number()) {
+            return odbJson["Run number"].get<INT>();
+        } else {
+            spdlog::warn("[MidasEventProcessor] ODB JSON does not contain a valid 'Run number': {}", odbJsonStr);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[MidasEventProcessor] Failed to parse ODB for run number: {}", e.what());
+    }
+    return -1;
 }
 
 std::vector<std::string> MidasEventProcessor::getProcessedOutput() {

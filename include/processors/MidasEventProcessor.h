@@ -23,6 +23,8 @@ public:
     bool isReadyToProcess() const override;
 
 private:
+    std::chrono::system_clock::time_point lastProcessedTime_;
+
     MidasReceiver& midasReceiver_;
     std::chrono::system_clock::time_point lastEventTimestamp_;
     std::chrono::system_clock::time_point lastTransitionTimestamp_;
@@ -37,6 +39,7 @@ private:
 
     void handleTransitions();
     void setRunNumber(INT newRunNumber);
+    INT getRunNumberFromOdb(const std::string& odbPath = "/Runinfo/Run number") const;
 };
 
 #endif // MIDAS_EVENT_PROCESSOR_H
