@@ -35,112 +35,13 @@
           "pipeline_config": {
             "plugin_libraries": [
               "build/lib/libunpacker_data_products_core.so",
-              "build/lib/libmidas_event_unpacker_plugin.so",
-              "build/lib/libdata_products.so",
-              "build/lib/libunpackers.so",
-              "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so",
-              "build/lib/libwfd5_pipeline_plugin.so"
+              "build/lib/libmidas_event_unpacker_plugin.so"
             ],
             "pipeline": [
               {
-                "id": "unpacker",
-                "type": "SbfosterMidasEventUnpackerStage",
-                "parameters": {
-                  "unpacker_class": "unpackers::WFD5EventUnpacker"
-                },
-                "next": ["mapping"]
-              },
-              {
-                "id": "mapping",
-                "type": "WFD5ChannelMappingStage",
-                "parameters": {
-                  "input_product": "WFD5WaveformCollection",
-                  "channel_map_file": "config/channel_map.json"
-                },
-                "next": ["jitter_correction"]
-              },
-              {
-                "id": "jitter_correction",
-                "type": "WFD5JitterCorrectionStage",
-                "parameters": {
-                  "input_product": "WFD5WaveformCollection",
-                  "pedestal_file": "config/pedestals.json"
-                },
-                "next": ["pedestal"]
-              },
-              {
-                "id": "pedestal",
-                "type": "WFD5PedestalCorrectionStage",
-                "parameters": {
-                  "input_product": "WFD5WaveformCollection",
-                  "pedestal_nsamples": 20,
-                  "pedestal_method": "first"
-                },
-                "next": ["integrator"]
-              },
-              {
-                "id": "integrator",
-                "type": "WFD5WaveformsIntegratorStage",
-                "parameters": {
-                  "input_product": "WFD5WaveformCollection",
-                  "product_name": "WFD5TraceIntegralCollection",
-                  "nsigma": 10.0,
-                  "search_method": 1,
-                  "presample_config": [25, 100],
-                  "seed_index": -1,
-                  "seeded_search_window": -1
-                },
-                "next": ["event_builder"]
-              },
-              {
-                "id": "event_builder",
-                "type": "WFD5HodoscopeEventBuilderStage",
-                "parameters": {
-                  "integral_input": "WFD5TraceIntegralCollection",
-                  "waveform_input": "WFD5WaveformCollection",
-                  "output_product": "HodoscopeEvent",
-                  "detector_system": "HODO"
-                },
-                "next": ["position_histogram"]
-              },
-              {
-                "id": "position_histogram",
-                "type": "WFD5HodoscopePositionHistogramStage",
-                "parameters": {
-                  "input_product": "HodoscopeEvent",
-                  "output_product": "HodoscopePositionHistogram",
-                  "title": "Hodoscope Position",
-                  "x_min": -7,
-                  "x_max": 7,
-                  "y_min": -7,
-                  "y_max": 7
-                },
-                "next": ["integral_histogram"]
-              },
-              {
-                "id": "integral_histogram",
-                "type": "WFD5WaveformIntegralHistogramStage",
-                "parameters": {
-                  "input_product": "WFD5TraceIntegralCollection",
-                  "product_name": "WFD5TraceIntegralHistogramCollection",
-                  "title_prefix": "Integral",
-                  "bins": 100,
-                  "relative_min": -200,
-                  "relative_max": 200
-                },
-                "next": ["cleanup"]
-              },
-              {
-                "id": "cleanup",
-                "type": "ClearProductsStage",
-                "parameters": {
-                  "products": [
-                    "FC7HeaderCollection",
-                    "WFD5ChannelHeaderCollection",
-                    "WFD5HeaderCollection",
-                    "WFD5WaveformHeaderCollection"
-                  ]
-                },
+                "id": "to_json",
+                "type": "MidasEventToJsonStage",
+                "parameters": {},
                 "next": []
               }
             ]

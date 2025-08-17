@@ -15,10 +15,6 @@ set(CPM_PACKAGE_LIST
   midas_receiver
   unpacker_data_products_core
   midas_event_unpacker_plugin
-  DataProducts
-  Unpackers
-  sbfoster_midas_event_unpacker_plugin
-  wfd5_pipeline_plugin
 )
 
 # ---------------------- cppzmq (header-only) ----------------------
@@ -85,37 +81,5 @@ set(midas_event_unpacker_plugin_REPO   "jaca230/midas_event_unpacker_plugin")
 set(midas_event_unpacker_plugin_TAG    "main")
 set(midas_event_unpacker_plugin_TARGET "") # Dynamically linked
 set(midas_event_unpacker_plugin_OPTIONS
-  "CMAKE_POSITION_INDEPENDENT_CODE ON"
-)
-
-# ---------------------- mu-data-products ----------------------
-set(DataProducts_REPO "git@github.com:PIONEER-Experiment/mu-data-products.git")
-set(DataProducts_TAG    "main")
-set(DataProducts_TARGET "") # Dynamically linked
-set(DataProducts_OPTIONS
-  "CMAKE_POSITION_INDEPENDENT_CODE ON"
-)
-
-# ---------------------- mu-unpackers ----------------------
-set(Unpackers_REPO   "git@github.com:PIONEER-Experiment/mu-unpackers.git")
-set(Unpackers_TAG    "main")
-set(Unpackers_TARGET "") # Dynamically linked
-set(Unpackers_OPTIONS
-  "CMAKE_POSITION_INDEPENDENT_CODE ON"
-)
-
-# ---------------------- custom_midas_unpacking_pipeline_plugin ----------------------
-set(sbfoster_midas_event_unpacker_plugin_REPO   "jaca230/sbfoster_midas_event_unpacker_plugin")
-set(sbfoster_midas_event_unpacker_plugin_TAG    "PSI_testbeam_august_2025")
-set(sbfoster_midas_event_unpacker_plugin_TARGET "") # Dynamically linked
-set(sbfoster_midas_event_unpacker_plugin_OPTIONS
-  "CMAKE_POSITION_INDEPENDENT_CODE ON"
-)
-
-# ---------------------- wfd5_pipeline_plugin ----------------------
-set(wfd5_pipeline_plugin_REPO   "jaca230/wfd5_pipeline_plugin")
-set(wfd5_pipeline_plugin_TAG    "psi_beamtime_2025")
-set(wfd5_pipeline_plugin_TARGET "") # Dynamically linked
-set(wfd5_pipeline_plugin_OPTIONS
   "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
