@@ -13,7 +13,7 @@
       "processors": [
         {
           "processor": "MidasEventProcessor",
-          "period-ms": 1000,
+          "period-ms": 1,
           "midas_event_processor_config": {
             "clear-products-on-new-run": true,
             "tags_to_omit_from_clear": [
@@ -149,7 +149,7 @@
       ]
     },
     "odb-channel": {
-      "enabled": true,
+      "enabled": false,
       "zmq-address": "tcp://127.0.0.1:5556",
       "name": "ODB",
       "publishes-per-batch": 1,
