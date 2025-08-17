@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Save original working directory
+ORIG_DIR=$(pwd)
+
 # Get the absolute path of the script directory
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 BASE_DIR="$SCRIPT_DIR/.."
@@ -33,7 +36,6 @@ while [[ "$#" -gt 0 ]]; do
         -v|--valgrind) VALGRIND=true; shift ;;
         --preload)
             if [[ -n "$2" && "$2" != -* ]]; then
-                # Convert comma-separated list to colon-separated for LD_PRELOAD
                 PRELOAD_LIBS="${2//,/':' }"
                 shift 2
             else
@@ -53,12 +55,21 @@ if [ ! -f "$EXECUTABLE" ]; then
     exit 1
 fi
 
+# Set environment variables
+export UNPACKER_PATH="$BASE_DIR/build/_deps/unpacker-src"
+
 # Export LD_PRELOAD if any preload libs specified
 if [[ -n "$PRELOAD_LIBS" ]]; then
     export LD_PRELOAD="$PRELOAD_LIBS${LD_PRELOAD:+:$LD_PRELOAD}"
 fi
 
-# Run accordingly
+# Change to base dir
+cd "$BASE_DIR" || {
+    echo "[run.sh, ERROR] Failed to change directory to $BASE_DIR"
+    exit 1
+}
+
+# Run executable
 if [ "$DEBUG" = true ]; then
     echo "[run.sh, INFO] Running with gdb..."
     gdb --args "$EXECUTABLE" "${EXE_ARGS[@]}"
@@ -69,3 +80,6 @@ else
     echo "[run.sh, INFO] Running analysis_pipeline..."
     "$EXECUTABLE" "${EXE_ARGS[@]}"
 fi
+
+# Return to original directory
+cd "$ORIG_DIR"

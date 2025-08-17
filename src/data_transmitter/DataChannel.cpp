@@ -1,7 +1,7 @@
 #include "data_transmitter/DataChannel.h"
 #include "data_transmitter/DataTransmitterManager.h"
 #include "data_transmitter/DataTransmitter.h"
-#include <spdlog/spdlog.h>
+//#include <spdlog/spdlog.h>
 
 const int DEFAULT_CHANNEL_TICK_TIME = 1000;
 
@@ -153,7 +153,7 @@ void DataChannel::printAttributes() const {
     attributes += "Address: " + address + "\n";
     attributes += "Tick Time: " + std::to_string(tickTime) + "\n";
 
-    spdlog::debug("{}", attributes);
+    //spdlog::debug("{}", attributes);
 }
 
 void DataChannel::initializeTransmitter() {

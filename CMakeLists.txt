@@ -5,6 +5,7 @@ project(publisher LANGUAGES CXX)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-Wno-stringop-overflow)
 endif()
+add_compile_options(-Wno-cpp)
 
 # ------------------------------------------------------------------------------
 # Project Settings
@@ -36,6 +37,7 @@ set(MIDASSYS_INCLUDE_DIRS
   $ENV{MIDASSYS}/include
   $ENV{MIDASSYS}/mxml
   $ENV{MIDASSYS}/midasio
+  $ENV{MIDASSYS}/mjson
 )
 set(MIDASSYS_LIB_DIR $ENV{MIDASSYS}/lib)
 
@@ -49,36 +51,90 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake)
 # ------------------------------------------------------------------------------
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPMConfig.cmake)
 
-# ------------------------------------------------------------------------------
-# Dependencies via CPM using loaded variables
-# ------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
+# Automatically add INTERFACE target for header-only packages
+# -------------------------------------------------------------------------
+function(add_header_only_target pkg)
+  if(NOT TARGET ${pkg}_header_only)
+    add_library(${pkg}_header_only INTERFACE)
+    target_include_directories(${pkg}_header_only INTERFACE
+      $<BUILD_INTERFACE:${${pkg}_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+    )
+    add_library(${pkg}::${pkg} ALIAS ${pkg}_header_only)
+    set(${pkg}_TARGET ${pkg}::${pkg} PARENT_SCOPE)
+  endif()
+endfunction()
+
+# -------------------------------------------------------------------------
+# Loop over all CPM packages
+# -------------------------------------------------------------------------
 foreach(pkg IN LISTS CPM_PACKAGE_LIST)
   string(TOUPPER ${pkg} UPPER_NAME)
 
-  # Gather package options if defined
+  # Gather options and flags
   set(pkg_OPTIONS "")
   if(DEFINED ${pkg}_OPTIONS)
     set(pkg_OPTIONS ${${pkg}_OPTIONS})
   endif()
 
-  CPMAddPackage(
-    NAME ${pkg}
-    GITHUB_REPOSITORY ${${pkg}_REPO}
-    GIT_TAG ${${pkg}_TAG}
-    OPTIONS ${pkg_OPTIONS}
-  )
-endforeach()
+  if(DEFINED ${pkg}_DOWNLOAD_ONLY)
+    set(pkg_DOWNLOAD_ONLY ${${pkg}_DOWNLOAD_ONLY})
+  else()
+    set(pkg_DOWNLOAD_ONLY NO)
+  endif()
 
+  # Handle different repository types correctly
+  if(DEFINED ${pkg}_URL)
+    # Use URL if defined
+    CPMFindPackage(
+      NAME ${pkg}
+      URL ${${pkg}_URL}
+      GIT_TAG ${${pkg}_TAG}
+      DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
+      OPTIONS ${pkg_OPTIONS}
+    )
+  elseif(DEFINED ${pkg}_REPO)
+    # Check if it's a full git URL (contains git@ or https://)
+    if(${${pkg}_REPO} MATCHES "^(git@|https://)")
+      # It's a full git URL, use GIT_REPOSITORY
+      CPMFindPackage(
+        NAME ${pkg}
+        GIT_REPOSITORY ${${pkg}_REPO}
+        GIT_TAG ${${pkg}_TAG}
+        DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
+        OPTIONS ${pkg_OPTIONS}
+      )
+    else()
+      # It's a GitHub shorthand (owner/repo), use GITHUB_REPOSITORY
+      CPMFindPackage(
+        NAME ${pkg}
+        GITHUB_REPOSITORY ${${pkg}_REPO}
+        GIT_TAG ${${pkg}_TAG}
+        DOWNLOAD_ONLY ${pkg_DOWNLOAD_ONLY}
+        OPTIONS ${pkg_OPTIONS}
+      )
+    endif()
+  else()
+    message(FATAL_ERROR "Neither URL nor REPO defined for package ${pkg}")
+  endif()
+
+  # Create interface target for header-only packages
+  if(${pkg}_DOWNLOAD_ONLY)
+    message(STATUS "Package ${pkg} is header-only or download-only, creating interface target")
+    add_header_only_target(${pkg})
+  endif()
+endforeach()
 
 # ------------------------------------------------------------------------------
 # System Dependencies
 # ------------------------------------------------------------------------------
 find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer)
-find_package(TBB REQUIRED)
 find_package(ZLIB REQUIRED)
-
+find_package(Threads REQUIRED)
 find_library(ZMQ_LIBRARY NAMES zmq REQUIRED)
 find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
+message(STATUS "ZMQ include dir: ${ZMQ_INCLUDE_DIR}")
 
 # ------------------------------------------------------------------------------
 # Sources
@@ -99,20 +155,29 @@ target_include_directories(publisher PRIVATE
 # ------------------------------------------------------------------------------
 # Link Libraries
 # ------------------------------------------------------------------------------
+
 target_link_libraries(publisher PRIVATE
-  spdlog::spdlog
-  fmt::fmt
-  nlohmann_json::nlohmann_json
   ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
-  TBB::tbb
   ZLIB::ZLIB
+  Threads::Threads
   ${ZMQ_LIBRARY}
-  MidasReceiver::midas_receiver
-  AnalysisPipeline::analysis_pipeline
-  AnalysisPipelineStages::analysis_pipeline_stages
   ${MIDASSYS_LIB_DIR}/libmfe.a
   ${MIDASSYS_LIB_DIR}/libmidas.a
 )
+
+# Link all registered CPM targets
+foreach(pkg IN LISTS CPM_PACKAGE_LIST)
+  # Skip linking if target is empty (header-only)
+  if(DEFINED ${pkg}_TARGET AND NOT ${${pkg}_TARGET} STREQUAL "")
+    target_link_libraries(publisher PRIVATE ${${pkg}_TARGET})
+  elseif(DEFINED ${pkg}_TARGETS)
+    foreach(subtarget IN LISTS ${pkg}_TARGETS)
+      target_link_libraries(publisher PRIVATE ${subtarget})
+    endforeach()
+  else()
+    message(STATUS "Skipping linking header-only or no-target package: ${pkg}")
+  endif()
+endforeach()
 
 # ------------------------------------------------------------------------------
 # Compiler Definitions (optional)
@@ -127,7 +192,7 @@ target_compile_definitions(publisher PRIVATE
 # ------------------------------------------------------------------------------
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/example_zmq_receiver/CMakeLists.txt")
   message(STATUS "Including example_zmq_receiver submodule for build")
-  add_subdirectory(examples/example_zmq_receiver)
+  #add_subdirectory(examples/example_zmq_receiver)
 else()
   message(WARNING "example_zmq_receiver submodule NOT found - skipping build")
 endif()

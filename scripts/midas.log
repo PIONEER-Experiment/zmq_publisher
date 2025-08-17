@@ -1,2 +1,0 @@
-01:23:23.643 2025/06/21 [MidasEventPublisher,ERROR] [MidasReceiver.cpp:94:MidasReceiver::run,ERROR] Failed to connect to experiment. Status: 109
-01:23:23.643 2025/06/21 [MidasEventPublisher,LOG] Program MidasEventPublisher on host localhost stopped

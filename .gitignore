@@ -25,10 +25,12 @@ compile_commands.json
 *.user
 *.sln
 *.sdf
+*.log
 
 # Ignore text editor backup files
 *~
 *.swp
+*.tmp
 
 # Ignore system and OS-specific files
 .DS_Store
@@ -45,4 +47,5 @@ publisher
 example_receiver/example_receiver
 example/example_receiver
 scripts/environment/environment_variables.txt
+deprecated/
 
