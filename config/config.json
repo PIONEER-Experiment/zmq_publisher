@@ -13,7 +13,7 @@
       "processors": [
         {
           "processor": "MidasEventProcessor",
-          "period-ms": 1000,
+          "period-ms": 1,
           "midas_event_processor_config": {
             "clear-products-on-new-run": true,
             "tags_to_omit_from_clear": [
@@ -24,29 +24,109 @@
           "midas_receiver_config": {
             "host": "",
             "experiment": "",
-            "buffer": "SYSTEM",
+            "buffer": "",
             "client-name": "MidasEventPublisher",
             "event-id": -1,
-            "get-all": true,
+            "get-all": false,
             "buffer-size": 1000,
-            "yield-timeout-ms": 300,
+            "yield-timeout-ms": 1,
             "num-events-per-retrieval": 1
           },
           "pipeline_config": {
-              "plugin_libraries": [
-                "build/lib/libdefault_midas_unpacking_pipeline_plugin.so",
-                "build/lib/libcustom_midas_unpacking_pipeline_plugin.so",
-                "build/lib/libcommon_data_products.so",
-                "build/lib/libnalu_data_products.so",
-                "build/lib/libcommon_unpacking.so",
-                "build/lib/libnalu_unpacking.so"
-              ],
+            "plugin_libraries": [
+              "build/lib/libunpacker_data_products_core.so",
+              "build/lib/libmidas_event_unpacker_plugin.so",
+              "build/lib/libdata_products.so",
+              "build/lib/libunpackers.so",
+              "build/lib/libsbfoster_midas_unpacking_pipeline_plugin.so",
+              "build/lib/libwfd5_pipeline_plugin.so"
+            ],
             "pipeline": [
               {
                 "id": "unpacker",
-                "type": "CustomMidasUnpackerStage",
+                "type": "SbfosterMidasEventUnpackerStage",
                 "parameters": {
-                  "unpacker_class": "unpackers::NaluEventUnpacker"
+                  "unpacker_class": "unpackers::WFD5EventUnpacker"
+                },
+                "next": ["mapping"]
+              },
+              {
+                "id": "mapping",
+                "type": "WFD5ChannelMappingStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "channel_map_file": "config/channel_map.json"
+                },
+                "next": ["jitter_correction"]
+              },
+              {
+                "id": "jitter_correction",
+                "type": "WFD5JitterCorrectionStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "pedestal_file": "config/pedestals.json"
+                },
+                "next": ["pedestal"]
+              },
+              {
+                "id": "pedestal",
+                "type": "WFD5PedestalCorrectionStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "pedestal_nsamples": 20,
+                  "pedestal_method": "first"
+                },
+                "next": ["integrator"]
+              },
+              {
+                "id": "integrator",
+                "type": "WFD5WaveformsIntegratorStage",
+                "parameters": {
+                  "input_product": "WFD5WaveformCollection",
+                  "product_name": "WFD5TraceIntegralCollection",
+                  "nsigma": 10.0,
+                  "search_method": 1,
+                  "presample_config": [25, 100],
+                  "seed_index": -1,
+                  "seeded_search_window": -1
+                },
+                "next": ["event_builder"]
+              },
+              {
+                "id": "event_builder",
+                "type": "WFD5HodoscopeEventBuilderStage",
+                "parameters": {
+                  "integral_input": "WFD5TraceIntegralCollection",
+                  "waveform_input": "WFD5WaveformCollection",
+                  "output_product": "HodoscopeEvent",
+                  "detector_system": "HODO"
+                },
+                "next": ["position_histogram"]
+              },
+              {
+                "id": "position_histogram",
+                "type": "WFD5HodoscopePositionHistogramStage",
+                "parameters": {
+                  "input_product": "HodoscopeEvent",
+                  "output_product": "HodoscopePositionHistogram",
+                  "title": "Hodoscope Position",
+                  "x_min": -7,
+                  "x_max": 7,
+                  "y_min": -7,
+                  "y_max": 7
+                },
+                "next": ["integral_histogram"]
+              },
+              {
+                "id": "integral_histogram",
+                "type": "WFD5WaveformIntegralHistogramStage",
+                "parameters": {
+                  "input_product": "WFD5TraceIntegralCollection",
+                  "product_name": "WFD5TraceIntegralHistogramCollection",
+                  "title_prefix": "Integral",
+                  "bins": 100,
+                  "relative_min": -200,
+                  "relative_max": 200
                 },
                 "next": ["cleanup"]
               },
@@ -55,17 +135,39 @@
                 "type": "ClearProductsStage",
                 "parameters": {
                   "products": [
-                    "NaluEventFooterCollection",
-                    "NaluEventHeaderCollection",
-                    "NaluPacketFooterCollection",
-                    "NaluPacketHeaderCollection",
-                    "NaluTimeCollection",
-                    "NaluWaveformCollection"
+                    "FC7HeaderCollection",
+                    "WFD5ChannelHeaderCollection",
+                    "WFD5HeaderCollection",
+                    "WFD5WaveformHeaderCollection"
                   ]
                 },
                 "next": []
               }
             ]
+          }
+        }
+      ]
+    },
+    "odb-channel": {
+      "enabled": false,
+      "zmq-address": "tcp://127.0.0.1:5556",
+      "name": "ODB",
+      "publishes-per-batch": 1,
+      "publishes-ignored-after-batch": 0,
+      "num-events-in-circular-buffer": 1,
+      "processors": [
+        {
+          "processor": "MidasOdbProcessor",
+          "period-ms": 10000,
+          "midas_receiver_config": {
+            "host": "",
+            "experiment": "",
+            "buffer": "",
+            "client-name": "MidasEventPublisher",
+            "event-id": -1,
+            "get-all": false,
+            "buffer-size": 1000,
+            "yield-timeout-ms": 1
           }
         }
       ]

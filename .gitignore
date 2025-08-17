@@ -25,6 +25,7 @@ compile_commands.json
 *.user
 *.sln
 *.sdf
+*.log
 
 # Ignore text editor backup files
 *~
@@ -46,4 +47,5 @@ publisher
 example_receiver/example_receiver
 example/example_receiver
 scripts/environment/environment_variables.txt
+deprecated/
 

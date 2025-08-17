@@ -4,11 +4,12 @@
 #include "processors/GeneralProcessor.h"
 #include "processors/CommandProcessor.h"
 #include "processors/MidasEventProcessor.h"
+#include "processors/MidasOdbProcessor.h"
 #include "command_management/CommandRunner.h"
 #include "utilities/TypeChecker.h"
 #include <algorithm>
 #include <iostream>
-#include <spdlog/spdlog.h>
+//#include <spdlog/spdlog.h>
 
 // Default config
 const std::string DEFAULT_NAME                   = "";
@@ -127,6 +128,30 @@ void DataChannelManager::addChannel(const std::string& channelId, const nlohmann
                 midasProcessor->setPeriod(periodMs);
 
                 dataChannel.addProcessToManager(midasProcessor);
+            }
+            else if (TypeChecker::IsInstanceOf<MidasOdbProcessor>(processor)) {
+                auto* odbProcessor = dynamic_cast<MidasOdbProcessor*>(processor);
+                if (!odbProcessor) {
+                    spdlog::warn("Failed to cast to MidasOdbProcessor in channel {} [{}:{}]",
+                                channelId, __FILE__, __LINE__);
+                    delete processor;
+                    continue;
+                }
+
+                if (!processorConfig.contains("midas_receiver_config")) {
+                    spdlog::warn("Missing 'midas_receiver_config' in MidasOdbProcessor config for channel {} [{}:{}]",
+                                channelId, __FILE__, __LINE__);
+                    delete processor;
+                    continue;
+                }
+
+                const nlohmann::json& midas_receiver_config = processorConfig["midas_receiver_config"];
+                odbProcessor->Init(midas_receiver_config);
+
+                int periodMs = getOrDefault(processorConfig, "period-ms", DEFAULT_PERIOD_MS, channelId, "processor config");
+                odbProcessor->setPeriod(periodMs);
+
+                dataChannel.addProcessToManager(odbProcessor);
             }
             else if (TypeChecker::IsInstanceOf<CommandProcessor>(processor)) {
                 auto* commandProcessor = dynamic_cast<CommandProcessor*>(processor);
