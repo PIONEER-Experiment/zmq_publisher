@@ -1,5 +1,6 @@
 // GeneralProcessor.cpp
-#include "processors/GeneralProcessor.h"
+#include "GeneralProcessor.h"
+#include "ProjectPrinter.h"
 
 GeneralProcessor::GeneralProcessor(int verbose) : verbose(verbose) {}
 

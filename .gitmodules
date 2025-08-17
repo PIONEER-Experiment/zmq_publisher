@@ -1,3 +1,0 @@
-[submodule "examples/example_zmq_receiver"]
-	path = examples/example_zmq_receiver
-	url = https://github.com/jaca230/example_zmq_receiver.git

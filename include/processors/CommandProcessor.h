@@ -2,8 +2,8 @@
 #ifndef COMMAND_PROCESSOR_H
 #define COMMAND_PROCESSOR_H
 
-#include "processors/GeneralProcessor.h"
-#include "command_management/CommandRunner.h"
+#include "GeneralProcessor.h"
+#include "CommandRunner.h"
 #include <string>
 #include <vector>
 

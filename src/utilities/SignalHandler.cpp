@@ -1,4 +1,4 @@
-#include "utilities/SignalHandler.h"
+#include "SignalHandler.h"
 #include <iostream>
 
 SignalHandler::SignalHandler() {

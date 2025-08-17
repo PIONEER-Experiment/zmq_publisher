@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
-#include "processors/GeneralProcessor.h"
+#include "GeneralProcessor.h"
 
 /**
  * @brief A factory class for creating instances of GeneralProcessor.

@@ -1,4 +1,5 @@
-#include "data_transmitter/DataChannelProcessesManager.h"
+#include "DataChannelProcessesManager.h"
+#include "ProjectPrinter.h"
 #include <algorithm> // Include for std::gcd
 
 const int DEFAULT_PROCESSOR_PERIOD = 1000;

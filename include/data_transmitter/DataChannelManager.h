@@ -4,10 +4,9 @@
 
 #include <string>
 #include <map>
-#include <vector>
 #include <nlohmann/json.hpp>
-#include <spdlog/spdlog.h>
-#include "data_transmitter/DataChannel.h"
+#include "ProjectPrinter.h"
+#include "DataChannel.h"
 
 /**
  * @brief Manages data channels and their configuration.
@@ -94,7 +93,7 @@ private:
     int globalTickTime; ///< Global tick time for data channel publication.
     int verbose; ///< Verbosity level for logging.
 
-    // Private method for getting a value from JSON with default and warning
+    //Private method for getting a value from JSON with default and warning
     template<typename T>
     T getOrDefault(const nlohmann::json& obj, 
                    const std::string& key, 
@@ -103,18 +102,17 @@ private:
                    const std::string& context = "",
                    bool warnIfMissing = true) 
     {
+        ProjectPrinter printer;
         if (obj.contains(key)) {
             try {
                 return obj.at(key).get<T>();
             } catch (const std::exception& e) {
-                spdlog::warn("Failed to parse key '{}' in channel '{}': {} (context: {}). Using default value.", 
-                             key, channelId, e.what(), context);
+                printer.PrintWarning("Failed to parse key '" + key + "' in channel " + channelId + " " + context + ". Using default value.", __LINE__, __FILE__);
                 return defaultValue;
             }
         } else {
             if (warnIfMissing) {
-                spdlog::warn("Key '{}' not found in channel '{}' (context: {}). Using default value.", 
-                             key, channelId, context);
+                printer.PrintWarning("Key '" + key + "' not found in channel " + channelId + " " + context + ". Using default value.", __LINE__, __FILE__);
             }
             return defaultValue;
         }
