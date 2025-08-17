@@ -1,4 +1,4 @@
-#include "GeneralProcessorFactory.h"
+#include "processors/GeneralProcessorFactory.h"
 #include <stdexcept>
 
 GeneralProcessorFactory::GeneralProcessorFactory() {

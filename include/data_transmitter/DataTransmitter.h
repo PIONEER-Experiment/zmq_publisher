@@ -5,8 +5,7 @@
 #include <string>
 #include <zmq.hpp>
 #include <iostream>
-#include "ProjectPrinter.h"
-#include "DataChannel.h"
+#include "data_transmitter/DataChannel.h"
 
 /**
  * @brief Transmits data over a ZeroMQ (zmq) publisher socket.

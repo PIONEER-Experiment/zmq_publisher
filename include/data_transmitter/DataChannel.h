@@ -4,7 +4,7 @@
 
 #include <string>
 #include <memory>
-#include "DataChannelProcessesManager.h"
+#include "data_transmitter/DataChannelProcessesManager.h"
 
 // Forward declarations to avoid circular imports
 class DataTransmitter;

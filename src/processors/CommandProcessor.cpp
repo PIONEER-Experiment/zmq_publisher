@@ -1,5 +1,4 @@
-#include "CommandProcessor.h"
-#include "ProjectPrinter.h"
+#include "processors/CommandProcessor.h"
 
 CommandProcessor::CommandProcessor(int verbose, const CommandRunner& runner)
     : GeneralProcessor(verbose), commandRunner(runner) {}
@@ -22,7 +21,6 @@ bool CommandProcessor::isReadyToProcess() const {
     if (commandRunner.isReadyForExecution()) {
         return true;
     }
-    ProjectPrinter printer;
     return false;
 }
 

@@ -1,114 +1,126 @@
 #!/bin/bash
+# detect_environment.sh - auto-detect MIDASSYS, MIDAS_EXPTAB, MIDAS_EXPT_NAME, ZeroMQ, cppzmq and write .env file
 
-# Get the directory of the script
-SOURCE=${BASH_SOURCE[0]}
-while [ -L "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
-  DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
-  SOURCE=$(readlink "$SOURCE")
-  [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+source "$SCRIPT_DIR/.helpers.sh"
+
+DEBUG=false
+
+show_help() {
+  cat << EOF
+Usage: $0 [OPTIONS] [SEARCH_ROOTS...]
+
+Options:
+  -d, --debug       Enable debug output
+  -h, --help        Show this help message and exit
+
+Positional arguments:
+  SEARCH_ROOTS      One or more directories to search for dependencies.
+                    Defaults to: \$HOME /opt /usr/local /usr
+EOF
+}
+
+# Default search roots
+SEARCH_ROOTS=("$HOME" "/opt" "/usr/local")
+
+# Parse CLI args
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -d|--debug) DEBUG=true; shift ;;
+    -h|--help) show_help; exit 0 ;;
+    --) shift; break ;;
+    -*) echo "Unknown option: $1" >&2; show_help; exit 1 ;;
+    *) break ;;
+  esac
 done
-script_directory=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
 
-# Declare a global variable to hold the result
-dir_choice=""
-
-# Function to handle multiple options
-handle_multiple_options() {
-    local name="$1"
+# If positional args provided, override SEARCH_ROOTS
+if [[ $# -gt 0 ]]; then
+  SEARCH_ROOTS=()
+  while [[ $# -gt 0 ]]; do
+    SEARCH_ROOTS+=("$1")
     shift
-    local options=("$@")
-
-    # Split each option by newline and treat each line as a separate option
-    declare -A seen_options
-    unique_options=()
-    for option in "${options[@]}"; do
-        IFS=$'\n' read -ra lines <<< "$option"
-        for line in "${lines[@]}"; do
-            cleaned_option=$(realpath -s "$line")
-            if [ ! -n "${seen_options["$cleaned_option"]}" ]; then
-                unique_options+=("$cleaned_option")
-                seen_options["$cleaned_option"]=1
-            fi
-        done
-    done
-    eval "$name=${unique_options[0]}"
-    if [ "${#unique_options[@]}" -gt 1 ]; then
-        echo "$name has multiple options:"
-        for option in "${unique_options[@]}"; do
-            echo "  - $option"
-        done
-        echo "Using the first option: $name=${unique_options[0]}"
-        echo
-    fi
-
-    dir_choice="${unique_options[0]}"
-}
-
-# Function to search for directories or files
-# Arguments:
-# 1. Timeout duration in seconds
-# 2. Name of the directory or file to search for
-# 3. Environment variable name to set
-# 4. "d" for directory or "f" for file
-search_and_set_directory_or_file() {
-    local timeout_duration="$1"
-    local search_name="$2"
-    local var_name="$3"
-    local dir_type="$4"
-    local file_type="$5"
-
-    current_dir=($script_directory)
-    result_dirs=()
-    start_time=$(date +%s)  # Record the start time
-
-    while [ $(( $(date +%s) - start_time )) -lt $timeout_duration ]; do
-        if [ "$dir_type" == "d" ]; then
-            result=$(find "$current_dir" -maxdepth 3 -type d -name "$search_name" 2>/dev/null)
-        elif [ "$file_type" == "f" ]; then
-            result=$(find "$current_dir" -maxdepth 3 -type f -name "$search_name" 2>/dev/null)
-        fi
-        if [ -n "$result" ]; then
-            result_dirs+=("$result")
-        fi
-
-        if [ "$current_dir" == "/" ]; then
-            break  # Stop when the root directory is reached
-        fi
-        current_dir=$(dirname "$current_dir")
-    done
-
-    if [ "${#result_dirs[@]}" -gt 0 ]; then
-        handle_multiple_options "$var_name" "${result_dirs[@]}"
-        eval "$var_name=\"$dir_choice\""
-    elif [ -z "${!var_name}" ]; then
-        echo "$var_name not found within $timeout_duration seconds."
-    fi
-}
-
-# Search for "midas" directory backward with a timeout of 5 seconds
-search_and_set_directory_or_file 5 "midas" "MIDASSYS" "d" ""
-
-# Search for "exptab" file backward with a timeout of 5 seconds
-search_and_set_directory_or_file 5 "exptab" "MIDAS_EXPTAB" "" "f"
-
-# Search for "zeroMQ" directory backward with a timeout of 5 seconds
-search_and_set_directory_or_file 5 "libzmq" "ZEROMQ_ROOT" "d" ""
-
-# Search for "cppzmq" directory backward with a timeout of 5 seconds
-search_and_set_directory_or_file 5 "cppzmq" "CPPZMQ_ROOT" "d" ""
-
-# Extract first line from MIDAS_EXPTAB to set MIDAS_EXPT_NAME
-MIDAS_EXPT_NAME=$(timeout 5 sed -n '1{p;q}' "$MIDAS_EXPTAB" | awk '{print $1}')
-if [ -z "$MIDAS_EXPT_NAME" ]; then
-    echo "Warning: The first line in $MIDAS_EXPTAB is empty or doesn't exist."
+  done
 fi
 
-# Write the environment variables to "environment_variables.txt"
-echo "MIDASSYS=$MIDASSYS" > environment_variables.txt
-echo "MIDAS_EXPTAB=$MIDAS_EXPTAB" >> environment_variables.txt
-echo "MIDAS_EXPT_NAME=$MIDAS_EXPT_NAME" >> environment_variables.txt
-echo "ZEROMQ_ROOT=$ZEROMQ_ROOT" >> environment_variables.txt
-echo "CPPZMQ_ROOT=$CPPZMQ_ROOT" >> environment_variables.txt
+# Required file patterns
+REQUIRED_MIDAS_FILES=("MidasConfig.cmake" "include/midas.h")
+REQUIRED_ZMQ_FILES=("include/zmq.h")
+REQUIRED_CPPZMQ_FILES=("zmq.hpp")
 
-echo
-echo "Directory detection completed and environment variables saved to environment_variables.txt."
+ENV_FILE="$SCRIPT_DIR/.env"
+
+echo "[INFO] Searching for dependencies..."
+$DEBUG && echo "[DEBUG] Searching in roots: ${SEARCH_ROOTS[*]}" >&2
+
+# --- MIDAS ---
+echo "[INFO] Searching for MIDAS installation directories containing files: ${REQUIRED_MIDAS_FILES[*]}"
+if found=$(find_root_with_files "${SEARCH_ROOTS[@]}" -- "${REQUIRED_MIDAS_FILES[@]}" "$DEBUG"); then
+  echo "[INFO] Found MIDASSYS: $found"
+  MIDASSYS="$found"
+else
+  echo "[WARN] MIDAS installation not found."
+  MIDASSYS=""
+fi
+
+# --- MIDAS_EXPTAB ---
+MIDAS_EXPTAB=""
+MIDAS_EXPT_NAME=""
+
+if [[ -n "$MIDASSYS" ]]; then
+  echo "[INFO] Searching for MIDAS experiment table files named 'exptab' under roots: ${SEARCH_ROOTS[*]}"
+  if exptab_path=$(find_file_in_candidates "${SEARCH_ROOTS[@]}" -- "exptab" "$DEBUG"); then
+    echo "[INFO] Found MIDAS_EXPTAB: $exptab_path"
+    MIDAS_EXPTAB="$exptab_path"
+
+    # Extract experiment name (first word of first line)
+    MIDAS_EXPT_NAME=$(head -n1 "$exptab_path" | awk '{print $1}')
+    if [[ -n "$MIDAS_EXPT_NAME" ]]; then
+      echo "[INFO] MIDAS_EXPT_NAME set to: $MIDAS_EXPT_NAME"
+    else
+      echo "[WARN] Could not extract MIDAS_EXPT_NAME from $exptab_path"
+      MIDAS_EXPT_NAME=""
+    fi
+  else
+    echo "[WARN] MIDAS_EXPTAB file not found."
+  fi
+fi
+
+# --- ZeroMQ: find all matches ---
+echo "[INFO] Searching for ZeroMQ installations (files: ${REQUIRED_ZMQ_FILES[*]}) in roots: ${SEARCH_ROOTS[*]}"
+if found_list=$(find_root_with_files --all "${SEARCH_ROOTS[@]}" -- "${REQUIRED_ZMQ_FILES[@]}" "$DEBUG"); then
+  echo "[INFO] Found ZeroMQ candidates:"
+  echo "$found_list" | sed 's/^/  - /'
+  echo "[INFO] If ZeroMQ is not installed system-wide, you can manually set ZEROMQ_ROOT in .env to one of the above."
+else
+  echo "[WARN] ZeroMQ not found."
+fi
+
+# --- cppzmq: find all matches ---
+echo "[INFO] Searching for cppzmq installations (files: ${REQUIRED_CPPZMQ_FILES[*]}) in roots: ${SEARCH_ROOTS[*]}"
+if found_list=$(find_root_with_files --all "${SEARCH_ROOTS[@]}" -- "${REQUIRED_CPPZMQ_FILES[@]}" "$DEBUG"); then
+  echo "[INFO] Found cppzmq candidates:"
+  echo "$found_list" | xargs -I{} dirname {} | sort -u | sed 's/^/  - /'
+  echo "[INFO] If cppzmq is not installed system-wide, you can manually set CPPZMQ_ROOT in .env to one of the above."
+else
+  echo "[WARN] cppzmq not found."
+fi
+
+# --- Write .env file ---
+echo "[INFO] Writing environment file: $ENV_FILE"
+{
+  [[ -n "$MIDASSYS" ]] && echo "export MIDASSYS=$MIDASSYS"
+  [[ -n "$MIDAS_EXPTAB" ]] && echo "export MIDAS_EXPTAB=$MIDAS_EXPTAB"
+  [[ -n "$MIDAS_EXPT_NAME" ]] && echo "export MIDAS_EXPT_NAME=$MIDAS_EXPT_NAME"
+  # Add the unpacker path environment variable unconditionally:
+  echo "export UNPACKER_PATH=$PROJECT_ROOT/build/_deps/unpacker-src"
+  # Don't write ZEROMQ_ROOT or CPPZMQ_ROOT automatically
+} > "$ENV_FILE"
+
+echo "[INFO] Done. Run 'source $ENV_FILE' before building."
+echo "[INFO] Note: ZeroMQ and cppzmq roots are not set automatically."
+echo "[INFO] If needed, edit '$ENV_FILE' to add ZEROMQ_ROOT or CPPZMQ_ROOT manually from the listed candidates."

@@ -1,216 +1,183 @@
-#include "MidasEventProcessor.h"
-#include <sstream>
-#include <iomanip>
+// MidasEventProcessor.cpp
+#include "processors/MidasEventProcessor.h"
 #include <iostream>
+#include <stdexcept>
+#include <chrono>
+#include <spdlog/spdlog.h>
+#include "analysis_pipeline/core/context/input_bundle.h"
+
+using json = nlohmann::json;
 
 MidasEventProcessor::MidasEventProcessor(int verbose)
     : GeneralProcessor(verbose),
-      midasReceiver(MidasReceiver::getInstance()),
-      lastTimestamp(std::chrono::system_clock::now()),
-      initialized(false),
-      numEventsPerRetrieval(1) {}
+      midasReceiver_(MidasReceiver::getInstance()),
+      lastEventTimestamp_(std::chrono::system_clock::now()),
+      lastTransitionTimestamp_(std::chrono::system_clock::now()) {}
 
 MidasEventProcessor::~MidasEventProcessor() {
-    if (initialized) {
-        midasReceiver.stop();
+    if (initialized_) {
+        midasReceiver_.stop();
     }
 }
 
-void MidasEventProcessor::init(
-    const std::string& host,
-    const std::string& experiment,
-    const std::string& buffer,
-    const std::string& clientName,
-    int eventId,
-    bool getAll,
-    int bufferSize,
-    int yieldTimeoutMs,
-    size_t numEventsPerRetrieval
-) {
-    this->numEventsPerRetrieval = numEventsPerRetrieval;
+void MidasEventProcessor::Init(const json& midas_receiver_config,
+                               const json& pipeline_config,
+                               const json& midas_event_processor_config)
+{
+    if (!midas_receiver_config.is_object() || !pipeline_config.is_object() || !midas_event_processor_config.is_object()) {
+        throw std::invalid_argument("[MidasEventProcessor] Init requires three JSON objects.");
+    }
 
     MidasReceiverConfig config;
-    config.host = host;
-    config.experiment = experiment;
-    config.bufferName = buffer;
-    config.clientName = clientName;
-    config.eventID = eventId;
-    config.getAllEvents = getAll;
-    config.maxBufferSize = bufferSize;
-    config.cmYieldTimeout = yieldTimeoutMs;
-    // Set transition registrations explicitly (this overrides the defaults)
+    config.host = midas_receiver_config.value("host", "");
+    config.experiment = midas_receiver_config.value("experiment", "");
+    config.bufferName = midas_receiver_config.value("buffer", "SYSTEM");
+    config.clientName = midas_receiver_config.value("client-name", "MidasEventProcessor");
+    config.eventID = midas_receiver_config.value("event-id", -1);
+    config.getAllEvents = midas_receiver_config.value("get-all", true);
+    config.maxBufferSize = midas_receiver_config.value("buffer-size", 1000);
+    config.cmYieldTimeout = midas_receiver_config.value("yield-timeout-ms", 300);
+    numEventsPerRetrieval_ = midas_receiver_config.value("num-events-per-retrieval", 1);
+
     config.transitionRegistrations = {
-        {TR_START,      100},  // early consumer of START sequence
+        {TR_START, 100}
     };
 
+    if (!midasReceiver_.IsInitialized()) {
+        midasReceiver_.init(config);
+    }
+    midasReceiver_.start();
 
-    midasReceiver.init(config);
-    midasReceiver.start();
-    initialized = true;
+    configManager_ = std::make_shared<ConfigManager>();
+    configManager_->reset();
+    configManager_->addJsonObject(pipeline_config);
+    if (!configManager_->validate()) {
+        throw std::runtime_error("[MidasEventProcessor] Pipeline config validation failed.");
+    }
+
+    pipeline_ = std::make_unique<Pipeline>(configManager_);
+    if (!pipeline_->buildFromConfig()) {
+        throw std::runtime_error("[MidasEventProcessor] Failed to build pipeline.");
+    }
+
+    if (midas_event_processor_config.is_object()) {
+        clearProductsOnNewRun_ = midas_event_processor_config.value("clear-products-on-new-run", true);
+
+        if (midas_event_processor_config.contains("tags_to_omit_from_clear") &&
+            midas_event_processor_config["tags_to_omit_from_clear"].is_array()) {
+            for (const auto& tag : midas_event_processor_config["tags_to_omit_from_clear"]) {
+                tagsToOmitFromClear_.insert(tag.get<std::string>());
+            }
+        }
+    }
+
+    // Immediately set internal run number from ODB
+    INT currentRun = getRunNumberFromOdb();
+    if (currentRun >= 0) {
+        lastRunNumber_ = currentRun;
+        if (verbose > 0) {
+            spdlog::debug("[MidasEventProcessor] Initial run number retrieved from ODB: {}", lastRunNumber_);
+        }
+    } else {
+        if (verbose > 0) {
+            spdlog::warn("[MidasEventProcessor] Failed to retrieve initial run number from ODB. Using -1.");
+        }
+        lastRunNumber_ = -1;
+    }
+
+    initialized_ = true;
 }
 
 bool MidasEventProcessor::isReadyToProcess() const {
-    if (!initialized) {
-        return false;
-    }
-    return true;
+    if (!initialized_) return false;
+
+    auto now = std::chrono::system_clock::now();
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProcessedTime_).count();
+
+    return elapsedMs >= period;
 }
 
-std::string MidasEventProcessor::toHexString(const char* data, size_t size) const {
-    std::ostringstream oss;
-    for (size_t i = 0; i < size; ++i) {
-        oss << std::hex << std::setw(2) << std::setfill('0')
-            << (static_cast<uint8_t>(data[i]) & 0xFF);
+void MidasEventProcessor::handleTransitions() {
+    auto transitions = midasReceiver_.getLatestTransitions(10, lastTransitionTimestamp_);
+
+    for (const auto& t : transitions) {
+        if (t.run_number != lastRunNumber_) {
+            setRunNumber(t.run_number);
+        }
     }
-    return oss.str();
+
+    if (!transitions.empty()) {
+        lastTransitionTimestamp_ = transitions.back().timestamp;
+    }
 }
 
-json MidasEventProcessor::decodeBankData(const TMBank& bank, const TMEvent& event) const {
-    const char* bankData = event.GetBankData(&bank);
-    if (!bankData || bank.data_size == 0) {
-        return nullptr;
+void MidasEventProcessor::setRunNumber(INT newRunNumber) {
+    lastRunNumber_ = newRunNumber;
+
+    if (verbose > 0) {
+        spdlog::debug("[MidasEventProcessor] Run transition detected: run {}", newRunNumber);
     }
 
-    size_t dataSize = bank.data_size;
-    json dataArray = json::array();
+    if (clearProductsOnNewRun_) {
+        spdlog::debug("[MidasEventProcessor] Clearing data products for new run.");
+        auto& dataProductManager = pipeline_->getDataProductManager();
 
-    switch (bank.type) {
-        case TID_UINT8: {
-            const uint8_t* arr = reinterpret_cast<const uint8_t*>(bankData);
-            size_t count = dataSize / sizeof(uint8_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_INT8: {
-            const int8_t* arr = reinterpret_cast<const int8_t*>(bankData);
-            size_t count = dataSize / sizeof(int8_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_UINT16: {
-            const uint16_t* arr = reinterpret_cast<const uint16_t*>(bankData);
-            size_t count = dataSize / sizeof(uint16_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_INT16: {
-            const int16_t* arr = reinterpret_cast<const int16_t*>(bankData);
-            size_t count = dataSize / sizeof(int16_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_UINT32: {
-            const uint32_t* arr = reinterpret_cast<const uint32_t*>(bankData);
-            size_t count = dataSize / sizeof(uint32_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_INT32: {
-            const int32_t* arr = reinterpret_cast<const int32_t*>(bankData);
-            size_t count = dataSize / sizeof(int32_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_FLOAT: {
-            const float* arr = reinterpret_cast<const float*>(bankData);
-            size_t count = dataSize / sizeof(float);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_DOUBLE: {
-            const double* arr = reinterpret_cast<const double*>(bankData);
-            size_t count = dataSize / sizeof(double);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_INT64: {
-            const int64_t* arr = reinterpret_cast<const int64_t*>(bankData);
-            size_t count = dataSize / sizeof(int64_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_UINT64: {
-            const uint64_t* arr = reinterpret_cast<const uint64_t*>(bankData);
-            size_t count = dataSize / sizeof(uint64_t);
-            for (size_t i = 0; i < count; ++i) {
-                dataArray.push_back(arr[i]);
-            }
-            break;
-        }
-        case TID_STRING: {
-            dataArray = std::string(bankData, dataSize);
-            break;
-        }
-        default: {
-            dataArray = toHexString(bankData, dataSize);
-            break;
+        if (tagsToOmitFromClear_.empty()) {
+            dataProductManager.clear();
+        } else {
+            dataProductManager.removeExcludingTags(tagsToOmitFromClear_);
         }
     }
+}
 
-    return dataArray;
+INT MidasEventProcessor::getRunNumberFromOdb(const std::string& odbPath) const {
+    try {
+        std::string odbJsonStr = midasReceiver_.getOdb(odbPath);
+        auto odbJson = json::parse(odbJsonStr);
+
+        if (odbJson.contains("Run number") && odbJson["Run number"].is_number()) {
+            return odbJson["Run number"].get<INT>();
+        } else {
+            spdlog::warn("[MidasEventProcessor] ODB JSON does not contain a valid 'Run number': {}", odbJsonStr);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[MidasEventProcessor] Failed to parse ODB for run number: {}", e.what());
+    }
+    return -1;
 }
 
 std::vector<std::string> MidasEventProcessor::getProcessedOutput() {
-    std::vector<std::string> output;
+    std::vector<std::string> out;
+    if (!initialized_) return out;
 
-    if (!initialized) {
-        return output;
-    }
+    handleTransitions();
 
-    auto timedEvents = midasReceiver.getLatestEvents(numEventsPerRetrieval, lastTimestamp);
+    auto timedEvents = midasReceiver_.getLatestEvents(numEventsPerRetrieval_, lastEventTimestamp_);
 
     for (auto& timedEvent : timedEvents) {
-        auto& event = timedEvent.event;
-        auto& timestamp = timedEvent.timestamp;
+        InputBundle input;
 
-        event.FindAllBanks();
+        input.set("TMEvent", timedEvent->event);
+        input.set("timestamp", timedEvent->timestamp);
+        input.set("run_number", lastRunNumber_);
 
-        json j;
-        j["event_id"] = event.event_id;
-        j["serial_number"] = event.serial_number;
-        j["trigger_mask"] = event.trigger_mask;
-        j["timestamp"] = std::chrono::system_clock::to_time_t(timestamp);
-        j["data_size"] = event.data_size;
-        j["event_header_size"] = event.event_header_size;
-        j["bank_header_flags"] = event.bank_header_flags;
+        pipeline_->setInputData(std::move(input));
+        pipeline_->execute();
 
-        j["banks"] = json::array();
+        json serializedData = pipeline_->getDataProductManager().serializeAll();
 
-        for (const auto& bank : event.banks) {
-            json jbank;
-            jbank["name"] = bank.name;
-            jbank["type"] = bank.type;
-            jbank["data_size"] = bank.data_size;
+        json outJson;
+        outJson["run_number"] = lastRunNumber_;
+        outJson["data_products"] = serializedData;
 
-            jbank["data"] = decodeBankData(bank, event);
-
-            j["banks"].push_back(jbank);
-        }
-
-        output.push_back(j.dump());
+        out.push_back(outJson.dump());
     }
 
     if (!timedEvents.empty()) {
-        lastTimestamp = timedEvents.back().timestamp;
+        lastEventTimestamp_ = timedEvents.back()->timestamp;
     }
 
-    return output;
+    lastProcessedTime_ = std::chrono::system_clock::now();
+
+    return out;
 }

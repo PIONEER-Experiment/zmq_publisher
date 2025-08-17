@@ -1,5 +1,5 @@
-#include "DataTransmitter.h"
-#include "ProjectPrinter.h"
+#include "data_transmitter/DataTransmitter.h"
+#include <spdlog/spdlog.h>
 
 DataTransmitter::DataTransmitter(const std::string& zmqAddress, int verbose)
     : context(1), publisher(context, ZMQ_PUB), zmqAddress(zmqAddress), verbose(verbose), isBoundToSocket(false) {
@@ -18,7 +18,7 @@ bool DataTransmitter::bind() {
         isBoundToSocket = true;
         return true;
     } catch (const zmq::error_t& e) {
-        // Handle any connection errors
+        spdlog::error("Failed to bind to ZMQ address {}: {}", zmqAddress, e.what());
         return false;
     }
 }
@@ -27,9 +27,7 @@ bool DataTransmitter::isBound() {
     return isBoundToSocket;
 }
 
-
 bool DataTransmitter::publish(DataChannel& dataChannel, const std::string& data) {
-    ProjectPrinter printer;
     try {
         std::string channel = dataChannel.getName();
         dataChannel.seen();
@@ -45,21 +43,19 @@ bool DataTransmitter::publish(DataChannel& dataChannel, const std::string& data)
                 int eventsOnBreak = dataChannel.getEventsToIgnoreInBreak() - dataChannel.getEventsSeenOnBreak();
                 channelDetails += channel + " is on a break for " + std::to_string(eventsOnBreak) + " events\n";
             }
-            printer.Print(channelDetails);
+            spdlog::debug(channelDetails);
         }
+
         if (dataChannel.isOnBreak()) {
             return true;
         }
-        
-        
-        if (!channel.empty()) { // No topic is sent if the channel name is empty
-            // Send the channel (topic)
+
+        if (!channel.empty()) {
             zmq::message_t channelMessage(channel.size());
             memcpy(channelMessage.data(), channel.c_str(), channel.size());
             publisher.send(channelMessage, zmq::send_flags::sndmore);
         }
 
-        // Send the actual message content
         zmq::message_t message(data.size());
         memcpy(message.data(), data.c_str(), data.size());
         publisher.send(message, zmq::send_flags::none);
@@ -67,22 +63,21 @@ bool DataTransmitter::publish(DataChannel& dataChannel, const std::string& data)
         dataChannel.published();
 
         if (verbose > 2) {
-            printer.Print("Published to channel " + channel + " at address " + zmqAddress + ": " + data);
+            spdlog::debug("Published to channel {} at address {}: {}", channel, zmqAddress, data);
         } else if (verbose > 1) {
             if (data.length() > 1000) {
                 std::string truncatedData = data.substr(0, 1000);
-                printer.Print("Published to channel " + channel + " at address " + zmqAddress + ": " + truncatedData +"... <truncated> ...");
+                spdlog::debug("Published to channel {} at address {}: {}... <truncated> ...", channel, zmqAddress, truncatedData);
             } else {
-                printer.Print("Published to channel " + channel + " at address " + zmqAddress + ": " + data);
+                spdlog::debug("Published to channel {} at address {}: {}", channel, zmqAddress, data);
             }
         } else if (verbose > 0) {
-            printer.Print("Published to channel " + channel + " at address " + zmqAddress);
+            spdlog::debug("Published to channel {} at address {}", channel, zmqAddress);
         }
-
 
         return true;
     } catch (const zmq::error_t& e) {
-        printer.PrintError("Failed to send data to address " + zmqAddress, __LINE__, __FILE__);
+        spdlog::error("Failed to send data to address {}: {}", zmqAddress, e.what());
         return false;
     }
 }

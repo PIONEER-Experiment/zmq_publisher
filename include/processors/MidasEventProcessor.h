@@ -1,53 +1,45 @@
+// MidasEventProcessor.h
 #ifndef MIDAS_EVENT_PROCESSOR_H
 #define MIDAS_EVENT_PROCESSOR_H
 
-#include "GeneralProcessor.h"
+#include "processors/GeneralProcessor.h"
 #include "MidasReceiver.h"
+#include "analysis_pipeline/pipeline/pipeline.h"
+#include "analysis_pipeline/config/config_manager.h"
 #include <chrono>
-#include <vector>
-#include <string>
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 
-using json = nlohmann::json;
-
-/**
- * @brief A processor that retrieves and processes MIDAS events.
- *
- * This class uses the singleton MidasReceiver to retrieve events and convert them
- * into a vector of strings for further handling.
- */
 class MidasEventProcessor : public GeneralProcessor {
 public:
     explicit MidasEventProcessor(int verbose = 0);
     ~MidasEventProcessor() override;
 
-    /**
-     * @brief Initializes the MIDAS receiver with specified parameters.
-     */
-    void init(
-        const std::string& host = "",
-        const std::string& experiment = "",
-        const std::string& buffer = "SYSTEM",
-        const std::string& clientName = "MidasEventProcessor",
-        int eventId = EVENTID_ALL,
-        bool getAll = true,
-        int bufferSize = 1000,
-        int yieldTimeoutMs = 300,
-        size_t numEventsPerRetrieval = 10
-    );
+    void Init(const nlohmann::json& midas_receiver_config,
+              const nlohmann::json& pipeline_config,
+              const nlohmann::json& midas_event_processor_config);
 
     std::vector<std::string> getProcessedOutput() override;
     bool isReadyToProcess() const override;
 
 private:
-    MidasReceiver& midasReceiver;
-    std::chrono::system_clock::time_point lastTimestamp;
-    size_t numEventsPerRetrieval = 10;
-    bool initialized = false;
+    std::chrono::system_clock::time_point lastProcessedTime_;
 
-    // Private helper methods (formerly static functions)
-    std::string toHexString(const char* data, size_t size) const;
-    json decodeBankData(const TMBank& bank, const TMEvent& event) const;
+    MidasReceiver& midasReceiver_;
+    std::chrono::system_clock::time_point lastEventTimestamp_;
+    std::chrono::system_clock::time_point lastTransitionTimestamp_;
+    bool initialized_ = false;
+    size_t numEventsPerRetrieval_ = 1;
+    INT lastRunNumber_ = -1;
+    bool clearProductsOnNewRun_ = true;
+    std::unordered_set<std::string> tagsToOmitFromClear_;
+
+    std::shared_ptr<ConfigManager> configManager_;
+    std::unique_ptr<Pipeline> pipeline_;
+
+    void handleTransitions();
+    void setRunNumber(INT newRunNumber);
+    INT getRunNumberFromOdb(const std::string& odbPath = "/Runinfo/Run number") const;
 };
 
 #endif // MIDAS_EVENT_PROCESSOR_H
