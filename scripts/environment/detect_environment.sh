@@ -116,8 +116,6 @@ echo "[INFO] Writing environment file: $ENV_FILE"
   [[ -n "$MIDASSYS" ]] && echo "export MIDASSYS=$MIDASSYS"
   [[ -n "$MIDAS_EXPTAB" ]] && echo "export MIDAS_EXPTAB=$MIDAS_EXPTAB"
   [[ -n "$MIDAS_EXPT_NAME" ]] && echo "export MIDAS_EXPT_NAME=$MIDAS_EXPT_NAME"
-  # Add the unpacker path environment variable unconditionally:
-  echo "export UNPACKER_PATH=$PROJECT_ROOT/build/_deps/unpacker-src"
   # Don't write ZEROMQ_ROOT or CPPZMQ_ROOT automatically
 } > "$ENV_FILE"
 

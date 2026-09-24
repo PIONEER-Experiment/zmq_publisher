@@ -1,141 +1,98 @@
 cmake_minimum_required(VERSION 3.18)
-project(publisher LANGUAGES CXX)
+project(zmq_publisher VERSION 0.2.0 LANGUAGES CXX)
 
-# Suppress stringop-overflow warning on GCC globally
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_compile_options(-Wno-stringop-overflow)
-endif()
+option(ZMQ_PUBLISHER_BUILD_COMMAND_EXTENSION "Build the command processor extension" ON)
+option(ZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION "Build the optional MIDAS processor extension" OFF)
+option(ZMQ_PUBLISHER_BUILD_EXAMPLES "Build repository examples" OFF)
+option(ZMQ_PUBLISHER_BUILD_TESTS "Build unit tests" ON)
 
-# ------------------------------------------------------------------------------
-# Project Settings
-# ------------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+include(cmake/CPM.cmake)
 
-# ------------------------------------------------------------------------------
-# MIDAS Environment (required by many libraries)
-# ------------------------------------------------------------------------------
-if(NOT DEFINED ENV{MIDASSYS})
-  message(FATAL_ERROR
-    "Environment variable MIDASSYS not set.\n"
-    "Please source your MIDAS environment or run the detect_environment.sh script:\n"
-    "  ./scripts/environment/detect_environment.sh\n"
-    "  source ./scripts/environment/.env"
-  )
-endif()
-
-set(MIDASSYS_INCLUDE_DIRS
-  $ENV{MIDASSYS}/include
-  $ENV{MIDASSYS}/mxml
-  $ENV{MIDASSYS}/midasio
+CPMAddPackage(
+  NAME spdlog
+  GITHUB_REPOSITORY gabime/spdlog
+  GIT_TAG v1.15.3
+  OPTIONS "SPDLOG_BUILD_TESTS OFF" "SPDLOG_BUILD_EXAMPLE OFF"
 )
-set(MIDASSYS_LIB_DIR $ENV{MIDASSYS}/lib)
+CPMAddPackage(
+  NAME nlohmann_json
+  GITHUB_REPOSITORY nlohmann/json
+  GIT_TAG v3.11.3
+)
 
-# ------------------------------------------------------------------------------
-# CPM Setup (local CPM.cmake expected)
-# ------------------------------------------------------------------------------
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake)
-
-# ------------------------------------------------------------------------------
-# Load CPM Package Config Variables
-# ------------------------------------------------------------------------------
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPMConfig.cmake)
-
-# ------------------------------------------------------------------------------
-# Dependencies via CPM using loaded variables
-# ------------------------------------------------------------------------------
-foreach(pkg IN LISTS CPM_PACKAGE_LIST)
-  string(TOUPPER ${pkg} UPPER_NAME)
-
-  # Gather package options if defined
-  set(pkg_OPTIONS "")
-  if(DEFINED ${pkg}_OPTIONS)
-    set(pkg_OPTIONS ${${pkg}_OPTIONS})
-  endif()
-
-  CPMAddPackage(
-    NAME ${pkg}
-    GITHUB_REPOSITORY ${${pkg}_REPO}
-    GIT_TAG ${${pkg}_TAG}
-    OPTIONS ${pkg_OPTIONS}
-  )
-endforeach()
-
-# ------------------------------------------------------------------------------
-# System Dependencies
-# ------------------------------------------------------------------------------
-find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer)
-find_package(TBB REQUIRED)
-find_package(ZLIB REQUIRED)
-
+find_package(Threads REQUIRED)
 find_library(ZMQ_LIBRARY NAMES zmq REQUIRED)
-find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
+find_path(CPPZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
 
-# ------------------------------------------------------------------------------
-# Sources
-# ------------------------------------------------------------------------------
-file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-
-add_executable(publisher ${APP_SOURCES})
-
-# ------------------------------------------------------------------------------
-# Include Paths
-# ------------------------------------------------------------------------------
-target_include_directories(publisher PRIVATE
-  ${ZMQ_INCLUDE_DIR}
-  ${MIDASSYS_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+add_library(zmq_publisher_core SHARED
+  src/app/application.cpp
+  src/channel/channel.cpp
+  src/channel/channel_manager.cpp
+  src/config/configuration.cpp
+  src/extension/plugin_loader.cpp
+  src/logging/logger_configuration.cpp
+  src/processor/processor_registry.cpp
+  src/scheduler/processor_scheduler.cpp
+  src/transport/zmq_transport.cpp
+  src/utility/signal_handler.cpp
+)
+add_library(zmq_publisher::core ALIAS zmq_publisher_core)
+target_include_directories(zmq_publisher_core
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_include_directories(zmq_publisher_core SYSTEM PRIVATE ${CPPZMQ_INCLUDE_DIR})
+target_link_libraries(zmq_publisher_core
+  PUBLIC
+    nlohmann_json::nlohmann_json
+    spdlog::spdlog
+  PRIVATE
+    Threads::Threads
+    ${CMAKE_DL_LIBS}
+    ${ZMQ_LIBRARY}
+)
+target_compile_options(zmq_publisher_core PRIVATE
+  $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic>
 )
 
-# ------------------------------------------------------------------------------
-# Link Libraries
-# ------------------------------------------------------------------------------
-# Link all registered CPM targets
-foreach(pkg IN LISTS CPM_PACKAGE_LIST)
-  if(DEFINED ${pkg}_TARGET)
-    target_link_libraries(publisher PRIVATE ${${pkg}_TARGET})
-  elseif(DEFINED ${pkg}_TARGETS)
-    foreach(subtarget IN LISTS ${pkg}_TARGETS)
-      target_link_libraries(publisher PRIVATE ${subtarget})
-    endforeach()
-  endif()
-endforeach()
-
-
-target_link_libraries(publisher PRIVATE
-  ROOT::Core ROOT::RIO ROOT::Tree ROOT::Hist ROOT::TreePlayer
-  TBB::tbb
-  ZLIB::ZLIB
-  ${ZMQ_LIBRARY}
-  ${MIDASSYS_LIB_DIR}/libmfe.a
-  ${MIDASSYS_LIB_DIR}/libmidas.a
-)
-# ------------------------------------------------------------------------------
-# Compiler Definitions (optional)
-# ------------------------------------------------------------------------------
-target_compile_definitions(publisher PRIVATE
-  -DWD2_DONT_INCLUDE_REG_ACCESS_VARS
-  -DDCB_DONT_INCLUDE_REG_ACCESS_VARS
+add_executable(zmq_publisher src/app/main.cpp)
+target_link_libraries(zmq_publisher PRIVATE zmq_publisher::core)
+set_target_properties(zmq_publisher PROPERTIES
+  BUILD_RPATH "$ORIGIN/../lib"
+  INSTALL_RPATH "$ORIGIN/../lib"
 )
 
-# ------------------------------------------------------------------------------
-# Examples (Submodule)
-# ------------------------------------------------------------------------------
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/example_zmq_receiver/CMakeLists.txt")
-  message(STATUS "Including example_zmq_receiver submodule for build")
-  add_subdirectory(examples/example_zmq_receiver)
-else()
-  message(WARNING "example_zmq_receiver submodule NOT found - skipping build")
+if(ZMQ_PUBLISHER_BUILD_COMMAND_EXTENSION)
+  add_subdirectory(extensions/command)
 endif()
 
-# ------------------------------------------------------------------------------
-# No install() — this is a top-level application, not a reusable library
-# ------------------------------------------------------------------------------
+if(ZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION)
+  add_subdirectory(extensions/midas)
+endif()
+
+if(ZMQ_PUBLISHER_BUILD_EXAMPLES AND EXISTS
+   "${CMAKE_CURRENT_SOURCE_DIR}/examples/example_zmq_receiver/CMakeLists.txt")
+  add_subdirectory(examples/example_zmq_receiver)
+endif()
+
+if(ZMQ_PUBLISHER_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
+
+install(TARGETS zmq_publisher zmq_publisher_core
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
+install(DIRECTORY include/ DESTINATION include)

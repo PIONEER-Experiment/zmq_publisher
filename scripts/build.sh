@@ -1,14 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 # Resolve absolute paths
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 BASE_DIR=$(realpath "$SCRIPT_DIR/..")
 BUILD_DIR="$BASE_DIR/build"
-CLEANUP_SCRIPT="$SCRIPT_DIR/cleanup.sh"
+ENV_FILE="$SCRIPT_DIR/environment/.env"
 
 # Default flags
 OVERWRITE=false
 JOBS_ARG="-j"  # Use all processors
+WITH_MIDAS=false
 
 # Help message
 show_help() {
@@ -16,7 +19,8 @@ show_help() {
     echo
     echo "Options:"
     echo "  -o, --overwrite           Remove existing build directory before building"
-    echo "  -j, --jobs <number>       Specify number of processors to use (default: all available)"
+    echo "  -j, --jobs <number>       Specify number of build jobs (default: all available)"
+    echo "  --with-midas              Build the optional MIDAS extension"
     echo "  -h, --help                Display this help message"
 }
 
@@ -28,13 +32,17 @@ while [[ "$#" -gt 0 ]]; do
             shift
             ;;
         -j|--jobs)
-            if [[ -n "$2" && "$2" != -* ]]; then
+            if [[ $# -gt 1 && -n "$2" && "$2" != -* ]]; then
                 JOBS_ARG="-j$2"
                 shift 2
             else
                 JOBS_ARG="-j"
                 shift
             fi
+            ;;
+        --with-midas)
+            WITH_MIDAS=true
+            shift
             ;;
         -h|--help)
             show_help
@@ -50,20 +58,32 @@ done
 
 # Optionally clean build
 if [ "$OVERWRITE" = true ]; then
-    echo "[build.sh] Cleaning previous build with: $CLEANUP_SCRIPT"
-    "$CLEANUP_SCRIPT"
+    echo "[build.sh] Removing previous build directory: $BUILD_DIR"
+    cmake -E remove_directory "$BUILD_DIR"
 fi
 
-# Create and enter build directory
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR" || exit 1
-
-# Run CMake and Make
+# Configure and build
 echo "[build.sh] Running cmake in: $BUILD_DIR"
-cmake "$BASE_DIR"
+CMAKE_OPTIONS=()
+if [ "$WITH_MIDAS" = true ]; then
+    if [[ -f "$ENV_FILE" ]]; then
+        # shellcheck disable=SC1090
+        source "$ENV_FILE"
+    fi
+    if [[ -z "${MIDASSYS:-}" ]]; then
+        echo "[build.sh, ERROR] MIDASSYS is not set. Run './scripts/setup_env.sh --with-midas'."
+        exit 1
+    fi
+    CMAKE_OPTIONS+=("-DZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION=ON")
+fi
+cmake -S "$BASE_DIR" -B "$BUILD_DIR" "${CMAKE_OPTIONS[@]}"
 
-echo "[build.sh] Building with make $JOBS_ARG"
-make $JOBS_ARG
+echo "[build.sh] Building with $JOBS_ARG"
+if [ "$JOBS_ARG" = "-j" ]; then
+    cmake --build "$BUILD_DIR" --parallel
+else
+    cmake --build "$BUILD_DIR" --parallel "${JOBS_ARG#-j}"
+fi
 
 echo "[build.sh] Build complete."
 echo "[build.sh] Executables are in: $BUILD_DIR/bin/"

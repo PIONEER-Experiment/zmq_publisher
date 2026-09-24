@@ -1,70 +1,31 @@
 {
   "general-settings": {
-    "verbose": 2
+    "verbose": 1,
+    "worker-threads": 2,
+    "output-queue-capacity": 1024,
+    "processor-extensions": [
+      "build/lib/libzmq_publisher_command_extension.so"
+    ]
   },
   "data-channels": {
-    "midas-event-channel": {
+    "system-time": {
       "enabled": true,
-      "zmq-address": "tcp://127.0.0.1:5555",
-      "name": "DATA",
+      "endpoint": "tcp://127.0.0.1:5555",
+      "topic": "TIME",
       "publishes-per-batch": 1,
       "publishes-ignored-after-batch": 0,
-      "num-events-in-circular-buffer": 1,
+      "buffer-capacity": 1,
       "processors": [
         {
-          "processor": "MidasEventProcessor",
-          "period-ms": 1000,
-          "midas_event_processor_config": {
-            "clear-products-on-new-run": true,
-            "tags_to_omit_from_clear": [
-              "persistent",
-              "keep_me"
-            ]
+          "type": "command",
+          "schedule": {
+            "mode": "fixed-delay",
+            "interval-ms": 1000
           },
-          "midas_receiver_config": {
-            "host": "",
-            "experiment": "",
-            "buffer": "SYSTEM",
-            "client-name": "MidasEventPublisher",
-            "event-id": -1,
-            "get-all": true,
-            "buffer-size": 1000,
-            "yield-timeout-ms": 300,
-            "num-events-per-retrieval": 1
-          },
-          "pipeline_config": {
-              "plugin_libraries": [
-                "build/lib/libdefault_midas_unpacking_pipeline_plugin.so",
-                "build/lib/libcustom_midas_unpacking_pipeline_plugin.so",
-                "build/lib/libcommon_data_products.so",
-                "build/lib/libnalu_data_products.so",
-                "build/lib/libcommon_unpacking.so",
-                "build/lib/libnalu_unpacking.so"
-              ],
-            "pipeline": [
-              {
-                "id": "unpacker",
-                "type": "CustomMidasUnpackerStage",
-                "parameters": {
-                  "unpacker_class": "unpackers::NaluEventUnpacker"
-                },
-                "next": ["cleanup"]
-              },
-              {
-                "id": "cleanup",
-                "type": "ClearProductsStage",
-                "parameters": {
-                  "products": [
-                    "NaluEventFooterCollection",
-                    "NaluEventHeaderCollection",
-                    "NaluPacketFooterCollection",
-                    "NaluPacketHeaderCollection",
-                    "NaluTimeCollection",
-                    "NaluWaveformCollection"
-                  ]
-                },
-                "next": []
-              }
+          "config": {
+            "command": [
+              "/bin/date",
+              "--iso-8601=seconds"
             ]
           }
         }

@@ -6,7 +6,7 @@ ORIG_DIR=$(pwd)
 # Get the absolute path of the script directory
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 BASE_DIR="$SCRIPT_DIR/.."
-EXECUTABLE="$BASE_DIR/build/bin/publisher"
+EXECUTABLE="$BASE_DIR/build/bin/zmq_publisher"
 
 # Variables for options
 PRELOAD_LIBS=""
@@ -55,9 +55,6 @@ if [ ! -f "$EXECUTABLE" ]; then
     exit 1
 fi
 
-# Set environment variables
-export UNPACKER_ROOT="$BASE_DIR/build/_deps/unpacker-src"
-
 # Export LD_PRELOAD if any preload libs specified
 if [[ -n "$PRELOAD_LIBS" ]]; then
     export LD_PRELOAD="$PRELOAD_LIBS${LD_PRELOAD:+:$LD_PRELOAD}"
@@ -77,7 +74,7 @@ elif [ "$VALGRIND" = true ]; then
     echo "[run.sh, INFO] Running with valgrind..."
     valgrind --leak-check=full --track-origins=yes "$EXECUTABLE" "${EXE_ARGS[@]}"
 else
-    echo "[run.sh, INFO] Running analysis_pipeline..."
+    echo "[run.sh, INFO] Running zmq_publisher..."
     "$EXECUTABLE" "${EXE_ARGS[@]}"
 fi
 

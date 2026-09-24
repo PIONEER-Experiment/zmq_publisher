@@ -1,6 +1,6 @@
 {
   "logger": {
-    "name": "Midas_Publisher_Logger",
+    "name": "zmq_publisher",
     "level": "info",
     "pattern": "[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v",
     "sinks": {

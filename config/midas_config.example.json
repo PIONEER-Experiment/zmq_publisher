@@ -1,0 +1,40 @@
+{
+  "general-settings": {
+    "verbose": 1,
+    "worker-threads": 2,
+    "output-queue-capacity": 1024,
+    "processor-extensions": [
+      "build/lib/libzmq_publisher_midas_extension.so"
+    ]
+  },
+  "data-channels": {
+    "midas-events": {
+      "enabled": true,
+      "endpoint": "tcp://127.0.0.1:5555",
+      "topic": "DATA",
+      "publishes-per-batch": 1,
+      "publishes-ignored-after-batch": 0,
+      "buffer-capacity": 1,
+      "processors": [
+        {
+          "type": "midas",
+          "schedule": {
+            "mode": "continuous",
+            "interval-ms": 0
+          },
+          "config": {
+            "host": "",
+            "experiment": "",
+            "buffer": "SYSTEM",
+            "client-name": "ZmqPublisher",
+            "event-id": -1,
+            "get-all": true,
+            "buffer-size": 1000,
+            "yield-timeout-ms": 300,
+            "num-events-per-retrieval": 1
+          }
+        }
+      ]
+    }
+  }
+}
