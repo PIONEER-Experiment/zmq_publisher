@@ -1,19 +1,21 @@
 #include "zmq_publisher/transport/zmq_transport.h"
 
-#include <memory>
-#include <spdlog/spdlog.h>
+#include "detail/transport_worker.h"
+#include "zmq_publisher/metrics/component_metrics.h"
+#include "zmq_publisher/metrics/metrics_registry.h"
+
+#include <functional>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <utility>
-#include <zmq.hpp>
 
 namespace zmq_publisher {
 
-ZmqTransport::ZmqTransport(std::size_t queue_capacity)
-    : queue_capacity_(queue_capacity) {
-    if (queue_capacity == 0) {
-        throw std::invalid_argument("ZMQ output queue capacity must be greater than zero");
+ZmqTransport::ZmqTransport(TransportConfig config, MetricsRegistry* metrics)
+    : config_(config), metrics_(metrics) {
+    if (config_.worker_threads == 0 || config_.zmq_io_threads == 0 ||
+        config_.queue_capacity == 0) {
+        throw std::invalid_argument("Transport thread counts and queue capacity must be nonzero");
     }
 }
 
@@ -22,81 +24,50 @@ ZmqTransport::~ZmqTransport() {
 }
 
 void ZmqTransport::start() {
-    std::lock_guard lock(mutex_);
+    std::lock_guard lock(lifecycle_mutex_);
     if (running_) {
         return;
     }
     running_ = true;
-    io_thread_ = std::thread(&ZmqTransport::io_loop, this);
+    workers_.reserve(config_.worker_threads);
+    for (std::size_t id = 0; id < config_.worker_threads; ++id) {
+        const auto name = "transport/worker-" + std::to_string(id);
+        auto component = metrics_
+            ? metrics_->component(name)
+            : std::make_shared<ComponentMetrics>(name);
+        auto worker = std::make_unique<TransportWorker>(
+            id,
+            config_.queue_capacity,
+            config_.queue_policy,
+            config_.zmq_io_threads,
+            std::move(component));
+        worker->start();
+        workers_.push_back(std::move(worker));
+    }
 }
 
 void ZmqTransport::stop() {
+    std::vector<std::unique_ptr<TransportWorker>> workers;
     {
-        std::lock_guard lock(mutex_);
-        if (!running_ && !io_thread_.joinable()) {
+        std::lock_guard lock(lifecycle_mutex_);
+        if (!running_) {
             return;
         }
         running_ = false;
+        workers.swap(workers_);
     }
-    queue_cv_.notify_all();
-    if (io_thread_.joinable()) {
-        io_thread_.join();
+    for (auto& worker : workers) {
+        worker->stop();
     }
 }
 
-bool ZmqTransport::publish(PublishMessage message) {
-    {
-        std::lock_guard lock(mutex_);
-        if (!running_ || queue_.size() >= queue_capacity_) {
-            return false;
-        }
-        queue_.push_back(std::move(message));
+PublishResult ZmqTransport::publish(PublishMessage message) {
+    std::lock_guard lock(lifecycle_mutex_);
+    if (!running_ || workers_.empty()) {
+        return PublishResult::stopped;
     }
-    queue_cv_.notify_one();
-    return true;
-}
-
-void ZmqTransport::io_loop() {
-    zmq::context_t context(1);
-    std::unordered_map<std::string, std::unique_ptr<zmq::socket_t>> sockets;
-
-    while (true) {
-        PublishMessage message;
-        {
-            std::unique_lock lock(mutex_);
-            queue_cv_.wait(lock, [this] { return !running_ || !queue_.empty(); });
-            if (queue_.empty()) {
-                if (!running_) {
-                    break;
-                }
-                continue;
-            }
-            message = std::move(queue_.front());
-            queue_.pop_front();
-        }
-
-        try {
-            auto found = sockets.find(message.endpoint);
-            if (found == sockets.end()) {
-                auto socket = std::make_unique<zmq::socket_t>(context, zmq::socket_type::pub);
-                socket->bind(message.endpoint);
-                found = sockets.emplace(message.endpoint, std::move(socket)).first;
-                spdlog::info("Bound ZMQ publisher to {}", message.endpoint);
-            }
-
-            if (!message.topic.empty()) {
-                found->second->send(zmq::buffer(message.topic), zmq::send_flags::sndmore);
-            }
-            found->second->send(zmq::buffer(message.payload), zmq::send_flags::none);
-        } catch (const zmq::error_t& error) {
-            spdlog::error("Failed to publish to '{}': {}", message.endpoint, error.what());
-            sockets.erase(message.endpoint);
-        }
-    }
-
-    sockets.clear();
-    context.shutdown();
-    context.close();
+    const auto index = std::hash<std::string>{}(message.endpoint) % workers_.size();
+    return workers_[index]->publish(std::move(message));
 }
 
 }  // namespace zmq_publisher

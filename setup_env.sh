@@ -2,12 +2,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR=$(dirname "$(realpath "$0")")
+PROJECT_ROOT=$(dirname "$(realpath "$0")")
+ENVIRONMENT_DIR="$PROJECT_ROOT/scripts/environment"
 WITH_MIDAS=false
 DETECT_ARGS=()
 
 show_help() {
-    echo "Usage: ./scripts/setup_env.sh [OPTIONS] [SEARCH_ROOTS...]"
+    echo "Usage: ./setup_env.sh [OPTIONS] [SEARCH_ROOTS...]"
     echo
     echo "Checks the dependencies required by the generic publisher."
     echo "With --with-midas, also discovers MIDAS and writes scripts/environment/.env."
@@ -49,7 +50,7 @@ fi
 echo "[setup_env.sh] Generic publisher prerequisites are available."
 
 if [ "$WITH_MIDAS" = true ]; then
-    "$SCRIPT_DIR/environment/detect_environment.sh" "${DETECT_ARGS[@]}"
+    "$ENVIRONMENT_DIR/detect_environment.sh" "${DETECT_ARGS[@]}"
 else
     echo "[setup_env.sh] MIDAS discovery skipped; it is not required for the default build."
 fi

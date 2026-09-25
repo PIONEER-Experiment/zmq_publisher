@@ -2,7 +2,18 @@
   "general-settings": {
     "verbose": 1,
     "worker-threads": 2,
-    "output-queue-capacity": 1024,
+    "transport": {
+      "worker-threads": 1,
+      "zmq-io-threads": 1,
+      "queue-capacity": 1024,
+      "queue-policy": "block"
+    },
+    "telemetry": {
+      "enabled": true,
+      "interval-ms": 1000,
+      "endpoint": "",
+      "topic": "METRICS"
+    },
     "processor-extensions": [
       "build/lib/libzmq_publisher_command_extension.so"
     ]
@@ -12,9 +23,9 @@
       "enabled": true,
       "endpoint": "tcp://127.0.0.1:5555",
       "topic": "TIME",
-      "publishes-per-batch": 1,
-      "publishes-ignored-after-batch": 0,
-      "buffer-capacity": 1,
+      "delivery": {
+        "mode": "each"
+      },
       "processors": [
         {
           "type": "command",

@@ -9,9 +9,11 @@ CPMAddPackage(
 
 set(ZMQ_PUBLISHER_TEST_SOURCES
   channel_test.cpp
-  data_buffer_test.cpp
+  metrics_test.cpp
+  processor_definition_test.cpp
   processor_registry_test.cpp
   processor_scheduler_test.cpp
+  transport_test.cpp
 )
 
 if(TARGET zmq_publisher_command_extension)
@@ -22,7 +24,9 @@ add_executable(zmq_publisher_tests ${ZMQ_PUBLISHER_TEST_SOURCES})
 target_link_libraries(zmq_publisher_tests PRIVATE
   Catch2::Catch2WithMain
   zmq_publisher::core
+  ${ZMQ_LIBRARY}
 )
+target_include_directories(zmq_publisher_tests SYSTEM PRIVATE ${CPPZMQ_INCLUDE_DIR})
 
 if(TARGET zmq_publisher_command_extension)
   add_dependencies(zmq_publisher_tests zmq_publisher_command_extension)

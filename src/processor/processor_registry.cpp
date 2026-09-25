@@ -29,7 +29,7 @@ void ProcessorRegistry::register_processor(
 
 std::unique_ptr<Processor> ProcessorRegistry::create(
     const std::string& type,
-    const nlohmann::json& config,
+    const ConfigurationView& configuration,
     ProcessorContext& context) const {
     ProcessorFactory factory;
     {
@@ -40,7 +40,7 @@ std::unique_ptr<Processor> ProcessorRegistry::create(
         }
         factory = found->second.factory;
     }
-    auto processor = factory(config, context);
+    auto processor = factory(configuration, context);
     if (!processor) {
         throw std::runtime_error("Processor factory returned null: " + type);
     }

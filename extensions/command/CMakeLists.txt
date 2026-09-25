@@ -1,6 +1,7 @@
 add_library(zmq_publisher_command_extension MODULE
   register_plugin.cpp
   src/command_processor.cpp
+  src/command_processor_config.cpp
   src/command_runner.cpp
 )
 
@@ -19,4 +20,4 @@ set_target_properties(zmq_publisher_command_extension PROPERTIES
   INSTALL_RPATH "$ORIGIN"
 )
 
-install(TARGETS zmq_publisher_command_extension LIBRARY DESTINATION lib)
+install(TARGETS zmq_publisher_command_extension LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

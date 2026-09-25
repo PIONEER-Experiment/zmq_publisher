@@ -1,5 +1,8 @@
 #include "zmq_publisher/scheduler/processor_scheduler.h"
 
+#include "zmq_publisher/metrics/component_metrics.h"
+#include "zmq_publisher/metrics/metrics_registry.h"
+
 #include <algorithm>
 #include <chrono>
 #include <limits>
@@ -10,7 +13,6 @@
 namespace zmq_publisher {
 
 namespace {
-constexpr auto kContinuousInterval = std::chrono::milliseconds(1);
 constexpr auto kNotReadyRetryInterval = std::chrono::milliseconds(10);
 }
 
@@ -20,12 +22,13 @@ struct ProcessorScheduler::Entry {
     ProcessorSchedule schedule;
     ProcessorCapabilities capabilities;
     OutputHandler output_handler;
+    std::shared_ptr<ComponentMetrics> metrics;
     std::chrono::steady_clock::time_point next_run;
     std::size_t in_flight = 0;
 };
 
-ProcessorScheduler::ProcessorScheduler(std::size_t worker_count)
-    : worker_count_(worker_count) {
+ProcessorScheduler::ProcessorScheduler(std::size_t worker_count, MetricsRegistry* metrics)
+    : worker_count_(worker_count), metrics_(metrics) {
     if (worker_count == 0) {
         throw std::invalid_argument("ProcessorScheduler requires at least one worker");
     }
@@ -61,12 +64,16 @@ void ProcessorScheduler::add_processor(
     if (running_) {
         throw std::logic_error("Processors must be added before the scheduler starts");
     }
+    auto component = metrics_
+        ? metrics_->component("processor/" + name)
+        : std::make_shared<ComponentMetrics>("processor/" + name);
     entries_.push_back(std::make_unique<Entry>(Entry{
         std::move(name),
         std::move(processor),
         schedule,
         capabilities,
         std::move(output_handler),
+        std::move(component),
         std::chrono::steady_clock::now(),
         0,
     }));
@@ -125,8 +132,13 @@ void ProcessorScheduler::timer_loop() {
                 continue;
             }
             if (entry.next_run <= now) {
-                ++entry.in_flight;
-                ready_queue_.push_back(index);
+                const auto dispatch_count = entry.schedule.mode == ScheduleMode::continuous
+                    ? entry.capabilities.max_concurrency - entry.in_flight
+                    : std::size_t{1};
+                entry.in_flight += dispatch_count;
+                for (std::size_t dispatch = 0; dispatch < dispatch_count; ++dispatch) {
+                    ready_queue_.push_back(index);
+                }
                 queued_work = true;
 
                 if (entry.schedule.mode == ScheduleMode::fixed_rate) {
@@ -174,29 +186,55 @@ void ProcessorScheduler::worker_loop() {
         }
 
         bool was_ready = false;
+        auto status = ProcessStatus::idle;
+        const auto processing_started = std::chrono::steady_clock::now();
+        entry->metrics->record_invocation();
         try {
             was_ready = entry->processor->is_ready();
             if (was_ready) {
-                auto output = entry->processor->process();
-                if (!output.empty()) {
-                    entry->output_handler(std::move(output));
+                auto result = entry->processor->process();
+                status = result.status();
+                if (status == ProcessStatus::produced_output) {
+                    std::size_t bytes = 0;
+                    for (const auto& message : result.output()) {
+                        bytes += message.size();
+                    }
+                    entry->metrics->record_items(result.output().size());
+                    entry->metrics->record_bytes(bytes);
+                    entry->output_handler(std::move(result.output()));
+                } else if (status == ProcessStatus::idle) {
+                    entry->metrics->record_idle();
                 }
+            } else {
+                entry->metrics->record_idle();
             }
         } catch (const std::exception& error) {
+            entry->metrics->record_failure();
             spdlog::error("Processor '{}' failed: {}", entry->name, error.what());
         } catch (...) {
+            entry->metrics->record_failure();
             spdlog::error("Processor '{}' failed with an unknown exception", entry->name);
         }
+        entry->metrics->record_processing(std::chrono::steady_clock::now() - processing_started);
 
         {
             std::lock_guard lock(mutex_);
             --entry->in_flight;
+            if (status == ProcessStatus::stopped) {
+                entry->next_run = std::chrono::steady_clock::time_point::max();
+                continue;
+            }
             if (entry->schedule.mode != ScheduleMode::fixed_rate) {
-                auto interval = entry->schedule.mode == ScheduleMode::continuous
-                    ? kContinuousInterval
-                    : entry->schedule.interval;
-                if (!was_ready) {
-                    interval = std::max(interval, kNotReadyRetryInterval);
+                auto interval = entry->schedule.interval;
+                if (entry->schedule.mode == ScheduleMode::continuous) {
+                    interval = status == ProcessStatus::idle
+                        ? entry->schedule.idle_backoff
+                        : std::chrono::microseconds::zero();
+                } else if (!was_ready || status == ProcessStatus::idle) {
+                    interval = std::max(
+                        interval,
+                        std::chrono::duration_cast<std::chrono::microseconds>(
+                            kNotReadyRetryInterval));
                 }
                 entry->next_run = std::chrono::steady_clock::now() + interval;
             }

@@ -1,70 +1,87 @@
 #include "zmq_publisher/channel/channel_manager.h"
 
+#include "zmq_publisher/config/configuration_view.h"
+#include "zmq_publisher/metrics/metrics_registry.h"
+#include "zmq_publisher/processor/processor_definition.h"
 #include "zmq_publisher/processor/processor_registry.h"
-#include "zmq_publisher/scheduler/processor_schedule.h"
 #include "zmq_publisher/scheduler/processor_scheduler.h"
 #include "zmq_publisher/transport/zmq_transport.h"
 
-#include <chrono>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 namespace zmq_publisher {
 
 namespace {
 
-ProcessorSchedule parse_schedule(const nlohmann::json& processor_config) {
-    ProcessorSchedule schedule;
-    auto period = processor_config.value("period-ms", 1000);
-    std::string mode;
-
-    if (processor_config.contains("schedule")) {
-        const auto& schedule_config = processor_config.at("schedule");
-        if (!schedule_config.is_object()) {
-            throw std::invalid_argument("Processor schedule must be an object");
-        }
-        period = schedule_config.value("interval-ms", period);
-        mode = schedule_config.value("mode", "fixed-delay");
-    } else {
-        mode = period == 0 ? "continuous" : "fixed-delay";
-    }
-
-    if (period < 0) {
-        throw std::invalid_argument("Processor period cannot be negative");
-    }
-    schedule.interval = std::chrono::milliseconds(period);
-    if (mode == "continuous") {
-        schedule.mode = ScheduleMode::continuous;
-    } else if (mode == "fixed-rate") {
-        schedule.mode = ScheduleMode::fixed_rate;
-    } else if (mode == "fixed-delay") {
-        schedule.mode = ScheduleMode::fixed_delay;
-    } else {
-        throw std::invalid_argument("Unknown processor schedule mode: " + mode);
-    }
-    return schedule;
-}
-
 ChannelConfig parse_channel_config(const std::string& id, const nlohmann::json& config) {
+    if (!config.is_object()) {
+        throw std::invalid_argument("Channel '" + id + "' must be an object");
+    }
+    for (const auto& [key, _] : config.items()) {
+        if (key != "enabled" && key != "endpoint" && key != "topic" &&
+            key != "delivery" && key != "processors") {
+            throw std::invalid_argument(
+                "Channel '" + id + "' contains unknown field '" + key + "'");
+        }
+    }
+
     ChannelConfig result;
     result.id = id;
-    result.topic = config.value("topic", config.value("name", std::string{}));
-    result.endpoint = config.value(
-        "endpoint", config.value("zmq-address", std::string{"tcp://127.0.0.1:5555"}));
-
-    const auto publishes_per_batch = config.value("publishes-per-batch", 1);
-    const auto ignored_after_batch = config.value("publishes-ignored-after-batch", 0);
-    const auto buffer_capacity = config.value(
-        "buffer-capacity", config.value("num-events-in-circular-buffer", 1));
-    if (publishes_per_batch <= 0 || ignored_after_batch < 0 || buffer_capacity <= 0) {
-        throw std::invalid_argument("Invalid numeric channel configuration for '" + id + "'");
+    if (!config.contains("endpoint") || !config.at("endpoint").is_string()) {
+        throw std::invalid_argument("Channel '" + id + "' requires string field 'endpoint'");
     }
-    result.publishes_per_batch = static_cast<std::size_t>(publishes_per_batch);
-    result.publishes_ignored_after_batch = static_cast<std::size_t>(ignored_after_batch);
-    result.buffer_capacity = static_cast<std::size_t>(buffer_capacity);
+    if (!config.contains("topic") || !config.at("topic").is_string()) {
+        throw std::invalid_argument("Channel '" + id + "' requires string field 'topic'");
+    }
+    result.endpoint = config.at("endpoint").get<std::string>();
+    result.topic = config.at("topic").get<std::string>();
+
+    if (!config.contains("delivery") || !config.at("delivery").is_object()) {
+        throw std::invalid_argument("Channel '" + id + "' requires object field 'delivery'");
+    }
+    const auto& delivery = config.at("delivery");
+    for (const auto& [key, _] : delivery.items()) {
+        if (key != "mode" && key != "size") {
+            throw std::invalid_argument(
+                "Channel '" + id + "' delivery contains unknown field '" + key + "'");
+        }
+    }
+    if (!delivery.contains("mode") || !delivery.at("mode").is_string()) {
+        throw std::invalid_argument("Channel '" + id + "' delivery requires string field 'mode'");
+    }
+    const auto mode = delivery.at("mode").get<std::string>();
+    if (mode == "each") {
+        result.delivery_policy = DeliveryPolicy::each;
+    } else if (mode == "latest") {
+        result.delivery_policy = DeliveryPolicy::latest;
+    } else if (mode == "batch") {
+        result.delivery_policy = DeliveryPolicy::batch;
+    } else if (mode == "sliding-window") {
+        result.delivery_policy = DeliveryPolicy::sliding_window;
+    } else {
+        throw std::invalid_argument("Unknown delivery mode for channel '" + id + "': " + mode);
+    }
+
+    const bool sized = result.delivery_policy == DeliveryPolicy::batch ||
+        result.delivery_policy == DeliveryPolicy::sliding_window;
+    if (sized) {
+        if (!delivery.contains("size")) {
+            throw std::invalid_argument(
+                "Channel '" + id + "' delivery mode requires field 'size'");
+        }
+        result.delivery_size = delivery.at("size").get<std::size_t>();
+    } else if (delivery.contains("size")) {
+        throw std::invalid_argument(
+            "Channel '" + id + "' delivery mode must not specify field 'size'");
+    }
+    if (result.delivery_size == 0) {
+        throw std::invalid_argument("Delivery size must be greater than zero for channel '" + id + "'");
+    }
     return result;
 }
 
@@ -74,11 +91,13 @@ ChannelManager::ChannelManager(
     ProcessorRegistry& registry,
     ProcessorScheduler& scheduler,
     ZmqTransport& transport,
-    ProcessorContext context)
+    ProcessorContext context,
+    MetricsRegistry* metrics)
     : registry_(registry),
       scheduler_(scheduler),
       transport_(transport),
-      context_(context) {}
+      context_(context),
+      metrics_(metrics) {}
 
 void ChannelManager::configure(const nlohmann::json& channels_config) {
     if (!channels_config.is_object()) {
@@ -91,7 +110,8 @@ void ChannelManager::configure(const nlohmann::json& channels_config) {
         }
 
         auto channel = std::make_unique<Channel>(
-            parse_channel_config(channel_id, channel_config));
+            parse_channel_config(channel_id, channel_config),
+            metrics_ ? metrics_->component("channel/" + channel_id) : nullptr);
         auto* channel_ptr = channel.get();
         const auto [_, inserted] = channels_.emplace(channel_id, std::move(channel));
         if (!inserted) {
@@ -99,39 +119,49 @@ void ChannelManager::configure(const nlohmann::json& channels_config) {
         }
 
         if (!channel_config.contains("processors")) {
-            spdlog::warn("Channel '{}' has no processors", channel_id);
-            continue;
+            throw std::invalid_argument("Channel '" + channel_id + "' requires array field 'processors'");
         }
         const auto& processors = channel_config.at("processors");
         if (!processors.is_array()) {
             throw std::invalid_argument("processors must be an array in channel '" + channel_id + "'");
         }
 
+        std::unordered_set<std::string> processor_names;
         std::size_t processor_index = 0;
         for (const auto& processor_config : processors) {
             try {
-                const auto type = processor_config.value(
-                    "type", processor_config.value("processor", std::string{}));
-                if (type.empty()) {
-                    throw std::invalid_argument("Processor type is required");
+                const auto location = "data-channels." + channel_id + ".processors[" +
+                    std::to_string(processor_index) + "]";
+                auto definition = ProcessorDefinition::from_json(processor_config, location);
+                const auto type = definition.type();
+                auto instance_name = definition.name().empty()
+                    ? type + "-" + std::to_string(processor_index)
+                    : definition.name();
+                if (!processor_names.emplace(instance_name).second) {
+                    throw std::invalid_argument(
+                        "Duplicate processor name '" + instance_name + "'");
                 }
-                auto processor = registry_.create(type, processor_config, context_);
+                ++processor_index;
+                const ConfigurationView plugin_config(
+                    definition.configuration(), location + ".config");
+                auto processor = registry_.create(
+                    type, plugin_config, context_);
                 auto capabilities = registry_.capabilities(type);
-                auto schedule = parse_schedule(processor_config);
-                auto processor_name = channel_id + "/" + type + "/" +
-                    std::to_string(processor_index++);
+                auto processor_name = channel_id + "/" + instance_name;
 
                 scheduler_.add_processor(
                     std::move(processor_name),
                     std::move(processor),
-                    schedule,
+                    definition.schedule(),
                     capabilities,
-                    [this, channel_ptr, channel_id](std::vector<std::string> output) {
-                        auto message = channel_ptr->accept(std::move(output));
-                        if (message && !transport_.publish(std::move(*message))) {
-                            spdlog::warn(
-                                "Dropping output for channel '{}': transport queue is full or stopped",
-                                channel_id);
+                    [this, channel_ptr, channel_id](std::vector<OutputMessage> output) {
+                        auto messages = channel_ptr->accept(std::move(output));
+                        for (auto& message : messages) {
+                            if (transport_.publish(std::move(message)) != PublishResult::queued) {
+                                spdlog::warn(
+                                    "Output was not queued for channel '{}'",
+                                    channel_id);
+                            }
                         }
                     });
             } catch (const std::exception& error) {

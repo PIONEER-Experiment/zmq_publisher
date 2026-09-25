@@ -1,0 +1,2 @@
+add_executable(zmq_publisher_channel_benchmark channel_benchmark.cpp)
+target_link_libraries(zmq_publisher_channel_benchmark PRIVATE zmq_publisher::core)

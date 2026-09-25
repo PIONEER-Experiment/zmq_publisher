@@ -1,4 +1,5 @@
 #include "zmq_publisher/extension/plugin_loader.h"
+#include "zmq_publisher/config/configuration_view.h"
 #include "zmq_publisher/processor/processor_context.h"
 #include "zmq_publisher/processor/processor_registry.h"
 
@@ -13,11 +14,14 @@ TEST_CASE("the command extension registers and creates its processor") {
     REQUIRE(registry.contains("command"));
 
     zmq_publisher::ProcessorContext context;
-    auto processor = registry.create(
-        "command",
-        {{"config", {{"command", {"/bin/printf", "extension-loaded"}}}}},
-        context);
+    const nlohmann::json config{
+        {"command", {"/bin/printf", "extension-loaded"}}};
+    const zmq_publisher::ConfigurationView config_view(config, "test.config");
+    auto processor = registry.create("command", config_view, context);
     const auto output = processor->process();
-    REQUIRE(output.size() == 1);
-    CHECK(output.front() == "extension-loaded");
+    REQUIRE(output.output().size() == 1);
+    const auto& message = output.output().front();
+    CHECK(std::string(
+              reinterpret_cast<const char*>(message.payload()->data()), message.size()) ==
+          "extension-loaded");
 }

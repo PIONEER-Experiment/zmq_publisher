@@ -15,6 +15,7 @@ find_package(ZLIB REQUIRED)
 add_library(zmq_publisher_midas_extension MODULE
   register_plugin.cpp
   src/midas_processor.cpp
+  src/midas_processor_config.cpp
 )
 
 target_include_directories(zmq_publisher_midas_extension
@@ -44,4 +45,4 @@ set_target_properties(zmq_publisher_midas_extension PROPERTIES
   INSTALL_RPATH "$ORIGIN"
 )
 
-install(TARGETS zmq_publisher_midas_extension LIBRARY DESTINATION lib)
+install(TARGETS zmq_publisher_midas_extension LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

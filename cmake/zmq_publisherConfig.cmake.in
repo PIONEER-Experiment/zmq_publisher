@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(nlohmann_json 3.11.3 EXACT CONFIG REQUIRED)
+
+include("${CMAKE_CURRENT_LIST_DIR}/zmq_publisherTargets.cmake")
+target_link_libraries(zmq_publisher::plugin_sdk INTERFACE nlohmann_json::nlohmann_json)

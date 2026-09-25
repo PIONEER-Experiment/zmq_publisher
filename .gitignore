@@ -43,7 +43,7 @@ Thumbs.db
 #Ignore custom files
 midas_publisher.log
 publisher
-zmq_publisher
+/zmq_publisher
 example_receiver/example_receiver
 example/example_receiver
 scripts/environment/environment_variables.txt

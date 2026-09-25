@@ -71,7 +71,7 @@ if [ "$WITH_MIDAS" = true ]; then
         source "$ENV_FILE"
     fi
     if [[ -z "${MIDASSYS:-}" ]]; then
-        echo "[build.sh, ERROR] MIDASSYS is not set. Run './scripts/setup_env.sh --with-midas'."
+        echo "[build.sh, ERROR] MIDASSYS is not set. Run './setup_env.sh --with-midas'."
         exit 1
     fi
     CMAKE_OPTIONS+=("-DZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION=ON")

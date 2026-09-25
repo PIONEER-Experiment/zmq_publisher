@@ -4,15 +4,17 @@
 
 namespace zmq_publisher::command {
 
-CommandProcessor::CommandProcessor(std::vector<std::string> arguments)
-    : runner_(std::move(arguments)) {}
+CommandProcessor::CommandProcessor(const CommandProcessorConfig& config)
+    : runner_(config.arguments()) {}
 
-std::vector<std::string> CommandProcessor::process() {
+ProcessResult CommandProcessor::process() {
     auto output = runner_.execute();
     if (output.empty()) {
-        return {};
+        return ProcessResult::idle();
     }
-    return {std::move(output)};
+    std::vector<OutputMessage> messages;
+    messages.push_back(OutputMessage::from_text(output));
+    return ProcessResult::produced(std::move(messages));
 }
 
 }  // namespace zmq_publisher::command
