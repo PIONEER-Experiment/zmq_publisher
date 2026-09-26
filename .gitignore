@@ -6,6 +6,8 @@
 
 # Ignore build and output directories
 /build/
+/build-*/
+/.artifacts/
 /bin/
 /Debug/
 /Release/
@@ -30,6 +32,8 @@ compile_commands.json
 *~
 *.swp
 *.tmp
+__pycache__/
+*.py[cod]
 
 # Ignore system and OS-specific files
 .DS_Store

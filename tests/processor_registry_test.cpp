@@ -46,7 +46,7 @@ TEST_CASE("the registry creates processors registered by an extension") {
     REQUIRE(result.output().size() == 1);
     const auto& message = result.output().front();
     CHECK(std::string(
-              reinterpret_cast<const char*>(message.payload()->data()), message.size()) ==
+              reinterpret_cast<const char*>(message.payload().data()), message.size()) ==
           "configured-by-extension");
 }
 

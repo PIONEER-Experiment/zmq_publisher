@@ -35,6 +35,19 @@ TEST_CASE("continuous definitions allow an explicit zero idle backoff") {
     CHECK(definition.schedule().idle_backoff == std::chrono::microseconds::zero());
 }
 
+TEST_CASE("event-driven definitions do not require polling intervals") {
+    const auto definition = zmq_publisher::ProcessorDefinition::from_json(
+        {
+            {"type", "source"},
+            {"schedule", {{"mode", "event-driven"}}},
+            {"config", nlohmann::json::object()},
+        },
+        "processor");
+
+    CHECK(definition.schedule().mode == zmq_publisher::ScheduleMode::event_driven);
+    CHECK(definition.schedule().interval == std::chrono::microseconds::zero());
+}
+
 TEST_CASE("processor definitions reject fields outside the canonical envelope") {
     CHECK_THROWS_AS(
         zmq_publisher::ProcessorDefinition::from_json(

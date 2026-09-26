@@ -22,6 +22,6 @@ TEST_CASE("the command extension registers and creates its processor") {
     REQUIRE(output.output().size() == 1);
     const auto& message = output.output().front();
     CHECK(std::string(
-              reinterpret_cast<const char*>(message.payload()->data()), message.size()) ==
+              reinterpret_cast<const char*>(message.payload().data()), message.size()) ==
           "extension-loaded");
 }

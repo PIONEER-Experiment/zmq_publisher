@@ -115,7 +115,8 @@ factory switch needs to change.
 - `idle`: no product is currently available;
 - `stopped`: the processor has permanently completed.
 
-An `OutputMessage` moves an owned byte buffer into immutable shared storage.
+An `OutputMessage` moves an owned byte buffer into immutable shared storage or
+aliases immutable storage already owned by a plugin.
 Channels, sliding windows, queues, and ZeroMQ frame callbacks then pass or share
 that storage without copying its payload. JSON is used only for the small wire
 metadata envelope; product bytes are never expanded into or escaped inside JSON.
@@ -131,6 +132,7 @@ The supported modes are:
 - `fixed-delay`: wait the configured interval after a call completes;
 - `fixed-rate`: schedule against stable deadlines;
 - `continuous`: immediately redispatch after output is produced.
+- `event-driven`: sleep until the processor's input source signals that work is ready.
 
 Continuous mode has an independent idle backoff. Set it to zero to poll as fast
 as the processor and worker pool allow, or use a positive value to avoid burning

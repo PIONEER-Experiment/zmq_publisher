@@ -9,6 +9,7 @@ option(ZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION "Build the optional MIDAS processor e
 option(ZMQ_PUBLISHER_BUILD_EXAMPLES "Build repository examples" OFF)
 option(ZMQ_PUBLISHER_BUILD_TESTS "Build unit tests" ON)
 option(ZMQ_PUBLISHER_BUILD_BENCHMARKS "Build throughput benchmarks" OFF)
+option(ZMQ_PUBLISHER_BUILD_RATE_TESTS "Build the MIDAS rate-test frontend" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,6 +50,7 @@ add_library(zmq_publisher_core SHARED
   src/metrics/component_metrics.cpp
   src/metrics/metrics_registry.cpp
   src/metrics/metrics_reporter.cpp
+  src/processor/immutable_payload.cpp
   src/processor/output_message.cpp
   src/processor/processor_definition.cpp
   src/processor/process_result.cpp
@@ -116,6 +118,10 @@ endif()
 
 if(ZMQ_PUBLISHER_BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
+endif()
+
+if(ZMQ_PUBLISHER_BUILD_RATE_TESTS)
+  add_subdirectory(benchmarks/rate_tests)
 endif()
 
 install(TARGETS zmq_publisher zmq_publisher_core zmq_publisher_plugin_sdk

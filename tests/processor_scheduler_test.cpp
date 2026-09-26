@@ -45,6 +45,27 @@ private:
     std::atomic<int>& maximum_;
 };
 
+class WakeableProcessor final : public zmq_publisher::Processor {
+public:
+    explicit WakeableProcessor(std::atomic<int>& calls) : calls_(calls) {}
+
+    zmq_publisher::ProcessResult process() override {
+        ++calls_;
+        return zmq_publisher::ProcessResult::idle();
+    }
+
+    bool set_wakeup_handler(WakeupHandler handler) override {
+        handler_ = std::move(handler);
+        return true;
+    }
+
+    void wake() { handler_(); }
+
+private:
+    std::atomic<int>& calls_;
+    WakeupHandler handler_;
+};
+
 }  // namespace
 
 TEST_CASE("the scheduler repeatedly dispatches a fixed-delay processor") {
@@ -138,4 +159,31 @@ TEST_CASE("thread-safe continuous processors can use declared concurrency") {
     }
     scheduler.stop();
     CHECK(maximum.load() >= 2);
+}
+
+TEST_CASE("event-driven processors run only when their source wakes them") {
+    zmq_publisher::ProcessorScheduler scheduler(1);
+    std::atomic<int> calls{0};
+    auto processor = std::make_unique<WakeableProcessor>(calls);
+    auto* wakeable = processor.get();
+
+    scheduler.add_processor(
+        "wakeable",
+        std::move(processor),
+        {zmq_publisher::ScheduleMode::event_driven,
+         std::chrono::microseconds::zero(),
+         std::chrono::microseconds::zero()},
+        {},
+        [](std::vector<zmq_publisher::OutputMessage>) {});
+    scheduler.start();
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    CHECK(calls.load() == 0);
+
+    wakeable->wake();
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    while (calls.load() == 0 && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::yield();
+    }
+    scheduler.stop();
+    CHECK(calls.load() == 1);
 }

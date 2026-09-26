@@ -10,7 +10,7 @@ zmq_publisher::OutputMessage text(std::string value) {
 }
 
 std::string payload(const zmq_publisher::OutputMessage& message) {
-    return {reinterpret_cast<const char*>(message.payload()->data()), message.size()};
+    return {reinterpret_cast<const char*>(message.payload().data()), message.size()};
 }
 
 }  // namespace
@@ -58,13 +58,13 @@ TEST_CASE("sliding window shares retained payload storage") {
     zmq_publisher::Channel channel({
         "test", "TOPIC", "inproc://test", zmq_publisher::DeliveryPolicy::sliding_window, 2});
 
-    const auto first = channel.accept({text("one")});
-    const auto first_payload = first.front().products.front().payload();
-    channel.accept({text("two")});
+    channel.accept({text("one")});
+    const auto second = channel.accept({text("two")});
+    const auto* second_payload = second.front().products.back().payload().data();
     const auto third = channel.accept({text("three")});
 
     REQUIRE(third.front().products.size() == 2);
     CHECK(payload(third.front().products[0]) == "two");
     CHECK(payload(third.front().products[1]) == "three");
-    CHECK(first_payload.use_count() >= 1);
+    CHECK(third.front().products.front().payload().data() == second_payload);
 }

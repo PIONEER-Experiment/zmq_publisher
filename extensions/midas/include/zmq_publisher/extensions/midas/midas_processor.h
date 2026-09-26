@@ -4,7 +4,6 @@
 #include "zmq_publisher/extensions/midas/midas_processor_config.h"
 #include "zmq_publisher/processor/processor.h"
 
-#include <chrono>
 #include <mutex>
 
 namespace zmq_publisher::midas {
@@ -19,13 +18,14 @@ public:
 
     ProcessResult process() override;
     bool is_ready() const override;
+    bool has_pending_work() const override;
+    bool set_wakeup_handler(WakeupHandler handler) override;
 
 private:
     static std::mutex instance_mutex_;
     static bool instance_active_;
 
     MidasReceiver& receiver_;
-    std::chrono::system_clock::time_point last_event_timestamp_;
     std::size_t events_per_retrieval_ = 1;
     bool initialized_ = false;
 };

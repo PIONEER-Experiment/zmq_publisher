@@ -32,8 +32,11 @@ TEST_CASE("transport publishes metadata and unescaped binary product frames") {
         message.endpoint = endpoint;
         message.topic = std::move(topic);
         message.sequence = sequence;
-        message.products.push_back(zmq_publisher::OutputMessage::from_text(
-            value, "application/x-test", "test-v1"));
+        auto product = zmq_publisher::OutputMessage::from_text(
+            value, "application/x-test", "test-v1");
+        product.add_timing_marker("test-source", std::chrono::steady_clock::now());
+        product.set_numeric_attribute("test-counter", 42);
+        message.products.push_back(std::move(product));
         return transport.publish(std::move(message));
     };
 
@@ -62,9 +65,14 @@ TEST_CASE("transport publishes metadata and unescaped binary product frames") {
     const auto envelope = nlohmann::json::parse(metadata.to_string());
     CHECK(envelope.at("protocol") == "zmq-publisher-v1");
     CHECK(envelope.at("sequence") == 2);
+    CHECK(envelope.at("published-at-steady-ns").get<std::int64_t>() > 0);
     REQUIRE(envelope.at("products").size() == 1);
     CHECK(envelope.at("products").front().at("content-type") == "application/x-test");
     CHECK(envelope.at("products").front().at("size") == 12);
+    CHECK(envelope.at("products").front().at("created-at-steady-ns").get<std::int64_t>() > 0);
+    CHECK(envelope.at("products").front().at("timing-markers").at("test-source")
+              .get<std::int64_t>() > 0);
+    CHECK(envelope.at("products").front().at("numeric-attributes").at("test-counter") == 42);
     CHECK(product.size() == 12);
     CHECK(std::string(static_cast<const char*>(product.data()), product.size()) ==
           std::string{"binary\0value", 12});

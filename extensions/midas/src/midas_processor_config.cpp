@@ -14,6 +14,7 @@ MidasProcessorConfig MidasProcessorConfig::from_configuration(
         "event-id",
         "get-all",
         "buffer-size",
+        "read-cache-size-bytes",
         "yield-timeout-ms",
         "num-events-per-retrieval",
     });
@@ -26,6 +27,8 @@ MidasProcessorConfig MidasProcessorConfig::from_configuration(
     result.event_id_ = config.optional("event-id", result.event_id_);
     result.get_all_events_ = config.optional("get-all", result.get_all_events_);
     result.buffer_size_ = config.optional("buffer-size", result.buffer_size_);
+    result.read_cache_size_bytes_ =
+        config.optional("read-cache-size-bytes", result.read_cache_size_bytes_);
     result.yield_timeout_ms_ =
         config.optional("yield-timeout-ms", result.yield_timeout_ms_);
     result.events_per_retrieval_ =

@@ -41,6 +41,8 @@ public:
 private:
     struct Entry;
 
+    void wake_processor(std::size_t index);
+    bool dispatch_event_driven_locked(std::size_t index);
     void timer_loop();
     void worker_loop();
 

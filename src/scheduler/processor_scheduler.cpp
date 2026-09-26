@@ -25,6 +25,8 @@ struct ProcessorScheduler::Entry {
     std::shared_ptr<ComponentMetrics> metrics;
     std::chrono::steady_clock::time_point next_run;
     std::size_t in_flight = 0;
+    bool wake_pending = false;
+    bool stopped = false;
 };
 
 ProcessorScheduler::ProcessorScheduler(std::size_t worker_count, MetricsRegistry* metrics)
@@ -53,30 +55,74 @@ void ProcessorScheduler::add_processor(
     if (schedule.interval.count() < 0) {
         throw std::invalid_argument("Processor interval cannot be negative");
     }
-    if (schedule.mode != ScheduleMode::continuous && schedule.interval.count() == 0) {
+    if (schedule.mode != ScheduleMode::continuous &&
+        schedule.mode != ScheduleMode::event_driven &&
+        schedule.interval.count() == 0) {
         throw std::invalid_argument("A periodic processor interval must be greater than zero");
     }
     if (!capabilities.thread_safe || capabilities.preserve_output_order) {
         capabilities.max_concurrency = 1;
     }
 
-    std::lock_guard lock(mutex_);
-    if (running_) {
-        throw std::logic_error("Processors must be added before the scheduler starts");
+    std::size_t index = 0;
+    Processor* installed_processor = nullptr;
+    {
+        std::lock_guard lock(mutex_);
+        if (running_) {
+            throw std::logic_error("Processors must be added before the scheduler starts");
+        }
+        auto component = metrics_
+            ? metrics_->component("processor/" + name)
+            : std::make_shared<ComponentMetrics>("processor/" + name);
+        index = entries_.size();
+        entries_.push_back(std::make_unique<Entry>(Entry{
+            std::move(name),
+            std::move(processor),
+            schedule,
+            capabilities,
+            std::move(output_handler),
+            std::move(component),
+            std::chrono::steady_clock::now(),
+            0,
+            false,
+            false,
+        }));
+        installed_processor = entries_.back()->processor.get();
     }
-    auto component = metrics_
-        ? metrics_->component("processor/" + name)
-        : std::make_shared<ComponentMetrics>("processor/" + name);
-    entries_.push_back(std::make_unique<Entry>(Entry{
-        std::move(name),
-        std::move(processor),
-        schedule,
-        capabilities,
-        std::move(output_handler),
-        std::move(component),
-        std::chrono::steady_clock::now(),
-        0,
-    }));
+    if (schedule.mode == ScheduleMode::event_driven &&
+        !installed_processor->set_wakeup_handler([this, index] { wake_processor(index); })) {
+        std::lock_guard lock(mutex_);
+        entries_.pop_back();
+        throw std::invalid_argument(
+            "Event-driven scheduling requires a processor with wakeup support");
+    }
+}
+
+bool ProcessorScheduler::dispatch_event_driven_locked(std::size_t index) {
+    auto& entry = *entries_[index];
+    if (!running_ || entry.stopped || !entry.wake_pending ||
+        entry.in_flight >= entry.capabilities.max_concurrency) {
+        return false;
+    }
+    entry.wake_pending = false;
+    ++entry.in_flight;
+    ready_queue_.push_back(index);
+    return true;
+}
+
+void ProcessorScheduler::wake_processor(std::size_t index) {
+    bool queued = false;
+    {
+        std::lock_guard lock(mutex_);
+        if (index >= entries_.size()) {
+            return;
+        }
+        entries_[index]->wake_pending = true;
+        queued = dispatch_event_driven_locked(index);
+    }
+    if (queued) {
+        worker_cv_.notify_one();
+    }
 }
 
 void ProcessorScheduler::start() {
@@ -86,8 +132,14 @@ void ProcessorScheduler::start() {
     }
     running_ = true;
     const auto now = std::chrono::steady_clock::now();
-    for (auto& entry : entries_) {
-        entry->next_run = now;
+    for (std::size_t index = 0; index < entries_.size(); ++index) {
+        auto& entry = entries_[index];
+        entry->stopped = false;
+        if (entry->schedule.mode == ScheduleMode::event_driven) {
+            dispatch_event_driven_locked(index);
+        } else {
+            entry->next_run = now;
+        }
     }
     workers_.reserve(worker_count_);
     for (std::size_t index = 0; index < worker_count_; ++index) {
@@ -128,6 +180,9 @@ void ProcessorScheduler::timer_loop() {
 
         for (std::size_t index = 0; index < entries_.size(); ++index) {
             auto& entry = *entries_[index];
+            if (entry.schedule.mode == ScheduleMode::event_driven) {
+                continue;
+            }
             if (entry.in_flight >= entry.capabilities.max_concurrency) {
                 continue;
             }
@@ -216,12 +271,25 @@ void ProcessorScheduler::worker_loop() {
             spdlog::error("Processor '{}' failed with an unknown exception", entry->name);
         }
         entry->metrics->record_processing(std::chrono::steady_clock::now() - processing_started);
+        const bool source_still_ready =
+            entry->schedule.mode == ScheduleMode::event_driven &&
+            entry->processor->has_pending_work();
 
         {
             std::lock_guard lock(mutex_);
             --entry->in_flight;
             if (status == ProcessStatus::stopped) {
+                entry->stopped = true;
                 entry->next_run = std::chrono::steady_clock::time_point::max();
+                continue;
+            }
+            if (entry->schedule.mode == ScheduleMode::event_driven) {
+                if (source_still_ready) {
+                    entry->wake_pending = true;
+                }
+                if (dispatch_event_driven_locked(index)) {
+                    worker_cv_.notify_one();
+                }
                 continue;
             }
             if (entry->schedule.mode != ScheduleMode::fixed_rate) {

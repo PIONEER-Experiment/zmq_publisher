@@ -17,31 +17,47 @@ namespace zmq_publisher {
 namespace {
 
 void release_payload(void*, void* hint) {
-    delete static_cast<std::shared_ptr<const ByteBuffer>*>(hint);
+    delete static_cast<ImmutablePayload*>(hint);
 }
 
-zmq::message_t payload_frame(const std::shared_ptr<const ByteBuffer>& payload) {
-    if (payload->empty()) {
+zmq::message_t payload_frame(const ImmutablePayload& payload) {
+    if (payload.empty()) {
         return zmq::message_t{};
     }
-    auto* owner = new std::shared_ptr<const ByteBuffer>(payload);
+    auto* owner = new ImmutablePayload(payload);
     return zmq::message_t(
-        const_cast<std::byte*>(payload->data()), payload->size(), release_payload, owner);
+        const_cast<std::byte*>(payload.data()), payload.size(), release_payload, owner);
 }
 
-nlohmann::json envelope(const PublishMessage& message) {
+nlohmann::json envelope(
+    const PublishMessage& message,
+    std::chrono::steady_clock::time_point published_at) {
+    const auto published_at_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        published_at.time_since_epoch()).count();
     nlohmann::json result{
         {"protocol", "zmq-publisher-v1"},
         {"sequence", message.sequence},
+        {"published-at-steady-ns", published_at_ns},
         {"products", nlohmann::json::array()},
     };
     for (const auto& product : message.products) {
-        result["products"].push_back({
+        const auto created_at_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            product.created_at().time_since_epoch()).count();
+        nlohmann::json product_metadata{
             {"sequence", product.sequence()},
             {"content-type", product.content_type()},
             {"schema", product.schema()},
             {"size", product.size()},
-        });
+            {"created-at-steady-ns", created_at_ns},
+            {"timing-markers", nlohmann::json::object()},
+            {"numeric-attributes", product.numeric_attributes()},
+        };
+        for (const auto& marker : product.timing_markers()) {
+            product_metadata["timing-markers"][marker.stage] =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    marker.timestamp.time_since_epoch()).count();
+        }
+        result["products"].push_back(std::move(product_metadata));
     }
     return result;
 }
@@ -147,7 +163,8 @@ void TransportWorker::io_loop() {
                 spdlog::info("Transport worker {} bound ZMQ publisher to {}", id_, message.endpoint);
             }
 
-            const auto metadata = envelope(message).dump();
+            const auto published_at = std::chrono::steady_clock::now();
+            const auto metadata = envelope(message, published_at).dump();
             found->second->send(zmq::buffer(message.topic), zmq::send_flags::sndmore);
             found->second->send(zmq::buffer(metadata),
                                 message.products.empty()

@@ -8,6 +8,7 @@ enum class ScheduleMode {
     fixed_delay,
     fixed_rate,
     continuous,
+    event_driven,
 };
 
 struct ProcessorSchedule {

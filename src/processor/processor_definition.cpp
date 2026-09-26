@@ -37,6 +37,17 @@ ProcessorSchedule parse_schedule(const ConfigurationView& value) {
 
     ProcessorSchedule result;
     const auto mode = value.required<std::string>("mode");
+    if (mode == "event-driven") {
+        if (value.contains("interval-us") || value.contains("interval-ms") ||
+            value.contains("idle-backoff-us")) {
+            throw std::invalid_argument(
+                value.location() + " must not specify timing fields in event-driven mode");
+        }
+        result.mode = ScheduleMode::event_driven;
+        result.interval = std::chrono::microseconds::zero();
+        result.idle_backoff = std::chrono::microseconds::zero();
+        return result;
+    }
     if (mode == "continuous") {
         if (value.contains("interval-us") || value.contains("interval-ms")) {
             throw std::invalid_argument(
