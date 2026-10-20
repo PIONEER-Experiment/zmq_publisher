@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from online_common import configure_online_pipeline
 from online_dqm.PIONEER_TB_ONLINE_DQMConf import (
     PIAOnlineHDSocWaveformBuilder,
+    PIAOnlineAtarMonitor,
     PIAOnlineMusipHitSeriesBuilder,
     PIAOnlinePulseHistograms,
     PIAOnlineSampicWaveformBuilder,
@@ -35,6 +36,15 @@ analysis_stages = [
         Bins=120,
         RangeCalibrationEvents=100,
         RangeSigmas=4.0,
+    ),
+    PIAOnlineAtarMonitor(
+        "AtarMonitor",
+        Channels=256,
+        StripsPerLayer=32,
+        Layers=8,
+        LongWindowSeconds=120.0,
+        RecentWindowSeconds=30.0,
+        RollingEvents=1000,
     ),
 ]
 
