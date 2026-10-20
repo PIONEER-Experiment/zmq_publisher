@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <string_view>
@@ -132,13 +133,22 @@ SampicSimulationMode mode_from_environment() {
         "external_gated_trigger, or vendor_passthrough");
 }
 
+bool dqm_mode_from_environment() {
+    const char* value = std::getenv("ZMQ_RATE_TEST_SAMPIC_DQM_MODE");
+    return value != nullptr && std::string_view(value) != "0";
+}
+
 }  // namespace
 
 SampicPayloadGenerator::SampicPayloadGenerator()
-    : mode_(mode_from_environment()) {}
+    : mode_(mode_from_environment()), online_dqm_mode_(dqm_mode_from_environment()) {}
 
 SampicPayloadGenerator::SampicPayloadGenerator(SampicSimulationMode mode)
-    : mode_(mode) {}
+    : SampicPayloadGenerator(mode, false) {}
+
+SampicPayloadGenerator::SampicPayloadGenerator(
+    SampicSimulationMode mode, bool online_dqm_mode)
+    : mode_(mode), online_dqm_mode_(online_dqm_mode) {}
 
 std::string_view SampicPayloadGenerator::detector_name() const noexcept {
     return "sampic";
@@ -149,7 +159,19 @@ std::vector<DetectorBank> SampicPayloadGenerator::generate(
     std::uint64_t sequence) const {
     constexpr std::size_t hit_bytes =
         sizeof(HitHeader) + 64 * sizeof(float) + sizeof(HitScalars);
-    const auto hit_count = std::max<std::size_t>(1, requested_payload_bytes / hit_bytes);
+    const auto maximum_hit_count =
+        std::max<std::size_t>(1, requested_payload_bytes / hit_bytes);
+    const auto minimum_hit_count = std::min(
+        maximum_hit_count, std::max<std::size_t>(8, maximum_hit_count / 2));
+    const auto sampled_hit_count = std::llround(
+        0.75 * static_cast<double>(maximum_hit_count) +
+        SyntheticSignal::noise(
+            SyntheticSignal::seed(0x53414d504943ULL, sequence, 0),
+            0.10 * static_cast<double>(maximum_hit_count)));
+    const auto hit_count = online_dqm_mode_
+        ? static_cast<std::size_t>(std::clamp<long long>(
+              sampled_hit_count, minimum_hit_count, maximum_hit_count))
+        : maximum_hit_count;
 
     DetectorBank data{{'S', 'D', '0', '0', '\0'}, {}};
     DetectorBank metadata{{'S', 'H', '0', '0', '\0'}, {}};
@@ -163,12 +185,22 @@ std::vector<DetectorBank> SampicPayloadGenerator::generate(
         });
     }
     for (std::size_t index = 0; index < hit_count; ++index) {
+        const auto layer = index % 8;
+        const auto track = index / 8;
+        const auto track_center = static_cast<int>((sequence * 5U + track * 11U) % 32U);
+        const auto strip = online_dqm_mode_
+            ? std::clamp(track_center + static_cast<int>(index % 5) - 2, 0, 31)
+            : static_cast<int>(index % 32);
+        const auto global_channel = static_cast<int>(layer * 32 + strip);
+        const auto board = online_dqm_mode_ ? global_channel / 64 : 0;
+        const auto local_channel = online_dqm_mode_ ? global_channel % 64
+                                                    : static_cast<int>(index % 256);
         const HitHeader header{
-            0,
-            static_cast<std::int32_t>(index % 256),
+            board,
+            local_channel,
             static_cast<std::int32_t>(index),
-            static_cast<std::int32_t>((index / 16) % 16),
-            static_cast<std::int32_t>(index % 16),
+            local_channel / 16,
+            local_channel % 16,
             64,
             1,
             1,
@@ -182,19 +214,28 @@ std::vector<DetectorBank> SampicPayloadGenerator::generate(
         const auto onset = 17.0 + SyntheticSignal::trigger_jitter(signal_seed, 1.25);
         const auto rise_time = 0.9 + 0.4 * SyntheticSignal::uniform(signal_seed + 1U);
         const auto decay_time = 6.0 + 2.5 * SyntheticSignal::uniform(signal_seed + 2U);
-        const auto amplitude = 60.0 + 180.0 * SyntheticSignal::uniform(signal_seed + 3U);
+        const auto amplitude = online_dqm_mode_
+            ? std::clamp(0.18 + SyntheticSignal::noise(signal_seed + 3U, 0.045), 0.06, 0.35)
+            : 60.0 + 180.0 * SyntheticSignal::uniform(signal_seed + 3U);
+        const auto baseline = online_dqm_mode_
+            ? 0.70 + SyntheticSignal::noise(signal_seed + 4U, 0.012) : 0.0;
         for (std::size_t sample = 0; sample < waveform.size(); ++sample) {
-            waveform[sample] = static_cast<float>(
-                SyntheticSignal::noise(
-                    SyntheticSignal::seed(0x53414d504943ULL, sequence, index, sample), 3.0) +
-                SyntheticSignal::double_exponential_pulse(
-                    sample, onset, rise_time, decay_time, amplitude));
+            const auto noise = SyntheticSignal::noise(
+                SyntheticSignal::seed(0x53414d504943ULL, sequence, index, sample),
+                online_dqm_mode_ ? 0.004 : 3.0);
+            const auto pulse = SyntheticSignal::double_exponential_pulse(
+                sample, onset, rise_time, decay_time, amplitude);
+            waveform[sample] = static_cast<float>(baseline + noise +
+                (online_dqm_mode_ ? -pulse : pulse));
         }
         append(data.bytes, waveform);
         append(data.bytes, HitScalars{
-            10, 1.0F, static_cast<float>(amplitude), 0.0F,
-            static_cast<float>(amplitude), static_cast<float>(onset),
-            static_cast<double>(sequence), static_cast<float>(amplitude),
+            10, 1.0F, static_cast<float>(online_dqm_mode_ ? -amplitude : amplitude),
+            static_cast<float>(baseline),
+            static_cast<float>(online_dqm_mode_ ? baseline - amplitude : amplitude),
+            static_cast<float>(onset),
+            static_cast<double>(sequence),
+            static_cast<float>(online_dqm_mode_ ? -amplitude : amplitude),
             static_cast<double>(sequence),
         });
         if (mode_ != SampicSimulationMode::default_grouping) {

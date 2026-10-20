@@ -13,7 +13,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from online_common import configure_online_pipeline
 from online_dqm.PIONEER_TB_ONLINE_DQMConf import (
     PIAOnlineHDSocWaveformBuilder,
-    PIAOnlineAtarMonitor,
+    PIAOnlineAtarChannelMetric,
+    PIAOnlineAtarEventView,
+    PIAOnlineAtarFeatures,
+    PIAOnlineAtarHistogram2D,
+    PIAOnlineAtarMultiplicity,
+    PIAOnlineAtarOccupancy,
     PIAOnlineMusipHitSeriesBuilder,
     PIAOnlinePulseHistograms,
     PIAOnlineSampicWaveformBuilder,
@@ -37,14 +42,11 @@ analysis_stages = [
         RangeCalibrationEvents=100,
         RangeSigmas=4.0,
     ),
-    PIAOnlineAtarMonitor(
-        "AtarMonitor",
+    PIAOnlineAtarFeatures(
+        "AtarFeatures",
         Channels=256,
         StripsPerLayer=32,
         Layers=8,
-        LongWindowSeconds=120.0,
-        RecentWindowSeconds=30.0,
-        RollingEvents=1000,
     ),
 ]
 
@@ -55,6 +57,50 @@ product_stages = [
     PIAOnlineHDSocWaveformBuilder("HDSocWaveformProduct"),
     PIAOnlineWFD5WaveformBuilder("WFD5WaveformProduct"),
     PIAOnlineMusipHitSeriesBuilder("MusipHitSeriesProduct"),
+    PIAOnlineAtarOccupancy("AtarOccupancy"),
+    PIAOnlineAtarMultiplicity(
+        "AtarMultiplicity", MaximumHits=96,
+    ),
+    PIAOnlineAtarChannelMetric(
+        "AtarBaseline", Metric="baseline",
+        Output="/Event/OnlineDqmAtarBaseline",
+        LongWindowSeconds=120.0, RecentWindowSeconds=30.0,
+    ),
+    PIAOnlineAtarChannelMetric(
+        "AtarNoise", Metric="noise",
+        Output="/Event/OnlineDqmAtarNoise",
+        LongWindowSeconds=120.0, RecentWindowSeconds=30.0,
+    ),
+    PIAOnlineAtarEventView(
+        "AtarWaveforms", View="waveforms",
+        Output="/Event/OnlineDqmAtarWaveforms",
+    ),
+    PIAOnlineAtarEventView(
+        "AtarHitPositions", View="hit-positions",
+        Output="/Event/OnlineDqmAtarHitPositions",
+    ),
+    PIAOnlineAtarEventView(
+        "AtarChargeDepth", View="charge-depth",
+        Output="/Event/OnlineDqmAtarChargeDepth",
+    ),
+    PIAOnlineAtarHistogram2D(
+        "AtarPersistence", View="persistence",
+        Output="/Event/OnlineDqmAtarPersistence",
+        XBins=64, XMin=0.0, XMax=64.0,
+        YBins=80, YMin=0.2, YMax=0.9, RollingEvents=200,
+    ),
+    PIAOnlineAtarHistogram2D(
+        "AtarChargeVsAmplitude", View="charge-vs-amplitude",
+        Output="/Event/OnlineDqmAtarChargeVsAmplitude",
+        XBins=64, XMin=-0.5, XMax=0.0,
+        YBins=64, YMin=0.0, YMax=15.0, RollingEvents=1000,
+    ),
+    PIAOnlineAtarHistogram2D(
+        "AtarAmplitudeByChannel", View="amplitude-by-channel",
+        Output="/Event/OnlineDqmAtarAmplitudeByChannel",
+        XBins=256, XMin=0.0, XMax=256.0,
+        YBins=64, YMin=-0.5, YMax=0.0, RollingEvents=1000,
+    ),
 ]
 
 configure_online_pipeline(

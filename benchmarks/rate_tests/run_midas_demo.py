@@ -71,6 +71,7 @@ class Experiment:
             "PATH": f"{self.midas_root / 'bin'}:{self.environment.get('PATH', '')}",
             "ZMQ_RATE_TEST_WRITE_CACHE_BYTES": "10000000",
             "ZMQ_RATE_TEST_FLUSH_INTERVAL_US": "1000",
+            "ZMQ_RATE_TEST_SAMPIC_DQM_MODE": "1",
         })
 
     def run(self, program: str, *arguments: str, check: bool = True) -> subprocess.CompletedProcess:

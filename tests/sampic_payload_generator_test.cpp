@@ -3,6 +3,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <cstring>
+#include <set>
 #include <string_view>
 
 namespace {
@@ -43,4 +45,21 @@ TEST_CASE("SAMPIC vendor-passthrough simulator emits vendor triggers") {
     CHECK(find_bank(banks, "SV00")->bytes.size() == 4 + 20);
     CHECK(find_bank(banks, "SC00") == nullptr);
     CHECK(find_bank(banks, "SG00") == nullptr);
+}
+
+TEST_CASE("SAMPIC online DQM simulator varies multiplicity while covering ATAR boards") {
+    const SampicPayloadGenerator generator(SampicSimulationMode::time_grouping, true);
+    const auto first = generator.generate(16 * 1024, 1);
+    const auto second = generator.generate(16 * 1024, 9);
+    REQUIRE(find_bank(first, "SD00") != nullptr);
+    REQUIRE(find_bank(second, "SD00") != nullptr);
+    CHECK(find_bank(first, "SD00")->bytes.size() != find_bank(second, "SD00")->bytes.size());
+    std::set<std::int32_t> boards;
+    const auto& data = find_bank(first, "SD00")->bytes;
+    for (std::size_t offset = 0; offset + 344 <= data.size(); offset += 344) {
+        std::int32_t board = -1;
+        std::memcpy(&board, data.data() + offset, sizeof(board));
+        boards.insert(board);
+    }
+    CHECK(boards == std::set<std::int32_t>{0, 1, 2, 3});
 }

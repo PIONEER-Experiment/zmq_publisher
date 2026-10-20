@@ -15,6 +15,7 @@ class SampicPayloadGenerator final : public DetectorPayloadGenerator {
 public:
     SampicPayloadGenerator();
     explicit SampicPayloadGenerator(SampicSimulationMode mode);
+    SampicPayloadGenerator(SampicSimulationMode mode, bool online_dqm_mode);
 
     [[nodiscard]] std::string_view detector_name() const noexcept override;
     [[nodiscard]] std::vector<DetectorBank> generate(
@@ -23,6 +24,7 @@ public:
 
 private:
     SampicSimulationMode mode_;
+    bool online_dqm_mode_;
 };
 
 }  // namespace zmq_publisher::benchmarks
