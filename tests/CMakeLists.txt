@@ -13,20 +13,47 @@ set(ZMQ_PUBLISHER_TEST_SOURCES
   processor_definition_test.cpp
   processor_registry_test.cpp
   processor_scheduler_test.cpp
+  signal_handler_test.cpp
   transport_test.cpp
 )
 
+if(ZMQ_PUBLISHER_BUILD_RATE_TESTS)
+  list(APPEND ZMQ_PUBLISHER_TEST_SOURCES
+    musip_payload_generator_test.cpp
+    sampic_payload_generator_test.cpp
+    synthetic_signal_test.cpp
+    ${PROJECT_SOURCE_DIR}/benchmarks/rate_tests/simulators/src/musip_payload_generator.cpp
+    ${PROJECT_SOURCE_DIR}/benchmarks/rate_tests/simulators/src/sampic_payload_generator.cpp
+  )
+endif()
+
 if(TARGET zmq_publisher_command_extension)
   list(APPEND ZMQ_PUBLISHER_TEST_SOURCES command_extension_test.cpp)
+endif()
+
+if(TARGET zmq_publisher_gaudi_client)
+  list(APPEND ZMQ_PUBLISHER_TEST_SOURCES gaudi_client_test.cpp)
 endif()
 
 add_executable(zmq_publisher_tests ${ZMQ_PUBLISHER_TEST_SOURCES})
 target_link_libraries(zmq_publisher_tests PRIVATE
   Catch2::Catch2WithMain
   zmq_publisher::core
-  ${ZMQ_LIBRARY}
+  ${ZMQ_SYSTEM_LIBRARIES}
 )
 target_include_directories(zmq_publisher_tests SYSTEM PRIVATE ${CPPZMQ_INCLUDE_DIR})
+if(ZMQ_PUBLISHER_BUILD_RATE_TESTS)
+  target_include_directories(zmq_publisher_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/benchmarks/rate_tests/simulators/include
+  )
+endif()
+
+if(TARGET zmq_publisher_gaudi_client)
+  target_link_libraries(zmq_publisher_tests PRIVATE zmq_publisher_gaudi_client)
+  target_sources(zmq_publisher_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/extensions/gaudi/src/gaudi_processor_config.cpp
+  )
+endif()
 
 if(TARGET zmq_publisher_command_extension)
   add_dependencies(zmq_publisher_tests zmq_publisher_command_extension)

@@ -45,6 +45,7 @@ std::chrono::microseconds polling_interval{1000};
 std::chrono::steady_clock::time_point last_poll;
 std::vector<std::byte> payload(1024);
 std::uint64_t sequence = 0;
+std::uint64_t maximum_events = 0;
 std::chrono::microseconds flush_interval{1000};
 std::chrono::steady_clock::time_point last_flush;
 
@@ -99,6 +100,7 @@ INT frontend_init() {
         {"Payload Bytes", 1024},
         {"Polling Interval (us)", 1000},
         {"Payload Pattern", 90},
+        {"Maximum Events", 0},
     };
     settings.connect(settings_path());
     flush_interval = std::chrono::microseconds(configured_flush_interval_us());
@@ -115,6 +117,7 @@ INT begin_of_run(INT, char*) {
     const auto payload_bytes = static_cast<std::size_t>(settings["Payload Bytes"]);
     const auto interval_us = static_cast<int>(settings["Polling Interval (us)"]);
     const auto pattern = static_cast<unsigned char>(settings["Payload Pattern"]);
+    maximum_events = static_cast<std::uint64_t>(settings["Maximum Events"]);
     if (payload_bytes == 0 || payload_bytes + sizeof(TimingRecord) + 128U >
             static_cast<std::size_t>(max_event_size)) {
         cm_msg(MERROR, "begin_of_run", "Invalid payload size: %zu", payload_bytes);
@@ -143,6 +146,7 @@ INT resume_run(INT, char*) { return SUCCESS; }
 INT frontend_loop() { return SUCCESS; }
 
 INT poll_event(INT, INT, BOOL test) {
+    if (maximum_events != 0 && sequence >= maximum_events) return FALSE;
     const auto now = std::chrono::steady_clock::now();
     if (polling_interval.count() == 0 || now - last_poll >= polling_interval) {
         if (!test) {

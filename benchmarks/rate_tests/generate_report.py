@@ -54,6 +54,8 @@ def summarize(run_dir: Path) -> pd.DataFrame:
         for index, scenario in enumerate(run_metadata["scenarios"])
     }
     rows = []
+    publication_every = int(run_metadata.get("gaudi_publish_every_events", 1))
+    frontend_count = int(run_metadata.get("frontend_count", 1))
     for scenario_file in sorted(run_dir.glob("*/scenario.json")):
         scenario_dir = scenario_file.parent
         scenario = json.loads(scenario_file.read_text(encoding="utf-8"))
@@ -76,16 +78,24 @@ def summarize(run_dir: Path) -> pd.DataFrame:
             source_sequence_span = missing_sequences = 0.0
             latency = pd.DataFrame()
         else:
-            producer_span = (
-                events["producer_monotonic_ns"].iloc[-1] -
-                events["producer_monotonic_ns"].iloc[0]
-            ) / 1e9
             source_sequence_span = float(
                 events["source_sequence"].max() - events["source_sequence"].min())
             received = float(len(events))
             missing_sequences = max(source_sequence_span + 1.0 - received, 0.0)
-            producer_rate = source_sequence_span / producer_span if producer_span > 0 else 0.0
-            expected = producer_rate * measurement_seconds
+            producer_times = events["producer_monotonic_ns"].dropna()
+            if len(producer_times) >= 2:
+                producer_span = (producer_times.iloc[-1] - producer_times.iloc[0]) / 1e9
+                producer_rate = (
+                    source_sequence_span / producer_span if producer_span > 0 else 0.0)
+                expected = producer_rate * measurement_seconds
+                end_to_end_start = events["producer_monotonic_ns"]
+            else:
+                # Serialized analysis products no longer contain the source's
+                # benchmark-only RTIM bank. Sequence numbers still provide an
+                # exact loss/rate measurement, and callback time bounds latency.
+                expected = source_sequence_span + 1.0
+                producer_rate = expected / measurement_seconds
+                end_to_end_start = events["receiver_monotonic_ns"]
             subscriber_rate = received / measurement_seconds
             latency = pd.DataFrame({
                 "producer_to_receiver_us": (
@@ -104,12 +114,14 @@ def summarize(run_dir: Path) -> pd.DataFrame:
                     events["received_monotonic_ns"] - events["published_ns"]
                 ) / 1000.0,
                 "end_to_end_us": (
-                    events["received_monotonic_ns"] - events["producer_monotonic_ns"]
+                    events["received_monotonic_ns"] - end_to_end_start
                 ) / 1000.0,
             }).clip(lower=0)
 
         publisher_resources = resources[resources["process"] == "publisher"]
-        frontend_resources = resources[resources["process"] == "frontend"]
+        frontend_resources = resources[
+            resources["process"].str.endswith("frontend")
+        ]
         receiver_received = observed_counter_delta(events, "receiver_events_received")
         receiver_consumed = observed_counter_delta(events, "receiver_events_consumed")
         receiver_dropped = observed_counter_delta(events, "receiver_events_dropped")
@@ -117,6 +129,13 @@ def summarize(run_dir: Path) -> pd.DataFrame:
             events, "receiver_total_queue_latency_ns")
         processor_rate = processor.get("items", 0) / processor_seconds if processor_seconds else 0
         transport_rate = transport.get("items", 0) / transport_seconds if transport_seconds else 0
+        if (run_metadata.get("gaudi_socket") and publication_every > 1 and
+                scenario.get("interval_us", 0) > 0):
+            # Sparse snapshots provide too few sequence endpoints for a stable
+            # source-rate estimate. The benchmark frontend is configured with
+            # this exact fixed interval, so use its requested rate.
+            producer_rate = frontend_count * 1_000_000.0 / scenario["interval_us"]
+            expected = producer_rate * measurement_seconds
         row = {
             **scenario,
             "expected_source_events": expected,
@@ -129,6 +148,10 @@ def summarize(run_dir: Path) -> pd.DataFrame:
             "receiver_events_received": receiver_received,
             "receiver_events_consumed": receiver_consumed,
             "receiver_events_dropped": receiver_dropped,
+            "receiver_drop_percent": (
+                100.0 * receiver_dropped / receiver_received
+                if receiver_received else 0.0
+            ),
             "receiver_queue_high_watermark": events[
                 "receiver_queue_high_watermark"].max(),
             "receiver_batch_queue_depth_max": events[
@@ -146,12 +169,20 @@ def summarize(run_dir: Path) -> pd.DataFrame:
             "transport_events_per_s": transport_rate,
             "subscriber_events_per_s": subscriber_rate,
             "producer_payload_MB_per_s": producer_rate * scenario["payload_bytes"] / 1e6,
-            "subscriber_payload_MB_per_s": subscriber_rate * scenario["payload_bytes"] / 1e6,
+            "processor_payload_MB_per_s": (
+                processor_rate * scenario["payload_bytes"] / 1e6
+            ),
+            "subscriber_payload_MB_per_s": (
+                events["product_bytes"].sum() / measurement_seconds / 1e6
+                if not events.empty else 0.0
+            ),
             "processor_mean_us": (
-                processor.get("processing-ns", 0) / processor.get("invocations", 1) / 1000.0
+                processor.get("processing-ns", 0) /
+                max(processor.get("items", 0), 1) / 1000.0
             ),
             "transport_queue_mean_us": (
-                transport.get("latency-ns", 0) / transport.get("invocations", 1) / 1000.0
+                transport.get("latency-ns", 0) /
+                max(transport.get("invocations", 0), 1) / 1000.0
             ),
             "transport_dropped": transport.get("dropped", 0),
             "transport_blocked_ms": transport.get("blocked-ns", 0) / 1e6,
@@ -160,6 +191,52 @@ def summarize(run_dir: Path) -> pd.DataFrame:
             "publisher_rss_MiB": publisher_resources["rss_bytes"].max() / 2**20,
             "frontend_cpu_mean_percent": frontend_resources["cpu_percent"].mean(),
         }
+        if run_metadata.get("gaudi_socket") and publication_every > 1:
+            row["pipeline_gap_percent"] = (
+                100.0 * max(producer_rate - processor_rate, 0) / producer_rate
+                if producer_rate else 0.0
+            )
+            row["sequence_gap_percent"] = float("nan")
+        if frontend_count > 1:
+            # Each independent frontend has its own valid serial/sequence
+            # namespace. Interleaved source_sequence values cannot be treated
+            # as one monotonic loss counter.
+            row["missing_source_sequences"] = float("nan")
+            row["sequence_gap_percent"] = float("nan")
+        gaudi_timing_columns = {
+            "gaudi_client_request_send_ns": "gaudi_request_send",
+            "gaudi_client_response_wait_ns": "gaudi_response_wait",
+            "gaudi_client_response_receive_ns": "gaudi_response_receive",
+            "gaudi_client_round_trip_ns": "gaudi_round_trip",
+            "gaudi_sidecar_socket_receive_ns": "gaudi_socket_receive",
+            "gaudi_sidecar_midas_parse_ns": "gaudi_midas_parse",
+            "gaudi_sidecar_pipeline_ns": "gaudi_pipeline",
+            "gaudi_sidecar_serialization_ns": "gaudi_serialization",
+        }
+        for source_column, output_column in gaudi_timing_columns.items():
+            values = events.get(source_column, pd.Series(dtype=float)).dropna() / 1000.0
+            for rank in (50, 95, 99):
+                row[f"{output_column}_p{rank}_us"] = percentile(values, rank)
+        algorithm_samples: dict[str, list[float]] = {}
+        for encoded in events.get(
+                "gaudi_algorithm_timing_json", pd.Series(dtype=str)).dropna():
+            for algorithm, nanoseconds in json.loads(encoded).items():
+                algorithm_samples.setdefault(algorithm, []).append(nanoseconds / 1000.0)
+        for algorithm, values in algorithm_samples.items():
+            samples = pd.Series(values, dtype=float)
+            for rank in (50, 95, 99):
+                row[f"gaudi_algorithm::{algorithm}::p{rank}_us"] = percentile(samples, rank)
+        attributed = (
+            events.get("gaudi_sidecar_midas_parse_ns", 0)
+            + events.get("gaudi_sidecar_pipeline_ns", 0)
+            + events.get("gaudi_sidecar_serialization_ns", 0)
+        )
+        residual = (
+            events.get("gaudi_client_response_wait_ns", pd.Series(dtype=float))
+            - attributed
+        ).clip(lower=0) / 1000.0
+        for rank in (50, 95, 99):
+            row[f"gaudi_unattributed_wait_p{rank}_us"] = percentile(residual.dropna(), rank)
         for source_column, output_column in [
             ("producer_to_receiver", "producer_to_receiver"),
             ("receiver_queue", "receiver_queue"),
@@ -177,28 +254,128 @@ def summarize(run_dir: Path) -> pd.DataFrame:
     return result.sort_values("_scenario_order").drop(columns="_scenario_order").reset_index(drop=True)
 
 
-def build_pdf(summary: pd.DataFrame, output: Path) -> None:
+def build_pdf(summary: pd.DataFrame, run_metadata: dict, output: Path) -> None:
     labels = summary["name"].tolist()
     x = np.arange(len(labels))
     with PdfPages(output) as pdf:
-        fig, ax = plt.subplots(figsize=(11, 6))
-        width = 0.2
-        stages = [
-            ("producer_events_per_s", "MIDAS generated"),
-            ("processor_events_per_s", "processor output"),
-            ("transport_events_per_s", "ZMQ sent"),
-            ("subscriber_events_per_s", "subscriber received"),
+        if len(summary) > 12 and summary["payload_bytes"].nunique() > 2:
+            payloads = list(dict.fromkeys(summary["payload_bytes"].tolist()))
+            intervals = list(dict.fromkeys(summary["interval_us"].tolist()))
+            payload_labels = [f"{value / 1024:g} KiB" for value in payloads]
+            rate_labels = [
+                "saturation" if interval == 0 else f"{1_000_000 / interval:g} Hz"
+                for interval in intervals
+            ]
+            panels = [
+                ("processor_events_per_s", "Processed event rate", "events/s", ".0f"),
+                ("processor_payload_MB_per_s", "Processed input throughput", "MB/s", ".1f"),
+                ("pipeline_gap_percent", "Unprocessed source fraction", "%", ".1f"),
+                ("processor_mean_us", "Processor time per event", "µs", ".0f"),
+            ]
+            fig, axes = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True)
+            for axis, (column, title, unit, value_format) in zip(axes.flat, panels):
+                values = summary.pivot(
+                    index="payload_bytes", columns="interval_us", values=column
+                ).reindex(index=payloads, columns=intervals)
+                image = axis.imshow(values.to_numpy(), aspect="auto", cmap="viridis")
+                axis.set_xticks(range(len(intervals)), rate_labels, rotation=25, ha="right")
+                axis.set_yticks(range(len(payloads)), payload_labels)
+                axis.set_title(title)
+                for row in range(len(payloads)):
+                    for column_index in range(len(intervals)):
+                        value = values.iloc[row, column_index]
+                        if np.isfinite(value):
+                            axis.text(
+                                column_index, row, format(value, value_format),
+                                ha="center", va="center", fontsize=7, color="white",
+                            )
+                fig.colorbar(image, ax=axis, label=unit, shrink=0.8)
+            detector = run_metadata.get("detector", "raw").upper()
+            fig.suptitle(f"{detector} MIDAS → Gaudi benchmark matrix")
+            pdf.savefig(fig)
+            plt.close(fig)
+        else:
+            fig, ax = plt.subplots(figsize=(11, 6))
+            width = 0.2
+            stages = [
+                ("producer_events_per_s", "MIDAS generated"),
+                ("processor_events_per_s", "processor output"),
+                ("transport_events_per_s", "ZMQ sent"),
+                ("subscriber_events_per_s", "subscriber received"),
+            ]
+            for index, (column, label) in enumerate(stages):
+                ax.bar(x + (index - 1.5) * width, summary[column], width, label=label)
+            ax.set_xticks(x, labels, rotation=20, ha="right")
+            ax.set_ylabel("events / second")
+            ax.set_title("Event rate at each pipeline stage")
+            ax.legend()
+            ax.grid(axis="y", alpha=0.25)
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+        if "gaudi_round_trip_p50_us" in summary and summary[
+                "gaudi_round_trip_p50_us"].notna().any():
+            fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
+            gaudi_stages = [
+                ("gaudi_request_send", "client request send"),
+                ("gaudi_midas_parse", "MIDAS parse/bank scan"),
+                ("gaudi_pipeline", "Gaudi pipeline before publication"),
+                ("gaudi_serialization", "compact-product serialization"),
+                ("gaudi_unattributed_wait", "Gaudi/framework + unmeasured wait"),
+                ("gaudi_response_receive", "client response receive"),
+            ]
+            for axis, rank in zip(axes, (50, 95)):
+                bottoms = np.zeros(len(summary))
+                for column, label in gaudi_stages:
+                    values = summary[f"{column}_p{rank}_us"].fillna(0).to_numpy()
+                    axis.bar(x, values, bottom=bottoms, label=label)
+                    bottoms += values
+                axis.plot(
+                    x, summary[f"gaudi_round_trip_p{rank}_us"], "ko--",
+                    label="measured round trip")
+                axis.set_xticks(x, labels, rotation=25, ha="right")
+                axis.set_ylabel("latency (microseconds)")
+                axis.set_title(f"Gaudi request p{rank} breakdown")
+                axis.grid(axis="y", alpha=0.25)
+            axes[1].legend(fontsize=8)
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+        algorithm_columns = [
+            column for column in summary.columns
+            if column.startswith("gaudi_algorithm::") and column.endswith("::p50_us")
         ]
-        for index, (column, label) in enumerate(stages):
-            ax.bar(x + (index - 1.5) * width, summary[column], width, label=label)
-        ax.set_xticks(x, labels, rotation=20, ha="right")
-        ax.set_ylabel("events / second")
-        ax.set_title("Event rate at each pipeline stage")
-        ax.legend()
-        ax.grid(axis="y", alpha=0.25)
-        fig.tight_layout()
-        pdf.savefig(fig)
-        plt.close(fig)
+        for column in algorithm_columns:
+            algorithm = column.removeprefix("gaudi_algorithm::").removesuffix("::p50_us")
+            fig, ax = plt.subplots(figsize=(12, 6))
+            if len(summary) > 12 and summary["payload_bytes"].nunique() > 2:
+                payloads = list(dict.fromkeys(summary["payload_bytes"].tolist()))
+                intervals = list(dict.fromkeys(summary["interval_us"].tolist()))
+                values = summary.pivot(
+                    index="payload_bytes", columns="interval_us", values=column
+                ).reindex(index=payloads, columns=intervals)
+                image = ax.imshow(values.to_numpy(), aspect="auto", cmap="magma")
+                ax.set_xticks(
+                    range(len(intervals)),
+                    ["saturation" if value == 0 else f"{1_000_000 / value:g} Hz"
+                     for value in intervals],
+                    rotation=25,
+                    ha="right",
+                )
+                ax.set_yticks(
+                    range(len(payloads)), [f"{value / 1024:g} KiB" for value in payloads]
+                )
+                fig.colorbar(image, ax=ax, label="microseconds")
+            else:
+                ax.bar(x, summary[column].fillna(0))
+                ax.set_xticks(x, labels, rotation=25, ha="right")
+                ax.set_ylabel("microseconds")
+            ax.set_title(f"Gaudi algorithm median execution: {algorithm}")
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
 
         stage_columns = [
             ("producer_to_receiver", "source → receiver"),
@@ -310,17 +487,24 @@ def build_pdf(summary: pd.DataFrame, output: Path) -> None:
 
 def write_markdown(summary: pd.DataFrame, run_metadata: dict, output: Path) -> None:
     bottleneck_rows = []
+    publication_every = int(run_metadata.get("gaudi_publish_every_events", 1))
     for _, row in summary.iterrows():
         source = row["producer_events_per_s"]
         processor = row["processor_events_per_s"]
         transport = row["transport_events_per_s"]
         subscriber = row["subscriber_events_per_s"]
+        sparse_publication = bool(run_metadata.get("gaudi_socket")) and publication_every > 1
         if row["receiver_events_dropped"] > 0:
             finding = "the bounded MIDAS receiver queue dropped events"
         elif source and processor < source * 0.97:
             finding = "MIDAS ingestion / processor is not keeping pace with the source"
-        elif processor and transport < processor * 0.97:
+        elif not sparse_publication and processor and transport < processor * 0.97:
             finding = "the ZeroMQ transport is not keeping pace with processor output"
+        elif sparse_publication:
+            finding = (
+                f"processing keeps pace and compact products are intentionally published "
+                f"every {publication_every} events"
+            )
         elif transport and subscriber < transport * 0.97:
             finding = "the native C++ benchmark subscriber is the observed limiter"
         else:
@@ -330,6 +514,9 @@ def write_markdown(summary: pd.DataFrame, run_metadata: dict, output: Path) -> N
                 "processor handoff": row["processor_handoff_p50_us"],
                 "channel + transport": row["processor_to_transport_p50_us"],
                 "ZMQ + subscriber": row["transport_to_subscriber_p50_us"],
+            }
+            latency_stages = {
+                name: value for name, value in latency_stages.items() if pd.notna(value)
             }
             dominant_latency = max(latency_stages, key=latency_stages.get)
             finding = (
@@ -370,13 +557,49 @@ def write_markdown(summary: pd.DataFrame, run_metadata: dict, output: Path) -> N
         "transport_to_subscriber_p50_us",
     ]
     stage_table = summary[stage_columns].round(2).to_markdown(index=False)
+    gaudi_columns = [
+        "name",
+        "gaudi_request_send_p50_us",
+        "gaudi_midas_parse_p50_us",
+        "gaudi_pipeline_p50_us",
+        "gaudi_serialization_p50_us",
+        "gaudi_unattributed_wait_p50_us",
+        "gaudi_response_receive_p50_us",
+        "gaudi_round_trip_p50_us",
+    ]
+    gaudi_table = summary[gaudi_columns].round(2).to_markdown(index=False)
+    algorithm_rows = []
+    for column in summary.columns:
+        if not (column.startswith("gaudi_algorithm::") and column.endswith("::p50_us")):
+            continue
+        algorithm = column.removeprefix("gaudi_algorithm::").removesuffix("::p50_us")
+        p95_column = f"gaudi_algorithm::{algorithm}::p95_us"
+        for _, row in summary.iterrows():
+            if pd.notna(row[column]):
+                algorithm_rows.append({
+                    "scenario": row["name"],
+                    "algorithm": algorithm,
+                    "p50_us": row[column],
+                    "p95_us": row[p95_column],
+                })
+    algorithm_table = (
+        pd.DataFrame(algorithm_rows).round(2).to_markdown(index=False)
+        if algorithm_rows else "No per-algorithm timing samples were reported."
+    )
     output.write_text(
         "# MIDAS → ZMQ publisher rate-test report\n\n"
-        "The source timestamp is written immediately before the MIDAS banks are built. "
+        "For raw MIDAS products, the source timestamp is written immediately before "
+        "the MIDAS banks are built. For Gaudi products, which intentionally omit the "
+        "benchmark-only bank, sequence numbers measure loss and end-to-end latency "
+        "starts at the MIDAS receiver callback. "
         "Additional markers record the MIDAS callback, receiver-queue dequeue, "
         "`OutputMessage` creation, ZeroMQ publication, and receipt by the native C++ "
         "subscriber. Python only orchestrates the run and captures telemetry.\n\n"
-        f"Publisher revision: `{run_metadata['git_commit']}`"
+        + (f"Gaudi processed-event telemetry is compared with the source while compact "
+           f"products are intentionally sampled every {publication_every} events; "
+           "sequence gaps between published snapshots are therefore not event loss.\n\n"
+           if run_metadata.get("gaudi_socket") and publication_every > 1 else "")
+        + f"Publisher revision: `{run_metadata['git_commit']}`"
         f"{' (dirty)' if run_metadata.get('git_dirty') else ''}; "
         f"receiver branch: `{run_metadata.get('receiver_git_branch')}` at "
         f"`{run_metadata.get('receiver_git_commit')}`"
@@ -384,6 +607,8 @@ def write_markdown(summary: pd.DataFrame, run_metadata: dict, output: Path) -> N
         "## Automated bottleneck indications\n\n" + "\n".join(bottleneck_rows) +
         "\n\n## Summary\n\n" + table +
         "\n\n## Median latency by stage (microseconds)\n\n" + stage_table +
+        "\n\n## Gaudi request median breakdown (microseconds)\n\n" + gaudi_table +
+        "\n\n## Gaudi algorithm timings (microseconds)\n\n" + algorithm_table +
         "\n\nThe subscriber stage includes native C++/libzmq receive and CSV-recording "
         "overhead. A subscriber rate below the transport rate can therefore indicate subscriber saturation, "
         "not publisher loss. The pipeline gap compares the source rate inferred from "
@@ -407,8 +632,8 @@ def main() -> int:
         json.dumps(summary.replace({np.nan: None}).to_dict(orient="records"), indent=2) + "\n",
         encoding="utf-8",
     )
-    build_pdf(summary, run_dir / "benchmark_report.pdf")
     run_metadata = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    build_pdf(summary, run_metadata, run_dir / "benchmark_report.pdf")
     write_markdown(summary, run_metadata, run_dir / "benchmark_report.md")
     print(run_dir / "benchmark_report.pdf")
     return 0

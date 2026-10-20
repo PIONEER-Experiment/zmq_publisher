@@ -37,6 +37,15 @@ void write_optional(std::ofstream& output, const Json& object, std::string_view 
     }
 }
 
+void write_csv_string(std::ofstream& output, const std::string& value) {
+    output << '"';
+    for (const char character : value) {
+        if (character == '"') output << '"';
+        output << character;
+    }
+    output << '"';
+}
+
 }  // namespace
 
 RateSubscriber::RateSubscriber(std::string endpoint, std::string output_path)
@@ -53,7 +62,11 @@ void RateSubscriber::write_header() {
                "publish_sequence,payload_bytes,product_bytes,receiver_events_received,"
                "receiver_events_consumed,receiver_events_dropped,receiver_queue_depth,"
                "receiver_batch_queue_depth,receiver_queue_high_watermark,"
-               "receiver_total_queue_latency_ns\n";
+               "receiver_total_queue_latency_ns,gaudi_client_request_send_ns,"
+               "gaudi_client_response_wait_ns,gaudi_client_response_receive_ns,"
+               "gaudi_client_round_trip_ns,gaudi_sidecar_socket_receive_ns,"
+               "gaudi_sidecar_midas_parse_ns,gaudi_sidecar_pipeline_ns,"
+               "gaudi_sidecar_serialization_ns,gaudi_algorithm_timing_json\n";
 }
 
 RateSubscriber::SourceTiming RateSubscriber::parse_source_timing(
@@ -139,11 +152,21 @@ void RateSubscriber::run(const std::atomic<bool>& running) {
                 const auto& product = products[index];
                 const auto& markers = product.at("timing-markers");
                 const auto& attributes = product.at("numeric-attributes");
-                const auto timing = parse_source_timing(
-                    static_cast<const std::byte*>(frames[index + 2].data()),
-                    frames[index + 2].size());
+                SourceTiming timing{};
+                if (attributes.contains("midas.serial-number")) {
+                    timing.sequence = attributes.value("midas.serial-number", 0);
+                    timing.payload_bytes = attributes.value("midas.event-bytes", 0);
+                } else {
+                    timing = parse_source_timing(
+                        static_cast<const std::byte*>(frames[index + 2].data()),
+                        frames[index + 2].size());
+                }
                 const auto created = product.at("created-at-steady-ns").get<std::int64_t>();
-                output_ << received_ns << ',' << timing.monotonic_ns << ',';
+                output_ << received_ns << ',';
+                if (timing.monotonic_ns != 0) {
+                    output_ << timing.monotonic_ns;
+                }
+                output_ << ',';
                 write_optional(output_, markers, "midas-receiver");
                 output_ << ',';
                 write_optional(output_, markers, "midas-processor-dequeued");
@@ -162,10 +185,38 @@ void RateSubscriber::run(const std::atomic<bool>& running) {
                          "midas-receiver.queue-high-watermark",
                          "midas-receiver.total-queue-latency-ns"}) {
                     write_optional(output_, attributes, key);
-                    if (key != std::string_view("midas-receiver.total-queue-latency-ns")) {
-                        output_ << ',';
+                    output_ << ',';
+                }
+                const std::array<std::string_view, 8> gaudi_timing_keys{
+                    "gaudi.client.request-send-ns",
+                    "gaudi.client.response-wait-ns",
+                    "gaudi.client.response-receive-ns",
+                    "gaudi.client.round-trip-ns",
+                    "gaudi.sidecar.socket-receive-ns",
+                    "gaudi.sidecar.midas-parse-ns",
+                    "gaudi.sidecar.pipeline-ns",
+                    "gaudi.sidecar.serialization-ns",
+                };
+                for (std::size_t timing_index = 0;
+                     timing_index < gaudi_timing_keys.size(); ++timing_index) {
+                    write_optional(output_, attributes, gaudi_timing_keys[timing_index]);
+                    output_ << ',';
+                }
+                nlohmann::json algorithm_timings = nlohmann::json::object();
+                constexpr std::string_view prefix = "gaudi.algorithm.";
+                constexpr std::string_view suffix = "-ns";
+                for (const auto& [key, value] : attributes.items()) {
+                    if (key.size() >= prefix.size() + suffix.size() &&
+                        key.compare(0, prefix.size(), prefix.data(), prefix.size()) == 0 &&
+                        key.compare(
+                            key.size() - suffix.size(), suffix.size(),
+                            suffix.data(), suffix.size()) == 0) {
+                        algorithm_timings[
+                            key.substr(prefix.size(), key.size() - prefix.size() - suffix.size())
+                        ] = value;
                     }
                 }
+                write_csv_string(output_, algorithm_timings.dump());
                 output_ << '\n';
                 if (++rows_since_flush >= 4096) {
                     output_.flush();

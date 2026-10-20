@@ -2,14 +2,16 @@ if(NOT DEFINED ENV{MIDASSYS})
   message(FATAL_ERROR "MIDASSYS is required when ZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION=ON")
 endif()
 
-CPMAddPackage(
-  NAME midas_receiver
-  GITHUB_REPOSITORY jaca230/midas_receiver
-  GIT_TAG main
-  OPTIONS
-    "CMAKE_POSITION_INDEPENDENT_CODE ON"
-    "BUILD_MIDAS_RECEIVER_TEST OFF"
-)
+if(NOT TARGET MidasReceiver::midas_receiver)
+  CPMAddPackage(
+    NAME midas_receiver
+    GITHUB_REPOSITORY jaca230/midas_receiver
+    GIT_TAG main
+    OPTIONS
+      "CMAKE_POSITION_INDEPENDENT_CODE ON"
+      "BUILD_MIDAS_RECEIVER_TEST OFF"
+  )
+endif()
 find_package(ZLIB REQUIRED)
 
 add_library(zmq_publisher_midas_extension MODULE

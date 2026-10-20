@@ -6,6 +6,7 @@ include(CMakePackageConfigHelpers)
 
 option(ZMQ_PUBLISHER_BUILD_COMMAND_EXTENSION "Build the command processor extension" ON)
 option(ZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION "Build the optional MIDAS processor extension" OFF)
+option(ZMQ_PUBLISHER_BUILD_GAUDI_EXTENSION "Build the optional MIDAS-to-Gaudi processor extension" OFF)
 option(ZMQ_PUBLISHER_BUILD_EXAMPLES "Build repository examples" OFF)
 option(ZMQ_PUBLISHER_BUILD_TESTS "Build unit tests" ON)
 option(ZMQ_PUBLISHER_BUILD_BENCHMARKS "Build throughput benchmarks" OFF)
@@ -38,6 +39,16 @@ CPMAddPackage(
 find_package(Threads REQUIRED)
 find_library(ZMQ_LIBRARY NAMES zmq REQUIRED)
 find_path(CPPZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
+set(ZMQ_SYSTEM_LIBRARIES ${ZMQ_LIBRARY})
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # Some locally installed libzmq builds use strlcpy from libbsd without
+  # propagating it through their CMake/pkg-config metadata.
+  unset(BSD_LIBRARY CACHE)
+  find_library(BSD_LIBRARY NAMES bsd
+    PATHS "/lib/${CMAKE_LIBRARY_ARCHITECTURE}" "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
+    NO_DEFAULT_PATH REQUIRED)
+  list(APPEND ZMQ_SYSTEM_LIBRARIES ${BSD_LIBRARY})
+endif()
 
 add_library(zmq_publisher_core SHARED
   src/app/application.cpp
@@ -85,14 +96,17 @@ target_link_libraries(zmq_publisher_core
   PRIVATE
     Threads::Threads
     ${CMAKE_DL_LIBS}
-    ${ZMQ_LIBRARY}
+    ${ZMQ_SYSTEM_LIBRARIES}
 )
 target_compile_options(zmq_publisher_core PRIVATE
   $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic>
 )
 
 add_executable(zmq_publisher src/app/main.cpp)
-target_link_libraries(zmq_publisher PRIVATE zmq_publisher::core)
+target_link_libraries(zmq_publisher PRIVATE
+  zmq_publisher::core
+  ${ZMQ_SYSTEM_LIBRARIES}
+)
 set_target_properties(zmq_publisher PROPERTIES
   BUILD_RPATH "$ORIGIN/../lib"
   INSTALL_RPATH "$ORIGIN/../lib"
@@ -104,6 +118,10 @@ endif()
 
 if(ZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION)
   add_subdirectory(extensions/midas)
+endif()
+
+if(ZMQ_PUBLISHER_BUILD_GAUDI_EXTENSION)
+  add_subdirectory(extensions/gaudi)
 endif()
 
 if(ZMQ_PUBLISHER_BUILD_EXAMPLES AND EXISTS

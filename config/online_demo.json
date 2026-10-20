@@ -1,0 +1,69 @@
+{
+  "general-settings": {
+    "verbose": 1,
+    "worker-threads": 2,
+    "transport": {
+      "worker-threads": 1,
+      "zmq-io-threads": 1,
+      "queue-capacity": 4096,
+      "queue-policy": "block"
+    },
+    "telemetry": {
+      "enabled": true,
+      "interval-ms": 1000,
+      "endpoint": "tcp://127.0.0.1:5556",
+      "topic": "METRICS"
+    },
+    "processor-extensions": [
+      "${ZMQ_PUBLISHER_ROOT}/build/lib/libzmq_publisher_gaudi_extension.so"
+    ]
+  },
+  "data-channels": {
+    "online-dqm": {
+      "enabled": true,
+      "endpoint": "tcp://127.0.0.1:5555",
+      "topic": "DATA",
+      "delivery": {
+        "mode": "each"
+      },
+      "processors": [
+        {
+          "type": "midas-gaudi",
+          "name": "online-gaudi",
+          "schedule": {
+            "mode": "event-driven"
+          },
+          "config": {
+            "midas": {
+              "host": "",
+              "experiment": "ZMQ_PUBLISHER_DEMO",
+              "buffer": "SYSTEM",
+              "client-name": "ZmqPublisherDemo",
+              "event-id": 42,
+              "get-all": true,
+              "buffer-size": 4096,
+              "read-cache-size-bytes": 1000000,
+              "yield-timeout-ms": 1
+            },
+            "processing": {
+              "events-per-request": 32,
+              "maximum-batch-bytes": 16777216
+            },
+            "publication": {
+              "every-events": 100,
+              "every-ms": 1000
+            },
+            "sidecar": {
+              "socket-path": "/tmp/pioneer-gaudi-demo.sock",
+              "connect-timeout-ms": 5000,
+              "request-timeout-ms": 30000,
+              "launcher": "${ZMQ_PUBLISHER_ROOT}/extensions/gaudi/scripts/run_sidecar.sh",
+              "job-options": "${ZMQ_PUBLISHER_ROOT}/config/gaudi/online_demo.py",
+              "startup-timeout-ms": 60000
+            }
+          }
+        }
+      ]
+    }
+  }
+}

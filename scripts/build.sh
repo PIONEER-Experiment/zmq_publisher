@@ -6,12 +6,14 @@ set -euo pipefail
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 BASE_DIR=$(realpath "$SCRIPT_DIR/..")
 BUILD_DIR="$BASE_DIR/build"
-ENV_FILE="$SCRIPT_DIR/environment/.env"
+ENV_FILE="$SCRIPT_DIR/environment/.env.local"
 
 # Default flags
 OVERWRITE=false
 JOBS_ARG="-j"  # Use all processors
 WITH_MIDAS=false
+WITH_GAUDI=false
+WITH_SIMULATORS=false
 
 # Help message
 show_help() {
@@ -21,6 +23,8 @@ show_help() {
     echo "  -o, --overwrite           Remove existing build directory before building"
     echo "  -j, --jobs <number>       Specify number of build jobs (default: all available)"
     echo "  --with-midas              Build the optional MIDAS extension"
+    echo "  --with-gaudi              Build the optional MIDAS-to-Gaudi extension"
+    echo "  --with-simulators         Build the MIDAS detector simulator frontends"
     echo "  -h, --help                Display this help message"
 }
 
@@ -44,6 +48,14 @@ while [[ "$#" -gt 0 ]]; do
             WITH_MIDAS=true
             shift
             ;;
+        --with-gaudi)
+            WITH_GAUDI=true
+            shift
+            ;;
+        --with-simulators)
+            WITH_SIMULATORS=true
+            shift
+            ;;
         -h|--help)
             show_help
             exit 0
@@ -65,16 +77,35 @@ fi
 # Configure and build
 echo "[build.sh] Running cmake in: $BUILD_DIR"
 CMAKE_OPTIONS=()
-if [ "$WITH_MIDAS" = true ]; then
+CMAKE_OPTIONS+=(
+    "-DZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION=OFF"
+    "-DZMQ_PUBLISHER_BUILD_GAUDI_EXTENSION=OFF"
+)
+if [ "$WITH_MIDAS" = true ] || [ "$WITH_GAUDI" = true ] || [ "$WITH_SIMULATORS" = true ]; then
     if [[ -f "$ENV_FILE" ]]; then
         # shellcheck disable=SC1090
         source "$ENV_FILE"
     fi
     if [[ -z "${MIDASSYS:-}" ]]; then
-        echo "[build.sh, ERROR] MIDASSYS is not set. Run './setup_env.sh --with-midas'."
+        echo "[build.sh, ERROR] MIDASSYS is not set in scripts/environment/.env.local."
+        echo "[build.sh, ERROR] Edit that file and run './setup_env.sh --with-midas'."
         exit 1
     fi
+    MIDAS_RECEIVER_SOURCE=${MIDAS_RECEIVER_SOURCE:-$BASE_DIR/../midas_receiver}
+    if [[ -f "$MIDAS_RECEIVER_SOURCE/CMakeLists.txt" ]]; then
+        CMAKE_OPTIONS+=("-DCPM_midas_receiver_SOURCE=$MIDAS_RECEIVER_SOURCE")
+    fi
+fi
+if [ "$WITH_MIDAS" = true ]; then
     CMAKE_OPTIONS+=("-DZMQ_PUBLISHER_BUILD_MIDAS_EXTENSION=ON")
+fi
+if [ "$WITH_GAUDI" = true ]; then
+    CMAKE_OPTIONS+=("-DZMQ_PUBLISHER_BUILD_GAUDI_EXTENSION=ON")
+fi
+if [ "$WITH_SIMULATORS" = true ]; then
+    CMAKE_OPTIONS+=("-DZMQ_PUBLISHER_BUILD_RATE_TESTS=ON")
+else
+    CMAKE_OPTIONS+=("-DZMQ_PUBLISHER_BUILD_RATE_TESTS=OFF")
 fi
 cmake -S "$BASE_DIR" -B "$BUILD_DIR" "${CMAKE_OPTIONS[@]}"
 

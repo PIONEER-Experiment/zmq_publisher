@@ -2,7 +2,6 @@
 
 #include "zmq_publisher/metrics/metrics_reporter.h"
 #include "zmq_publisher/processor/processor_context.h"
-#include "zmq_publisher/utility/signal_handler.h"
 
 #include <algorithm>
 #include <chrono>
@@ -96,7 +95,6 @@ Application::Application(const nlohmann::json& configuration)
 Application::~Application() = default;
 
 int Application::run() {
-    SignalHandler signals;
     transport_.start();
     if (metrics_reporter_) {
         metrics_reporter_->start();
@@ -106,9 +104,7 @@ int Application::run() {
                  channels_.size(),
                  worker_count_);
 
-    while (!signals.stop_requested()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    while (!signals_.wait_for(std::chrono::milliseconds(100))) {}
 
     spdlog::info("Stopping ZMQ publisher");
     scheduler_.stop();

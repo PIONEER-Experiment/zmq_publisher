@@ -254,9 +254,11 @@ void ProcessorScheduler::worker_loop() {
                     for (const auto& message : result.output()) {
                         bytes += message.size();
                     }
-                    entry->metrics->record_items(result.output().size());
+                    entry->metrics->record_items(result.item_count());
                     entry->metrics->record_bytes(bytes);
                     entry->output_handler(std::move(result.output()));
+                } else if (status == ProcessStatus::processed) {
+                    entry->metrics->record_items(result.item_count());
                 } else if (status == ProcessStatus::idle) {
                     entry->metrics->record_idle();
                 }

@@ -6,6 +6,7 @@
 #include "zmq_publisher/processor/processor_registry.h"
 #include "zmq_publisher/scheduler/processor_scheduler.h"
 #include "zmq_publisher/transport/zmq_transport.h"
+#include "zmq_publisher/utility/signal_handler.h"
 
 #include <cstddef>
 #include <memory>
@@ -24,6 +25,9 @@ public:
     int run();
 
 private:
+    // Construct first so every MIDAS, scheduler, transport, and sidecar thread
+    // inherits the blocked stop-signal mask.
+    SignalHandler signals_;
     std::size_t worker_count_;
     MetricsRegistry metrics_;
     std::unique_ptr<class MetricsReporter> metrics_reporter_;

@@ -1,28 +1,35 @@
 #include "zmq_publisher/utility/signal_handler.h"
 
+#include <cerrno>
+#include <pthread.h>
+#include <system_error>
+
 namespace zmq_publisher {
 
-volatile std::sig_atomic_t SignalHandler::stop_requested_ = 0;
-
 SignalHandler::SignalHandler() {
-    stop_requested_ = 0;
-    std::signal(SIGINT, handle_signal);
-    std::signal(SIGHUP, handle_signal);
-    std::signal(SIGTERM, handle_signal);
+    sigemptyset(&signals_);
+    sigaddset(&signals_, SIGINT);
+    sigaddset(&signals_, SIGHUP);
+    sigaddset(&signals_, SIGTERM);
+    const auto status = pthread_sigmask(SIG_BLOCK, &signals_, &previous_mask_);
+    if (status != 0) {
+        throw std::system_error(status, std::generic_category(), "Could not block stop signals");
+    }
 }
 
 SignalHandler::~SignalHandler() {
-    std::signal(SIGINT, SIG_DFL);
-    std::signal(SIGHUP, SIG_DFL);
-    std::signal(SIGTERM, SIG_DFL);
+    pthread_sigmask(SIG_SETMASK, &previous_mask_, nullptr);
 }
 
-bool SignalHandler::stop_requested() const noexcept {
-    return stop_requested_ != 0;
-}
-
-void SignalHandler::handle_signal(int) noexcept {
-    stop_requested_ = 1;
+bool SignalHandler::wait_for(std::chrono::milliseconds timeout) const {
+    const timespec duration{
+        static_cast<time_t>(timeout.count() / 1000),
+        static_cast<long>((timeout.count() % 1000) * 1000000),
+    };
+    const auto signal = sigtimedwait(&signals_, nullptr, &duration);
+    if (signal == SIGINT || signal == SIGHUP || signal == SIGTERM) return true;
+    if (signal < 0 && (errno == EAGAIN || errno == EINTR)) return false;
+    throw std::system_error(errno, std::generic_category(), "Could not wait for stop signal");
 }
 
 }  // namespace zmq_publisher

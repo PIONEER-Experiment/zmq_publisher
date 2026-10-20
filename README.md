@@ -1,51 +1,74 @@
 # zmq_publisher
 
-`zmq_publisher` schedules configurable processors and publishes their products on
+`zmq_publisher` runs configurable processors and publishes their products on
 ZeroMQ PUB sockets. The core has no dependency on MIDAS, an unpacker, ROOT, or
-an analysis framework. Domain-specific input and processing live in runtime
-plugins.
+an analysis framework; those integrations are runtime plugins.
 
-## Build and test
+## Quick start
 
-The default build includes the command plugin and does not require MIDAS:
+The default build includes the command plugin and requires only CMake, a C++17
+compiler, and ZeroMQ/cppzmq:
 
 ```sh
 ./setup_env.sh
 ./scripts/build.sh --overwrite
 ctest --test-dir build --output-on-failure
+./scripts/run.sh --config config/config.json
 ```
 
-Run the example configuration with:
+Optional integrations are selected explicitly:
 
 ```sh
-./scripts/run.sh -- --config config/config.json
-```
-
-To include the optional MIDAS input plugin:
-
-```sh
+# Raw MIDAS events
 ./setup_env.sh --with-midas
 ./scripts/build.sh --overwrite --with-midas
-ctest --test-dir build --output-on-failure
+
+# MIDAS events processed by the PIONEER Gaudi sidecar
+./setup_env.sh --with-gaudi
+./scripts/build.sh --overwrite --with-gaudi
+
+# Full local DQM demo, including detector simulator frontends
+./scripts/build.sh --overwrite --with-gaudi --with-simulators
 ```
 
-MIDAS discovery writes local values to the ignored
-`scripts/environment/.env`. Configuration and logger paths remain runtime
-arguments and are not compiled into the executable.
+`setup_env.sh` never searches the filesystem or guesses an experiment. On its
+first run it copies the committed
+[`environment/.env.example`](scripts/environment/.env.example) to the
+gitignored `scripts/environment/.env.local`; edit that local file with the explicit
+paths for the machine, then rerun validation. The optional benchmark/reporting
+Python environment is similarly explicit:
 
-## Architecture
+```sh
+./setup_env.sh --with-gaudi --with-benchmarks
+source scripts/environment/.env.local
+source .venv/bin/activate
+```
+
+The C++ build does not require the Python environment. See
+[the Gaudi extension guide](extensions/gaudi/README.md) for its container,
+sidecar, and run instructions.
+
+Runtime examples are kept under `config/`:
+
+- [`config.json`](config/config.json): generic command processor;
+- [`midas_config.example.json`](config/midas_config.example.json): raw MIDAS
+  publication;
+- [`gaudi_config.example.json`](config/gaudi_config.example.json):
+  MIDAS-to-Gaudi processing;
+- [`online_demo.json`](config/online_demo.json): full local detector demo;
+- [`gaudi/`](config/gaudi/): publisher-owned Gaudi job options.
+
+## Design
 
 - `zmq_publisher_core` owns configuration, channels, scheduling, telemetry, and
   ZeroMQ transport.
-- `ProcessorRegistry` maps configuration type names to plugin-owned factories.
-- `ProcessorScheduler` runs processors on a bounded worker pool and respects
-  each processor's concurrency declaration.
-- `Channel` assigns sequence numbers and implements a selected delivery policy.
-- `ZmqTransport` shards endpoints across dedicated I/O workers. Each worker owns
-  its ZeroMQ context, sockets, and bounded output queue.
+- `ProcessorRegistry` maps configured type names to plugin-owned factories.
+- `ProcessorScheduler` executes processors on a bounded worker pool.
+- `Channel` applies a delivery policy and assigns publication sequence numbers.
+- `ZmqTransport` shards endpoints across dedicated I/O workers with bounded
+  queues.
 
-Each directory under `extensions/` is a small plugin project with its own
-headers, sources, build file, and one registration entry point:
+Each extension is a small plugin project:
 
 ```text
 extensions/<plugin>/
@@ -55,21 +78,21 @@ extensions/<plugin>/
 └── register_plugin.cpp
 ```
 
-Plugins export:
+It exports one registration entry point:
 
 ```cpp
 extern "C" void zmq_publisher_register_processors(
     zmq_publisher::ProcessorRegistry& registry);
 ```
 
-The generic application never edits a central processor switch. A plugin owns
-its configuration parsing, validation, construction, and capability declaration.
+The plugin owns its typed configuration, validation, processor construction,
+and capability declaration. Adding a processor does not require a core change
+or another central factory switch.
 
-## Processor definitions and custom configuration
+## Processor configuration
 
-Every processor uses one canonical envelope. The core owns `type`, optional
-instance `name`, and `schedule`; only the nested `config` object is passed to the
-plugin factory:
+Every processor uses the same strict envelope. The core consumes `type`, the
+optional `name`, and `schedule`; only `config` is passed to the plugin factory:
 
 ```json
 {
@@ -85,153 +108,121 @@ plugin factory:
 }
 ```
 
-The envelope is strict: all four fields shown above are recognized, `name` is
-the only optional field, and unknown fields are rejected. Fixed schedules must
-provide exactly one of `interval-ms` or `interval-us`. Continuous schedules may
-provide `idle-backoff-us` and do not have an interval.
+Supported schedules are:
 
-Each plugin converts its `config` object into a typed configuration class before
-constructing the processor. A registration therefore has one obvious shape:
-
-```cpp
-registry.register_processor("my-processor", {
-    [](const ConfigurationView& value, ProcessorContext& context) {
-        const auto config = MyProcessorConfig::from_configuration(value);
-        return std::make_unique<MyProcessor>(config, context);
-    },
-    ProcessorCapabilities{false, true, 1},
-});
-```
-
-To add a processor, create one configuration class, one processor class, their
-source files, and the plugin's `register_plugin.cpp`. No core source or central
-factory switch needs to change.
-
-## Processor contract
-
-`Processor::process()` returns a `ProcessResult` in one of three states:
-
-- `produced_output`: one or more immutable `OutputMessage` products are ready;
-- `idle`: no product is currently available;
-- `stopped`: the processor has permanently completed.
-
-An `OutputMessage` moves an owned byte buffer into immutable shared storage or
-aliases immutable storage already owned by a plugin.
-Channels, sliding windows, queues, and ZeroMQ frame callbacks then pass or share
-that storage without copying its payload. JSON is used only for the small wire
-metadata envelope; product bytes are never expanded into or escaped inside JSON.
-
-The optional MIDAS plugin currently publishes each `TMEvent` as raw bytes with
-content type `application/x-midas-event` and schema `midas-tmevent-v1`. It does
-not unpack banks or depend on an analysis pipeline.
-
-## Scheduling
-
-The supported modes are:
-
-- `fixed-delay`: wait the configured interval after a call completes;
+- `fixed-delay`: wait the interval after each call completes;
 - `fixed-rate`: schedule against stable deadlines;
-- `continuous`: immediately redispatch after output is produced.
-- `event-driven`: sleep until the processor's input source signals that work is ready.
-
-Continuous mode has an independent idle backoff. Set it to zero to poll as fast
-as the processor and worker pool allow, or use a positive value to avoid burning
-a CPU while an input source is empty:
-
-```json
-"schedule": {
-  "mode": "continuous",
-  "idle-backoff-us": 0
-}
-```
+- `continuous`: immediately redispatch, optionally using `idle-backoff-us` when
+  no work is available;
+- `event-driven`: sleep until the processor's input source signals work.
 
 Processors are serialized by default. A plugin may declare itself thread-safe,
-set a concurrency greater than one, and opt out of ordered output when parallel
-calls are safe.
+allow multiple concurrent calls, and disable ordered output when that is safe.
+
+`Processor::process()` returns `produced_output`, `idle`, or `stopped`.
+Products are immutable byte buffers: owned data is moved into shared storage,
+and plugin-owned immutable storage may be aliased. Channels and transport share
+those buffers without copying their payloads. JSON is used only for the small
+wire metadata envelope.
+
+The MIDAS plugin publishes raw `TMEvent` bytes as
+`application/x-midas-event`/`midas-tmevent-v1`; it does not unpack banks. The
+Gaudi plugin delegates unpacking and analysis to the sidecar.
 
 ## Delivery and wire format
 
-Each channel selects one explicit delivery policy:
+A channel uses one delivery policy:
 
-- `each`: publish every product separately;
-- `batch`: publish non-overlapping groups of `size` products;
-- `latest`: publish only the final product returned by each processor call;
-- `sliding-window`: publish after every product with up to the latest `size`
-  products. Retained payloads are shared rather than recopied.
+- `each`: publish every product;
+- `batch`: publish non-overlapping groups of a configured size;
+- `latest`: publish only the last product returned by a processor call;
+- `sliding-window`: publish the latest configured number of products after each
+  new product.
 
-```json
-"delivery": {
-  "mode": "batch",
-  "size": 16
-}
-```
+Every `zmq-publisher-v1` publication is a multipart ZeroMQ message:
 
-Every publication is a multipart ZeroMQ message:
-
-1. topic frame;
-2. UTF-8 JSON metadata frame with protocol, publication sequence, and product
-   metadata;
+1. topic;
+2. UTF-8 JSON metadata containing publication and product metadata;
 3. one binary frame per product.
 
-The protocol identifier is `zmq-publisher-v1`. Subscribers should use the
-metadata `products` array to associate each binary frame with its content type,
-schema, product sequence, and byte size.
+Subscribers use the metadata `products` array to associate frames with their
+content type, schema, sequence, and byte size.
 
-## Backpressure and transport parallelism
+## Backpressure and telemetry
 
-Transport behavior is configured under `general-settings.transport`:
+Transport settings live under `general-settings.transport`. Endpoints are
+consistently assigned to workers so each socket remains single-thread-owned.
+Queue capacity is per worker; policies are `block`, `drop-newest`,
+`drop-oldest`, and `fail`. Use `block` to preserve data, or a drop policy when
+bounded latency matters more than completeness.
 
-```json
-"transport": {
-  "worker-threads": 2,
-  "zmq-io-threads": 1,
-  "queue-capacity": 4096,
-  "queue-policy": "block"
-}
-```
+Telemetry can be logged and optionally published on a separate PUB endpoint.
+Snapshots report processor, channel, and transport-worker counters including
+invocations, products, bytes, idle calls, failures, drops, blocked time,
+processing time, queue latency, depth, and high-water mark. Rates are obtained
+by differencing consecutive snapshots.
 
-Endpoints are consistently assigned to transport workers so one socket is
-always owned by one thread. Queue capacity is per worker. Available policies are
-`block`, `drop-newest`, `drop-oldest`, and `fail`. `block` provides backpressure
-and preserves data; a drop policy is useful when bounded latency matters more
-than completeness.
+The end-to-end MIDAS benchmark and report workflow is documented in
+[benchmarks/rate_tests/README.md](benchmarks/rate_tests/README.md).
 
-## Telemetry and rate testing
+## Full DQM demo
 
-Telemetry can be logged, and optionally published on a separate PUB endpoint:
-
-```json
-"telemetry": {
-  "enabled": true,
-  "interval-ms": 1000,
-  "endpoint": "tcp://127.0.0.1:5556",
-  "topic": "METRICS"
-}
-```
-
-Snapshots contain cumulative invocations, products, bytes, idle calls, failures,
-drops, blocked time, processing time, queue latency, current queue depth, and
-queue high-water mark for each processor, channel, and transport worker. Rates
-can be calculated by differencing consecutive snapshots over the configured
-interval.
-
-Build and run the allocation-and-delivery microbenchmark with:
+The interactive demo runs as four independently restartable processes: one
+MIDAS supervisor (four randomized detector frontends plus acquisition), this
+publisher and its Gaudi sidecar, the C++ DQM gateway, and the React development
+server. Build the publisher fixtures and online Gaudi module once:
 
 ```sh
-cmake -S . -B build -DZMQ_PUBLISHER_BUILD_BENCHMARKS=ON
-cmake --build build --target zmq_publisher_channel_benchmark --parallel
-build/bin/zmq_publisher_channel_benchmark
+./setup_env.sh --with-gaudi
+./scripts/build.sh --overwrite --with-gaudi --with-simulators
+
+# Only needed when the image is absent.
+apptainer pull "$PIONEER_GAUDI_IMAGE" \
+  docker://ghcr.io/pioneer-experiment/pioneer:latest-x86_64
+./extensions/gaudi/scripts/build_sidecar.sh
 ```
 
-## Out-of-tree plugin SDK
+Then use one terminal per process:
 
-Install the project to expose the `zmq_publisher::plugin_sdk` CMake target:
+```sh
+# Terminal 0: owns the isolated experiment, all frontends, and acquisition.
+python3 benchmarks/rate_tests/run_midas_demo.py
+
+# Terminal 1: ordinary publisher build with the committed demo configuration.
+./scripts/run.sh --config config/online_demo.json \
+  --experiment ZMQ_PUBLISHER_DEMO \
+  --exptab .artifacts/midas-demo/experiment/exptab
+
+# Terminal 2
+cd /home/jack/cpp_projects/dqm_gateway
+./scripts/run.sh
+
+# Terminal 3
+cd /home/jack/large_projects/DQM_webpage/frontend
+npm start
+```
+
+Open `http://localhost:3000`. The gateway API is at
+`http://127.0.0.1:8080/api/v1/catalog`. Ctrl-C in terminal 0 stops acquisition
+and all four child frontends. Only generated MIDAS state and logs are kept in
+the ignored `.artifacts/midas-demo/` directory and replaced on the next run;
+the executable configuration remains versioned under `config/`.
+
+The online analysis stages are selected in `config/gaudi/online_pipeline.py`.
+`PulseIntegrals` baseline-corrects and integrates sampled detector traces, then
+calibrates each histogram range from `RangeCalibrationEvents` detector events
+using `RangeSigmas` standard deviations. A histogram is intentionally absent
+until its calibration window is complete. MuSiP publishes timed hit energies
+through the separate `/api/v1/hit-series` gateway view rather than pretending
+that its hits are waveform samples.
+
+## Out-of-tree plugins
+
+Install the project to export the `zmq_publisher::plugin_sdk` CMake target:
 
 ```sh
 cmake --install build --prefix /path/to/prefix
 ```
-
-An external plugin can then use:
 
 ```cmake
 find_package(zmq_publisher 0.3 CONFIG REQUIRED)
@@ -239,8 +230,6 @@ add_library(my_processor MODULE register_plugin.cpp src/my_processor.cpp)
 target_link_libraries(my_processor PRIVATE zmq_publisher::plugin_sdk)
 ```
 
-## Naming
-
 Files, directories, functions, and variables use `snake_case`; types use
-`PascalCase`; private members use a trailing underscore. Public code lives under
+`PascalCase`; private members use a trailing underscore. Public code lives in
 the `zmq_publisher` namespace, with one principal class per file.

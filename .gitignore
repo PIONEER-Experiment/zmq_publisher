@@ -43,6 +43,7 @@ Thumbs.db
 /lib/
 /vendor/
 /packages/
+/.venv/
 
 #Ignore custom files
 midas_publisher.log
@@ -52,3 +53,4 @@ example_receiver/example_receiver
 example/example_receiver
 scripts/environment/environment_variables.txt
 scripts/environment/.env
+scripts/environment/.env.local

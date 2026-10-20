@@ -1,82 +1,87 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Save original working directory
-ORIG_DIR=$(pwd)
+set -euo pipefail
 
-# Get the absolute path of the script directory
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-BASE_DIR="$SCRIPT_DIR/.."
-EXECUTABLE="$BASE_DIR/build/bin/zmq_publisher"
+PROJECT_ROOT=$(realpath "$SCRIPT_DIR/..")
+EXECUTABLE="$PROJECT_ROOT/build/bin/zmq_publisher"
+ENV_FILE="$SCRIPT_DIR/environment/.env.local"
 
-# Variables for options
+CONFIG_PATH="$PROJECT_ROOT/config/config.json"
 PRELOAD_LIBS=""
+MIDAS_EXPTAB_PATH=""
+MIDAS_EXPERIMENT=""
 DEBUG=false
 VALGRIND=false
-EXE_ARGS=()
+EXTRA_ARGS=()
 
-# Help message
 show_help() {
-    echo "Usage: ./run.sh [OPTIONS] [-- <args>]"
-    echo
-    echo "Options:"
-    echo "  -h, --help           Display this help message"
-    echo "  -d, --debug          Run with gdb for debugging"
-    echo "  -v, --valgrind       Run with valgrind for memory analysis"
-    echo "  --preload <libs>     Comma-separated list of library paths to LD_PRELOAD"
-    echo
-    echo "Arguments after '--' will be passed to the executable."
-    echo "Example: ./run.sh --preload /usr/lib/libfoo.so,/usr/lib/libbar.so -- -c config.json"
+    cat <<EOF
+Usage: ./scripts/run.sh [OPTIONS] [-- PUBLISHER_ARGS...]
+
+Options:
+  --config PATH             Publisher configuration (default: config/config.json)
+  --experiment NAME         MIDAS experiment name
+  --exptab PATH             MIDAS experiment table
+  --preload LIBS            Comma-separated libraries to preload
+  -d, --debug               Run under gdb
+  -v, --valgrind            Run under valgrind
+  -h, --help                Display this help message
+
+Machine-specific paths are loaded from scripts/environment/.env.local when it exists.
+EOF
 }
 
-# Parse arguments
-while [[ "$#" -gt 0 ]]; do
+require_value() {
+    if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == -* ]]; then
+        echo "[run.sh, ERROR] $1 requires a value" >&2
+        exit 2
+    fi
+}
+
+while [[ $# -gt 0 ]]; do
     case "$1" in
-        -h|--help) show_help; exit 0 ;;
+        --config) require_value "$@"; CONFIG_PATH=$2; shift 2 ;;
+        --experiment) require_value "$@"; MIDAS_EXPERIMENT=$2; shift 2 ;;
+        --exptab) require_value "$@"; MIDAS_EXPTAB_PATH=$2; shift 2 ;;
+        --preload) require_value "$@"; PRELOAD_LIBS=${2//,/:}; shift 2 ;;
         -d|--debug) DEBUG=true; shift ;;
         -v|--valgrind) VALGRIND=true; shift ;;
-        --preload)
-            if [[ -n "$2" && "$2" != -* ]]; then
-                PRELOAD_LIBS="${2//,/':' }"
-                shift 2
-            else
-                echo "[run.sh, ERROR] --preload requires a comma-separated list of paths"
-                exit 1
-            fi
-            ;;
-        --) shift; EXE_ARGS+=("$@"); break ;;
-        *) echo "[run.sh, ERROR] Unknown option: $1"; show_help; exit 1 ;;
+        -h|--help) show_help; exit 0 ;;
+        --) shift; EXTRA_ARGS+=("$@"); break ;;
+        *) echo "[run.sh, ERROR] Unknown option: $1" >&2; show_help; exit 2 ;;
     esac
 done
 
-# Check executable presence
-if [ ! -f "$EXECUTABLE" ]; then
-    echo "[run.sh, ERROR] Executable not found at: $EXECUTABLE"
-    echo "Try running './build.sh' first."
+if [[ ! -x "$EXECUTABLE" ]]; then
+    echo "[run.sh, ERROR] Executable not found: $EXECUTABLE" >&2
+    echo "Build it with ./scripts/build.sh first." >&2
     exit 1
 fi
+if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+fi
 
-# Export LD_PRELOAD if any preload libs specified
+export ZMQ_PUBLISHER_ROOT="$PROJECT_ROOT"
+if [[ -n "$MIDAS_EXPTAB_PATH" ]]; then
+    export MIDAS_EXPTAB
+    MIDAS_EXPTAB=$(realpath "$MIDAS_EXPTAB_PATH")
+fi
+if [[ -n "$MIDAS_EXPERIMENT" ]]; then
+    export MIDAS_EXPT_NAME="$MIDAS_EXPERIMENT"
+fi
 if [[ -n "$PRELOAD_LIBS" ]]; then
     export LD_PRELOAD="$PRELOAD_LIBS${LD_PRELOAD:+:$LD_PRELOAD}"
 fi
 
-# Change to base dir
-cd "$BASE_DIR" || {
-    echo "[run.sh, ERROR] Failed to change directory to $BASE_DIR"
-    exit 1
-}
-
-# Run executable
-if [ "$DEBUG" = true ]; then
-    echo "[run.sh, INFO] Running with gdb..."
-    gdb --args "$EXECUTABLE" "${EXE_ARGS[@]}"
-elif [ "$VALGRIND" = true ]; then
-    echo "[run.sh, INFO] Running with valgrind..."
-    valgrind --leak-check=full --track-origins=yes "$EXECUTABLE" "${EXE_ARGS[@]}"
+CONFIG_PATH=$(realpath "$CONFIG_PATH")
+cd "$PROJECT_ROOT"
+COMMAND=("$EXECUTABLE" --config "$CONFIG_PATH" "${EXTRA_ARGS[@]}")
+if [[ "$DEBUG" == true ]]; then
+    exec gdb --args "${COMMAND[@]}"
+elif [[ "$VALGRIND" == true ]]; then
+    exec valgrind --leak-check=full --track-origins=yes "${COMMAND[@]}"
 else
-    echo "[run.sh, INFO] Running zmq_publisher..."
-    "$EXECUTABLE" "${EXE_ARGS[@]}"
+    exec "${COMMAND[@]}"
 fi
-
-# Return to original directory
-cd "$ORIG_DIR"

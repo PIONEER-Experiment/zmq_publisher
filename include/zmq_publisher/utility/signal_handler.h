@@ -1,6 +1,7 @@
 #pragma once
 
-#include <csignal>
+#include <chrono>
+#include <signal.h>
 
 namespace zmq_publisher {
 
@@ -12,11 +13,11 @@ public:
     SignalHandler(const SignalHandler&) = delete;
     SignalHandler& operator=(const SignalHandler&) = delete;
 
-    bool stop_requested() const noexcept;
+    bool wait_for(std::chrono::milliseconds timeout) const;
 
 private:
-    static void handle_signal(int signal) noexcept;
-    static volatile std::sig_atomic_t stop_requested_;
+    sigset_t signals_{};
+    sigset_t previous_mask_{};
 };
 
 }  // namespace zmq_publisher
