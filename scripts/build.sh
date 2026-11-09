@@ -88,7 +88,7 @@ if [ "$WITH_MIDAS" = true ] || [ "$WITH_GAUDI" = true ] || [ "$WITH_SIMULATORS" 
     fi
     if [[ -z "${MIDASSYS:-}" ]]; then
         echo "[build.sh, ERROR] MIDASSYS is not set in scripts/environment/.env.local."
-        echo "[build.sh, ERROR] Edit that file and run './setup_env.sh --with-midas'."
+        echo "[build.sh, ERROR] Edit that file and run './scripts/setup_env.sh --with-midas'."
         exit 1
     fi
     MIDAS_RECEIVER_SOURCE=${MIDAS_RECEIVER_SOURCE:-$BASE_DIR/../midas_receiver}

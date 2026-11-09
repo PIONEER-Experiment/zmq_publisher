@@ -6,7 +6,7 @@ SCRIPT_DIR=$(dirname "$(realpath "$0")")
 PUBLISHER_ROOT=$(realpath "$SCRIPT_DIR/../../..")
 ENV_FILE=$PUBLISHER_ROOT/scripts/environment/.env.local
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "[run_sidecar, ERROR] Run ./setup_env.sh --with-gaudi first." >&2
+    echo "[run_sidecar, ERROR] Run ./scripts/setup_env.sh --with-gaudi first." >&2
     exit 1
 fi
 # shellcheck disable=SC1090
@@ -84,10 +84,8 @@ apptainer exec --cleanenv \
     --env PIONEER_GAUDI_SOCKET="$SOCKET_PATH" \
     --env PIONEER_GAUDI_JOB_OPTIONS="$CONTAINER_JOB_OPTIONS" \
     --env PIONEER_GAUDI_INCLUDE_HISTOGRAMS="${PIONEER_GAUDI_INCLUDE_HISTOGRAMS:-1}" \
-    --env PIONEER_GAUDI_MAX_WAVEFORMS="${PIONEER_GAUDI_MAX_WAVEFORMS:-64}" \
-    --env PIONEER_GAUDI_MAX_SAMPLES_PER_WAVEFORM="${PIONEER_GAUDI_MAX_SAMPLES_PER_WAVEFORM:-4096}" \
     --env PIONEER_GAUDI_DQM_EPOCH="${PIONEER_GAUDI_DQM_EPOCH:-online}" \
-    --env PIONEER_GAUDI_MUSIP_SIMULATION_GEOMETRY="${PIONEER_GAUDI_MUSIP_SIMULATION_GEOMETRY:-0}" \
+    --env PIONEER_GAUDI_MUSIP_DEMO_GEOMETRY="${PIONEER_GAUDI_MUSIP_DEMO_GEOMETRY:-0}" \
     --env MIDASSYS="$MIDASSYS" \
     --bind "$PIONEER_SOURCE_DIR:/simulation" \
     --bind "$PUBLISHER_ROOT:/publisher" \

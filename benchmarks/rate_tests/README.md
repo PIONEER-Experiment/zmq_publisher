@@ -39,7 +39,7 @@ one synthetic event.
 For the interactive four-process MIDAS/publisher/gateway/web demo, use
 `run_midas_demo.py` as documented in the top-level README. It stores only the
 isolated MIDAS experiment state and frontend logs under `.artifacts/midas-demo/`;
-the publisher uses the committed `config/online_demo.json` configuration.
+the publisher uses the committed `config/examples/online_demo.json` configuration.
 
 Generated experiment state, CSV data, logs, plots, and reports are written to
 the ignored `.artifacts/rate-tests/latest/` directory. Each default run replaces
@@ -50,7 +50,7 @@ only replaced when `--replace-output` is supplied.
 ## Build
 
 ```sh
-./setup_env.sh --with-gaudi --with-benchmarks
+./scripts/setup_env.sh --with-gaudi --with-benchmarks
 ./scripts/build.sh --with-midas --with-gaudi --with-simulators
 ```
 
@@ -60,7 +60,7 @@ only replaced when `--replace-output` is supplied.
 python3 benchmarks/rate_tests/run_rate_tests.py --duration 4
 ```
 
-`setup_env.sh --with-benchmarks` installs `pyzmq`, `psutil`, `pandas`, `numpy`,
+`scripts/setup_env.sh --with-benchmarks` installs `pyzmq`, `psutil`, `pandas`, `numpy`,
 `matplotlib`, and `tabulate` into the ignored project-local `.venv`. It never
 modifies the active Conda or system Python environment. A run produces
 `benchmark_report.pdf`, `benchmark_report.md`, `summary.csv`, raw event timing

@@ -558,7 +558,7 @@ def main() -> int:
     # arrive without restarting Gaudi. PITMidasMusip validates geometry during
     # initialization even when this particular benchmark emits another bank.
     if args.gaudi_socket:
-        experiment.env["PIONEER_GAUDI_MUSIP_SIMULATION_GEOMETRY"] = "1"
+        experiment.env["PIONEER_GAUDI_MUSIP_DEMO_GEOMETRY"] = "1"
     config_path = publisher_config(
         build_dir,
         output,

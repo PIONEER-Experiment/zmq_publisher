@@ -14,7 +14,7 @@ namespace {
 
 struct Arguments {
     std::filesystem::path config = "config/config.json";
-    std::filesystem::path logger_config = "config/logger_config.json";
+    std::filesystem::path logger_config = "config/logger/default.json";
 };
 
 Arguments parse_arguments(int argc, char* argv[]) {

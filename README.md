@@ -10,7 +10,7 @@ The default build includes the command plugin and requires only CMake, a C++17
 compiler, and ZeroMQ/cppzmq:
 
 ```sh
-./setup_env.sh
+./scripts/setup_env.sh
 ./scripts/build.sh --overwrite
 ctest --test-dir build --output-on-failure
 ./scripts/run.sh --config config/config.json
@@ -20,18 +20,18 @@ Optional integrations are selected explicitly:
 
 ```sh
 # Raw MIDAS events
-./setup_env.sh --with-midas
+./scripts/setup_env.sh --with-midas
 ./scripts/build.sh --overwrite --with-midas
 
 # MIDAS events processed by the PIONEER Gaudi sidecar
-./setup_env.sh --with-gaudi
+./scripts/setup_env.sh --with-gaudi
 ./scripts/build.sh --overwrite --with-gaudi
 
 # Full local DQM demo, including detector simulator frontends
 ./scripts/build.sh --overwrite --with-gaudi --with-simulators
 ```
 
-`setup_env.sh` never searches the filesystem or guesses an experiment. On its
+`scripts/setup_env.sh` never searches the filesystem or guesses an experiment. On its
 first run it copies the committed
 [`environment/.env.example`](scripts/environment/.env.example) to the
 gitignored `scripts/environment/.env.local`; edit that local file with the explicit
@@ -39,9 +39,18 @@ paths for the machine, then rerun validation. The optional benchmark/reporting
 Python environment is similarly explicit:
 
 ```sh
-./setup_env.sh --with-gaudi --with-benchmarks
+./scripts/setup_env.sh --with-gaudi --with-benchmarks
 source scripts/environment/.env.local
 source .venv/bin/activate
+```
+
+For an already-built checkout, `run.sh` can perform the same validation before
+launching. This keeps setup and execution to one command without hiding which
+optional toolchain is required:
+
+```sh
+./scripts/run.sh --setup generic
+./scripts/run.sh --setup gaudi --config config/examples/online_demo.json
 ```
 
 The C++ build does not require the Python environment. See
@@ -51,11 +60,11 @@ sidecar, and run instructions.
 Runtime examples are kept under `config/`:
 
 - [`config.json`](config/config.json): generic command processor;
-- [`midas_config.example.json`](config/midas_config.example.json): raw MIDAS
+- [`midas.json`](config/examples/midas.json): raw MIDAS
   publication;
-- [`gaudi_config.example.json`](config/gaudi_config.example.json):
+- [`gaudi.json`](config/examples/gaudi.json):
   MIDAS-to-Gaudi processing;
-- [`online_demo.json`](config/online_demo.json): full local detector demo;
+- [`online_demo.json`](config/examples/online_demo.json): full local detector demo;
 - [`gaudi/`](config/gaudi/): publisher-owned Gaudi job options.
 
 ## Design
@@ -173,7 +182,7 @@ publisher and its Gaudi sidecar, the C++ DQM gateway, and the React development
 server. Build the publisher fixtures and online Gaudi module once:
 
 ```sh
-./setup_env.sh --with-gaudi
+./scripts/setup_env.sh --with-gaudi
 ./scripts/build.sh --overwrite --with-gaudi --with-simulators
 
 # Only needed when the image is absent.
@@ -189,7 +198,7 @@ Then use one terminal per process:
 python3 benchmarks/rate_tests/run_midas_demo.py
 
 # Terminal 1: ordinary publisher build with the committed demo configuration.
-./scripts/run.sh --config config/online_demo.json \
+./scripts/run.sh --config config/examples/online_demo.json \
   --experiment ZMQ_PUBLISHER_DEMO \
   --exptab .artifacts/midas-demo/experiment/exptab
 
@@ -203,7 +212,7 @@ npm start
 ```
 
 Open `http://localhost:3000`. The gateway API is at
-`http://127.0.0.1:8080/api/v1/catalog`. Ctrl-C in terminal 0 stops acquisition
+`http://127.0.0.1:8000/api/v1/catalog`. Ctrl-C in terminal 0 stops acquisition
 and all four child frontends. Only generated MIDAS state and logs are kept in
 the ignored `.artifacts/midas-demo/` directory and replaced on the next run;
 the executable configuration remains versioned under `config/`.

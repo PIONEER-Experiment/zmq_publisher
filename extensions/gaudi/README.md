@@ -11,7 +11,7 @@ container is started per event.
 Build the publisher plugin on the host:
 
 ```sh
-./setup_env.sh --with-gaudi
+./scripts/setup_env.sh --with-gaudi
 ./scripts/build.sh --overwrite --with-gaudi
 ctest --test-dir build --output-on-failure
 ```
@@ -39,7 +39,7 @@ Normally the publisher owns the sidecar lifecycle through `sidecar.launcher`
 and `sidecar.job-options`, so start only the publisher:
 
 ```sh
-./scripts/run.sh --config config/gaudi_config.example.json
+./scripts/run.sh --config config/examples/gaudi.json
 ```
 
 For a persistent, manually managed sidecar, omit those two configuration fields
@@ -67,7 +67,7 @@ Build the publisher and all four simulator frontends:
 
 ```sh
 cd /home/jack/cpp_projects/midas_stuff/midas_publisher
-./setup_env.sh --with-gaudi --with-benchmarks
+./scripts/setup_env.sh --with-gaudi --with-benchmarks
 ./scripts/build.sh --with-midas --with-gaudi --with-simulators
 ```
 
@@ -125,7 +125,7 @@ acknowledged. A requested publication contains bounded `dqm-waveform-v1`
 products for detector data present in the current event and, when enabled, one
 `dqm-histogram-v1` cumulative histogram product.
 
-The MUSIP benchmark sets `PIONEER_GAUDI_MUSIP_SIMULATION_GEOMETRY=1` to install
+The MUSIP benchmark sets `PIONEER_GAUDI_MUSIP_DEMO_GEOMETRY=1` to install
 minimal synthetic geometry for its generated channels. Do not use this setting
 for detector data; production jobs must provide the real `GeoHeader`. The
 existing MUSIP unpacker is unchanged.
@@ -149,8 +149,7 @@ request/response exchange per event. `every-events` and `every-ms` are
 independent publication triggers; zero disables a trigger. Acknowledged events
 count as processed work in telemetry even when no DQM product is published.
 
-Product bounds are controlled with `PIONEER_GAUDI_MAX_WAVEFORMS` and
-`PIONEER_GAUDI_MAX_SAMPLES_PER_WAVEFORM`. Set
+Publication products contain every available channel and sample. Set
 `PIONEER_GAUDI_INCLUDE_HISTOGRAMS=0` to omit histogram snapshots. ROOT output is
 intentionally absent from this online path; archival products belong to the
 nearline pipeline.

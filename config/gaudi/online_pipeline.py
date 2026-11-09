@@ -10,19 +10,24 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from online_common import configure_online_pipeline
+from online_common import PublicationStage, configure_online_pipeline
 from online_dqm.PIONEER_TB_ONLINE_DQMConf import (
-    PIAOnlineHDSocWaveformBuilder,
-    PIAOnlineAtarChannelMetric,
-    PIAOnlineAtarEventView,
-    PIAOnlineAtarFeatures,
-    PIAOnlineAtarHistogram2D,
-    PIAOnlineAtarMultiplicity,
-    PIAOnlineAtarOccupancy,
-    PIAOnlineMusipHitSeriesBuilder,
+    PIAOnlineAtarSampicAmplitudeByChannel,
+    PIAOnlineAtarSampicBaseline,
+    PIAOnlineAtarSampicChargeDepth,
+    PIAOnlineAtarSampicChargeVsAmplitude,
+    PIAOnlineAtarSampicFeatures,
+    PIAOnlineAtarSampicHitPositions,
+    PIAOnlineAtarSampicMultiplicity,
+    PIAOnlineAtarSampicNoise,
+    PIAOnlineAtarSampicOccupancy,
+    PIAOnlineAtarSampicPersistence,
+    PIAOnlineAtarSampicWaveforms,
+    PIAOnlineHDSocWaveforms,
+    PIAOnlineMusipHitSeries,
     PIAOnlinePulseHistograms,
-    PIAOnlineSampicWaveformBuilder,
-    PIAOnlineWFD5WaveformBuilder,
+    PIAOnlineSampicWaveforms,
+    PIAOnlineWFD5Waveforms,
 )
 from pi_midas.PIONEER_MIDAS_READERConf import (
     PITMidasHDSoc,
@@ -41,65 +46,113 @@ analysis_stages = [
         Bins=120,
         RangeCalibrationEvents=100,
         RangeSigmas=4.0,
+        PerChannelHistograms=True,
     ),
-    PIAOnlineAtarFeatures(
-        "AtarFeatures",
+    PIAOnlineAtarSampicFeatures(
+        "AtarSampicFeatures",
         Channels=256,
         StripsPerLayer=32,
         Layers=8,
+        TimeGroupGapNanoseconds=12.0,
     ),
 ]
 
-# Each publication product is an independent Gaudi stage. Add or remove a
-# builder here without changing the unpacking, analysis, or output machinery.
-product_stages = [
-    PIAOnlineSampicWaveformBuilder("SampicWaveformProduct"),
-    PIAOnlineHDSocWaveformBuilder("HDSocWaveformProduct"),
-    PIAOnlineWFD5WaveformBuilder("WFD5WaveformProduct"),
-    PIAOnlineMusipHitSeriesBuilder("MusipHitSeriesProduct"),
-    PIAOnlineAtarOccupancy("AtarOccupancy"),
-    PIAOnlineAtarMultiplicity(
-        "AtarMultiplicity", MaximumHits=96,
+# Each keyed entry declares one independently selectable publication algorithm
+# and the transient-store path consumed by PIAOnlineOutput.
+publication_stages = [
+    PublicationStage(
+        algorithm=PIAOnlineSampicWaveforms("SampicWaveforms"),
+        output="/Event/OnlineDqmSampicWaveforms",
     ),
-    PIAOnlineAtarChannelMetric(
-        "AtarBaseline", Metric="baseline",
-        Output="/Event/OnlineDqmAtarBaseline",
-        LongWindowSeconds=120.0, RecentWindowSeconds=30.0,
+    PublicationStage(
+        algorithm=PIAOnlineHDSocWaveforms("HDSocWaveforms"),
+        output="/Event/OnlineDqmHDSocWaveforms",
     ),
-    PIAOnlineAtarChannelMetric(
-        "AtarNoise", Metric="noise",
-        Output="/Event/OnlineDqmAtarNoise",
-        LongWindowSeconds=120.0, RecentWindowSeconds=30.0,
+    PublicationStage(
+        algorithm=PIAOnlineWFD5Waveforms("WFD5Waveforms"),
+        output="/Event/OnlineDqmWFD5Waveforms",
     ),
-    PIAOnlineAtarEventView(
-        "AtarWaveforms", View="waveforms",
-        Output="/Event/OnlineDqmAtarWaveforms",
+    PublicationStage(
+        algorithm=PIAOnlineMusipHitSeries("MusipHitSeries"),
+        output="/Event/OnlineDqmMusipHitSeries",
     ),
-    PIAOnlineAtarEventView(
-        "AtarHitPositions", View="hit-positions",
-        Output="/Event/OnlineDqmAtarHitPositions",
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicOccupancy("AtarSampicOccupancy"),
+        output="/Event/OnlineDqmAtarSampicOccupancy",
     ),
-    PIAOnlineAtarEventView(
-        "AtarChargeDepth", View="charge-depth",
-        Output="/Event/OnlineDqmAtarChargeDepth",
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicMultiplicity(
+            "AtarSampicMultiplicity",
+            MaximumHits=96,
+        ),
+        output="/Event/OnlineDqmAtarSampicMultiplicity",
     ),
-    PIAOnlineAtarHistogram2D(
-        "AtarPersistence", View="persistence",
-        Output="/Event/OnlineDqmAtarPersistence",
-        XBins=64, XMin=0.0, XMax=64.0,
-        YBins=80, YMin=0.2, YMax=0.9, RollingEvents=200,
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicBaseline(
+            "AtarSampicBaseline",
+            LongWindowSeconds=120.0,
+            RecentWindowSeconds=30.0,
+        ),
+        output="/Event/OnlineDqmAtarSampicBaseline",
     ),
-    PIAOnlineAtarHistogram2D(
-        "AtarChargeVsAmplitude", View="charge-vs-amplitude",
-        Output="/Event/OnlineDqmAtarChargeVsAmplitude",
-        XBins=64, XMin=-0.5, XMax=0.0,
-        YBins=64, YMin=0.0, YMax=15.0, RollingEvents=1000,
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicNoise(
+            "AtarSampicNoise",
+            LongWindowSeconds=120.0,
+            RecentWindowSeconds=30.0,
+        ),
+        output="/Event/OnlineDqmAtarSampicNoise",
     ),
-    PIAOnlineAtarHistogram2D(
-        "AtarAmplitudeByChannel", View="amplitude-by-channel",
-        Output="/Event/OnlineDqmAtarAmplitudeByChannel",
-        XBins=256, XMin=0.0, XMax=256.0,
-        YBins=64, YMin=-0.5, YMax=0.0, RollingEvents=1000,
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicWaveforms("AtarSampicWaveforms"),
+        output="/Event/OnlineDqmAtarSampicWaveforms",
+    ),
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicHitPositions("AtarSampicHitPositions"),
+        output="/Event/OnlineDqmAtarSampicHitPositions",
+    ),
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicChargeDepth("AtarSampicChargeDepth"),
+        output="/Event/OnlineDqmAtarSampicChargeDepth",
+    ),
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicPersistence(
+            "AtarSampicPersistence",
+            XBins=64,
+            XMin=0.0,
+            XMax=64.0,
+            YBins=80,
+            YMin=0.2,
+            YMax=0.9,
+            RollingEvents=200,
+        ),
+        output="/Event/OnlineDqmAtarSampicPersistence",
+    ),
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicChargeVsAmplitude(
+            "AtarSampicChargeVsAmplitude",
+            XBins=64,
+            XMin=-0.5,
+            XMax=0.0,
+            YBins=64,
+            YMin=0.0,
+            YMax=15.0,
+            RollingEvents=1000,
+        ),
+        output="/Event/OnlineDqmAtarSampicChargeVsAmplitude",
+    ),
+    PublicationStage(
+        algorithm=PIAOnlineAtarSampicAmplitudeByChannel(
+            "AtarSampicAmplitudeByChannel",
+            XBins=256,
+            XMin=0.0,
+            XMax=256.0,
+            YBins=64,
+            YMin=-0.5,
+            YMax=0.0,
+            RollingEvents=1000,
+        ),
+        output="/Event/OnlineDqmAtarSampicAmplitudeByChannel",
     ),
 ]
 
@@ -111,5 +164,5 @@ configure_online_pipeline(
         PITMidasWFD5("WFD5"),
     ],
     analysis_stages=analysis_stages,
-    product_stages=product_stages,
+    publication_stages=publication_stages,
 )

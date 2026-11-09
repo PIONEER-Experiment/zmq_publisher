@@ -254,7 +254,7 @@ def main() -> int:
         print(f"  requested payload: {args.payload_bytes} bytes each", flush=True)
         print("Start the publisher in another terminal:", flush=True)
         print(
-            "  ./scripts/run.sh --config config/online_demo.json "
+            "  ./scripts/run.sh --config config/examples/online_demo.json "
             f"--experiment {EXPERIMENT} --exptab {experiment.exptab}",
             flush=True,
         )

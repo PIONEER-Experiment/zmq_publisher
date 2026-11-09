@@ -138,6 +138,122 @@ bool dqm_mode_from_environment() {
     return value != nullptr && std::string_view(value) != "0";
 }
 
+struct OnlineAtarHit {
+    int layer;
+    int strip;
+    double time_nanoseconds;
+    double charge_fraction;
+};
+
+std::vector<OnlineAtarHit> generate_online_atar_time_group(
+    std::uint64_t sequence,
+    std::size_t maximum_hits) {
+    constexpr int layers = 8;
+    constexpr int strips = 32;
+    // One frontend/MIDAS event represents one completed hardware time group.
+    // Three consecutive groups share a generated decay-chain geometry so the
+    // stream is realistic, but no online component needs to event-build them.
+    const auto zero_based_sequence = sequence == 0 ? 0 : sequence - 1;
+    const auto chain_sequence = zero_based_sequence / 3;
+    const auto phase = static_cast<int>(zero_based_sequence % 3);
+    const auto seed = SyntheticSignal::seed(0x41544152ULL, chain_sequence, 0);
+    const auto timestamp_base = static_cast<double>(chain_sequence) * 10'000.0;
+    const auto pion_stop_layer = 4 + static_cast<int>(3.0 * SyntheticSignal::uniform(seed + 1U));
+    const auto pion_x0 = 10.0 + 12.0 * SyntheticSignal::uniform(seed + 2U);
+    const auto pion_y0 = 10.0 + 12.0 * SyntheticSignal::uniform(seed + 3U);
+    const auto pion_x_slope = SyntheticSignal::noise(seed + 4U, 0.22);
+    const auto pion_y_slope = SyntheticSignal::noise(seed + 5U, 0.22);
+    const auto pion_x_stop = pion_x0 + pion_x_slope * pion_stop_layer;
+    const auto pion_y_stop = pion_y0 + pion_y_slope * pion_stop_layer;
+
+    std::vector<OnlineAtarHit> hits;
+    hits.reserve(maximum_hits);
+    const auto add_track = [&](
+        int first_layer,
+        int last_layer,
+        double x_at_first,
+        double y_at_first,
+        double x_slope,
+        double y_slope,
+        double group_time) {
+        if (hits.size() >= maximum_hits) return;
+        const auto direction = first_layer <= last_layer ? 1 : -1;
+        for (auto layer = first_layer;; layer += direction) {
+            const auto depth = static_cast<double>(layer - first_layer);
+            const auto coordinate = layer % 2 == 0
+                ? x_at_first + x_slope * depth
+                : y_at_first + y_slope * depth;
+            const auto central_strip = std::clamp(
+                static_cast<int>(std::lround(coordinate)), 0, strips - 1);
+            const auto neighbor_direction = coordinate >= central_strip ? 1 : -1;
+            hits.push_back({
+                layer,
+                central_strip,
+                timestamp_base + group_time +
+                    std::abs(depth) * 0.8,
+                1.0,
+            });
+            const auto neighbor_strip = std::clamp(
+                central_strip + neighbor_direction, 0, strips - 1);
+            if (hits.size() < maximum_hits && neighbor_strip != central_strip) {
+                hits.push_back({
+                    layer,
+                    neighbor_strip,
+                    timestamp_base + group_time +
+                        std::abs(depth) * 0.8 + 0.15,
+                    0.32,
+                });
+            }
+            if (hits.size() >= maximum_hits || layer == last_layer) break;
+        }
+    };
+
+    // Build a coherent chain geometry, then emit only this record's phase.
+    const auto muon_direction = SyntheticSignal::uniform(seed + 6U) < 0.5 ? -1 : 1;
+    const auto muon_stop_layer = std::clamp(
+        pion_stop_layer + muon_direction *
+            (1 + static_cast<int>(2.0 * SyntheticSignal::uniform(seed + 7U))),
+        0,
+        layers - 1);
+    const auto muon_x_slope = SyntheticSignal::noise(seed + 8U, 0.65);
+    const auto muon_y_slope = SyntheticSignal::noise(seed + 9U, 0.65);
+    const auto muon_depth = static_cast<double>(muon_stop_layer - pion_stop_layer);
+    const auto positron_x0 = pion_x_stop + muon_x_slope * muon_depth;
+    const auto positron_y0 = pion_y_stop + muon_y_slope * muon_depth;
+    const auto positron_exit_layer = SyntheticSignal::uniform(seed + 10U) < 0.5
+        ? 0
+        : layers - 1;
+    const auto positron_time = 2'200.0 + SyntheticSignal::noise(seed + 13U, 180.0);
+
+    if (phase == 0) {
+        // An incoming pion ranges out in the target.
+        add_track(0, pion_stop_layer, pion_x0, pion_y0,
+                  pion_x_slope, pion_y_slope, 0.0);
+    } else if (phase == 1) {
+        // The short muon group starts at the generated pion stopping point.
+        add_track(pion_stop_layer, muon_stop_layer, pion_x_stop, pion_y_stop,
+                  muon_x_slope, muon_y_slope, 28.0);
+    } else {
+        // The later positron group starts at the generated muon stopping point.
+        add_track(muon_stop_layer, positron_exit_layer, positron_x0, positron_y0,
+                  SyntheticSignal::noise(seed + 11U, 1.25),
+                  SyntheticSignal::noise(seed + 12U, 1.25), positron_time);
+    }
+
+    // Occasional coincident activity belongs to the same hardware time group.
+    if (hits.size() < maximum_hits && SyntheticSignal::uniform(seed + 14U) < 0.12) {
+        const auto group_time = phase == 0 ? 0.0 : (phase == 1 ? 28.0 : positron_time);
+        add_track(0, layers - 1,
+                  4.0 + 24.0 * SyntheticSignal::uniform(seed + 15U),
+                  4.0 + 24.0 * SyntheticSignal::uniform(seed + 16U),
+                  SyntheticSignal::noise(seed + 17U, 0.45),
+                  SyntheticSignal::noise(seed + 18U, 0.45),
+                  group_time);
+    }
+    if (hits.size() > maximum_hits) hits.resize(maximum_hits);
+    return hits;
+}
+
 }  // namespace
 
 SampicPayloadGenerator::SampicPayloadGenerator()
@@ -161,17 +277,10 @@ std::vector<DetectorBank> SampicPayloadGenerator::generate(
         sizeof(HitHeader) + 64 * sizeof(float) + sizeof(HitScalars);
     const auto maximum_hit_count =
         std::max<std::size_t>(1, requested_payload_bytes / hit_bytes);
-    const auto minimum_hit_count = std::min(
-        maximum_hit_count, std::max<std::size_t>(8, maximum_hit_count / 2));
-    const auto sampled_hit_count = std::llround(
-        0.75 * static_cast<double>(maximum_hit_count) +
-        SyntheticSignal::noise(
-            SyntheticSignal::seed(0x53414d504943ULL, sequence, 0),
-            0.10 * static_cast<double>(maximum_hit_count)));
-    const auto hit_count = online_dqm_mode_
-        ? static_cast<std::size_t>(std::clamp<long long>(
-              sampled_hit_count, minimum_hit_count, maximum_hit_count))
-        : maximum_hit_count;
+    const auto online_hits = online_dqm_mode_
+        ? generate_online_atar_time_group(sequence, maximum_hit_count)
+        : std::vector<OnlineAtarHit>{};
+    const auto hit_count = online_dqm_mode_ ? online_hits.size() : maximum_hit_count;
 
     DetectorBank data{{'S', 'D', '0', '0', '\0'}, {}};
     DetectorBank metadata{{'S', 'H', '0', '0', '\0'}, {}};
@@ -185,11 +294,9 @@ std::vector<DetectorBank> SampicPayloadGenerator::generate(
         });
     }
     for (std::size_t index = 0; index < hit_count; ++index) {
-        const auto layer = index % 8;
-        const auto track = index / 8;
-        const auto track_center = static_cast<int>((sequence * 5U + track * 11U) % 32U);
+        const auto layer = online_dqm_mode_ ? online_hits[index].layer : index % 8;
         const auto strip = online_dqm_mode_
-            ? std::clamp(track_center + static_cast<int>(index % 5) - 2, 0, 31)
+            ? online_hits[index].strip
             : static_cast<int>(index % 32);
         const auto global_channel = static_cast<int>(layer * 32 + strip);
         const auto board = online_dqm_mode_ ? global_channel / 64 : 0;
@@ -214,8 +321,15 @@ std::vector<DetectorBank> SampicPayloadGenerator::generate(
         const auto onset = 17.0 + SyntheticSignal::trigger_jitter(signal_seed, 1.25);
         const auto rise_time = 0.9 + 0.4 * SyntheticSignal::uniform(signal_seed + 1U);
         const auto decay_time = 6.0 + 2.5 * SyntheticSignal::uniform(signal_seed + 2U);
+        const auto charge_sharing = online_dqm_mode_
+            ? online_hits[index].charge_fraction
+            : 1.0;
         const auto amplitude = online_dqm_mode_
-            ? std::clamp(0.18 + SyntheticSignal::noise(signal_seed + 3U, 0.045), 0.06, 0.35)
+            ? std::clamp(
+                  charge_sharing *
+                      (0.22 + SyntheticSignal::noise(signal_seed + 3U, 0.025)),
+                  0.025,
+                  0.35)
             : 60.0 + 180.0 * SyntheticSignal::uniform(signal_seed + 3U);
         const auto baseline = online_dqm_mode_
             ? 0.70 + SyntheticSignal::noise(signal_seed + 4U, 0.012) : 0.0;
@@ -234,9 +348,11 @@ std::vector<DetectorBank> SampicPayloadGenerator::generate(
             static_cast<float>(baseline),
             static_cast<float>(online_dqm_mode_ ? baseline - amplitude : amplitude),
             static_cast<float>(onset),
-            static_cast<double>(sequence),
+            online_dqm_mode_ ? online_hits[index].time_nanoseconds
+                             : static_cast<double>(sequence),
             static_cast<float>(online_dqm_mode_ ? -amplitude : amplitude),
-            static_cast<double>(sequence),
+            online_dqm_mode_ ? online_hits[index].time_nanoseconds
+                             : static_cast<double>(sequence),
         });
         if (mode_ != SampicSimulationMode::default_grouping) {
             append(metadata.bytes, HitMetadata{

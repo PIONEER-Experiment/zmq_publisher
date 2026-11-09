@@ -7,6 +7,7 @@ PUBLISHER_ROOT=$(realpath "$SCRIPT_DIR/../../..")
 ENV_FILE=$PUBLISHER_ROOT/scripts/environment/.env.local
 ARTIFACT_DIR=$PUBLISHER_ROOT/.artifacts/gaudi-sidecar
 JOBS=${JOBS:-$(nproc)}
+SHARED_REVISION=${PIONEER_SHARED_REVISION:-origin/develop-testbeam}
 
 show_help() {
     cat <<EOF
@@ -14,6 +15,9 @@ Usage: ./extensions/gaudi/scripts/build_sidecar.sh [OPTIONS]
 
 Options:
   --jobs N     Parallel build jobs (default: detected CPU count)
+  --shared-revision REF
+               Shared revision copied into the isolated build overlay
+               (default: origin/develop-testbeam)
   -h, --help   Display this help message
 
 Machine-specific paths are read from scripts/environment/.env.local.
@@ -30,13 +34,14 @@ require_value() {
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --jobs) require_value "$@"; JOBS=$2; shift 2 ;;
+        --shared-revision) require_value "$@"; SHARED_REVISION=$2; shift 2 ;;
         -h|--help) show_help; exit 0 ;;
         *) echo "[build_sidecar, ERROR] Unknown option: $1" >&2; show_help; exit 2 ;;
     esac
 done
 
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "[build_sidecar, ERROR] Run ./setup_env.sh --with-gaudi first." >&2
+    echo "[build_sidecar, ERROR] Run ./scripts/setup_env.sh --with-gaudi first." >&2
     exit 1
 fi
 # shellcheck disable=SC1090
@@ -56,13 +61,22 @@ for path in "$PIONEER_GAUDI_IMAGE" "$MIDASSYS"; do
         exit 1
     fi
 done
-if [[ ! -f "$PIONEER_SOURCE_DIR/shared/gaudi/services/IPIConditionsSvc.h" ]]; then
-    echo "[build_sidecar, ERROR] The checked-out shared submodule is incompatible." >&2
-    echo "Use the PIONEER test-beam shared revision (currently origin/develop-testbeam)." >&2
+SHARED_REPOSITORY=$PIONEER_SOURCE_DIR/shared
+if ! git -C "$SHARED_REPOSITORY" cat-file -e "$SHARED_REVISION^{commit}" 2>/dev/null; then
+    echo "[build_sidecar, ERROR] Shared revision is unavailable: $SHARED_REVISION" >&2
+    echo "Fetch it in $SHARED_REPOSITORY or pass --shared-revision REF." >&2
     exit 1
 fi
 
 mkdir -p "$ARTIFACT_DIR"
+SHARED_SOURCE=$ARTIFACT_DIR/shared-source
+rm -rf "$SHARED_SOURCE"
+mkdir -p "$SHARED_SOURCE"
+git -C "$SHARED_REPOSITORY" archive "$SHARED_REVISION" | tar -x -C "$SHARED_SOURCE"
+if [[ ! -f "$SHARED_SOURCE/gaudi/services/IPIConditionsSvc.h" ]]; then
+    echo "[build_sidecar, ERROR] Shared revision is incompatible: $SHARED_REVISION" >&2
+    exit 1
+fi
 
 apptainer exec --cleanenv \
     --bind "$PIONEER_SOURCE_DIR:/simulation" \
@@ -85,10 +99,11 @@ apptainer exec --cleanenv \
         mkdir -p \"\$overlay/reco_testbeam\"
         for source in /simulation/*; do
             name=\"\${source##*/}\"
-            if [[ \"\$name\" != reco_testbeam ]]; then
+            if [[ \"\$name\" != reco_testbeam && \"\$name\" != shared ]]; then
                 ln -s \"\$source\" \"\$overlay/\$name\"
             fi
         done
+        ln -s /publisher/.artifacts/gaudi-sidecar/shared-source \"\$overlay/shared\"
         if [[ -e /simulation/.git ]]; then
             ln -s /simulation/.git \"\$overlay/.git\"
         fi

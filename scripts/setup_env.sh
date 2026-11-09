@@ -2,8 +2,9 @@
 
 set -euo pipefail
 
-PROJECT_ROOT=$(dirname "$(realpath "$0")")
-ENVIRONMENT_DIR="$PROJECT_ROOT/scripts/environment"
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+PROJECT_ROOT=$(realpath "$SCRIPT_DIR/..")
+ENVIRONMENT_DIR="$SCRIPT_DIR/environment"
 ENV_FILE="$ENVIRONMENT_DIR/.env.local"
 ENV_TEMPLATE="$ENVIRONMENT_DIR/.env.example"
 WITH_MIDAS=false
@@ -11,7 +12,7 @@ WITH_GAUDI=false
 WITH_BENCHMARKS=false
 
 show_help() {
-    echo "Usage: ./setup_env.sh [OPTIONS]"
+    echo "Usage: ./scripts/setup_env.sh [OPTIONS]"
     echo
     echo "Creates scripts/environment/.env.local from the committed template when absent,"
     echo "then validates the explicitly configured development environment."

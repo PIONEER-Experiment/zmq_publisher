@@ -8,6 +8,7 @@
 /build/
 /build-*/
 /.artifacts/
+/uploads/
 /bin/
 /Debug/
 /Release/
